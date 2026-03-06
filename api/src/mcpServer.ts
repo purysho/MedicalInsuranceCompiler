@@ -19,7 +19,7 @@ import { runDecision } from "./agents/decisionAgent.js";
 
 const TOOLS = [
   {
-    name: "alice.fhir.search",
+    name: "alice_fhir_search",
     description:
       "Search FHIR resources in the ALICE patient store. Returns matching resources for a given resourceType and optional filter parameters.",
     inputSchema: {
@@ -41,7 +41,7 @@ const TOOLS = [
     },
   },
   {
-    name: "alice.fhir.read",
+    name: "alice_fhir_read",
     description: "Read a single FHIR resource by resourceType and id.",
     inputSchema: {
       type: "object",
@@ -53,7 +53,7 @@ const TOOLS = [
     },
   },
   {
-    name: "alice.policy.check",
+    name: "alice_policy_check",
     description:
       "Check whether a prior authorization request satisfies payer policy criteria. Returns which criteria are met and which are missing.",
     inputSchema: {
@@ -72,7 +72,7 @@ const TOOLS = [
     },
   },
   {
-    name: "alice.run.medrec",
+    name: "alice_run_medrec",
     description:
       "Run medication reconciliation (BPMH) for a patient. Detects drug interactions, duplicates, and builds a Best Possible Medication History list. Returns FHIR List and any DetectedIssues.",
     inputSchema: {
@@ -86,7 +86,7 @@ const TOOLS = [
     },
   },
   {
-    name: "alice.run.evidence",
+    name: "alice_run_evidence",
     description:
       "Gather and assemble clinical evidence for a prior authorization request. Extracts T2D diagnosis, HbA1c observations, and step therapy history into a FHIR DocumentReference.",
     inputSchema: {
@@ -105,7 +105,7 @@ const TOOLS = [
     },
   },
   {
-    name: "alice.run.compose",
+    name: "alice_run_compose",
     description:
       "Compose a complete prior authorization FHIR Bundle (Claim + supporting documents). This is the final step before payer submission.",
     inputSchema: {
@@ -136,7 +136,7 @@ const TOOLS = [
     },
   },
   {
-    name: "alice.run.full_prior_auth",
+    name: "alice_run_full_prior_auth",
     description:
       "Run the complete ALICE prior authorization pipeline end-to-end for a patient: medication reconciliation → evidence gathering → policy check → packet composition. Returns a complete FHIR Bundle ready for payer submission.",
     inputSchema: {
@@ -164,17 +164,17 @@ async function executeTool(
   args: Record<string, any>
 ): Promise<any> {
   switch (name) {
-    case "alice.fhir.search":
+    case "alice_fhir_search":
       return store.search(args.resourceType, args.parameters ?? {});
 
-    case "alice.fhir.read": {
+    case "alice_fhir_read": {
       const resource = store.read(args.resourceType, args.id);
       if (!resource)
         throw new Error(`Resource ${args.resourceType}/${args.id} not found`);
       return resource;
     }
 
-    case "alice.policy.check": {
+    case "alice_policy_check": {
       const patientId = args.patientId ?? "patient-001";
       const conditions = store.search("Condition", { subject: patientId });
       const observations = store.search("Observation", { subject: patientId });
@@ -207,19 +207,19 @@ async function executeTool(
       });
     }
 
-    case "alice.run.medrec": {
+    case "alice_run_medrec": {
       const patientId = args.patientId ?? "patient-001";
       return runMedRec(store, patientId);
     }
 
-    case "alice.run.evidence": {
+    case "alice_run_evidence": {
       const patientId = args.patientId ?? "patient-001";
       if (!args.bpmhListId)
         throw new Error("bpmhListId is required for alice.run.evidence");
       return runEvidence(store, patientId, args.bpmhListId);
     }
 
-    case "alice.run.compose": {
+    case "alice_run_compose": {
       if (!args.medicationRequestId || !args.evidenceDocId || !args.bpmhListId)
         throw new Error(
           "medicationRequestId, evidenceDocId, bpmhListId are required"
@@ -233,7 +233,7 @@ async function executeTool(
       });
     }
 
-    case "alice.run.full_prior_auth": {
+    case "alice_run_full_prior_auth": {
       // Accept any patient ID format - map PO UUID to our seeded data
       const rawId = args.patientId ?? args.patient_id ?? LEGACY_PATIENT_ID;
       // Always seed on full_prior_auth to ensure data exists
