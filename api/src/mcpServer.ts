@@ -8,6 +8,7 @@
 
 import { Request, Response } from "express";
 import { FhirStore } from "./fhirStore.js";
+import { seedSynthetic, PO_PATIENT_ID, LEGACY_PATIENT_ID } from "./seed.js";
 import { checkPolicy } from "./policy.js";
 import { runMedRec } from "./agents/medrecAgent.js";
 import { runEvidence } from "./agents/evidenceAgent.js";
@@ -234,6 +235,11 @@ async function executeTool(
 
     case "alice.run.full_prior_auth": {
       const patientId = args.patientId ?? "patient-001";
+      // Auto-seed if this patient has no data yet
+      const existingPatient = store.read("Patient", patientId);
+      if (!existingPatient) {
+        seedSynthetic(store, { scenario: "complete" });
+      }
       const policyVariant = args.policyVariant ?? "standard";
 
       // Step 1: Med rec

@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import { FhirStore } from "./fhirStore.js";
-import { seedSynthetic } from "./seed.js";
+import { seedSynthetic, PO_PATIENT_ID } from "./seed.js";
 import { A2ABus } from "./a2a.js";
 import { runMedRec } from "./agents/medrecAgent.js";
 import { runEvidence } from "./agents/evidenceAgent.js";
