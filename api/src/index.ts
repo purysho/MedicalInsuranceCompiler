@@ -9,6 +9,7 @@ import { runComposePacket } from "./agents/packetComposerAgent.js";
 import { runDecision } from "./agents/decisionAgent.js";
 import { writeProvenance } from "./agents/auditAgent.js";
 import { clearMcpLog, getMcpLog, runTool } from "./mcp.js";
+import { createMcpHandler } from "./mcpServer.js";
 import { diffPolicies, getPolicyDefinition } from "./policies.js";
 import { randomUUID } from "crypto";
 import path from "path";
@@ -118,7 +119,24 @@ app.get("/", (_req, res) => {
   }
 });
 
-app.post("/mcp", async (req, res) => {
+// ── MCP Streamable HTTP endpoint (spec 2025-03-26) ───────────────────────────
+const mcpHandler = createMcpHandler(store);
+app.post("/mcp", mcpHandler);
+
+// Discovery endpoint
+app.get("/mcp", (_req, res) => {
+  res.json({
+    name: "alice-prior-auth-mcp",
+    version: "1.0.0",
+    description: "ALICE — AI-powered prior authorization MCP server",
+    transport: "streamable-http",
+    endpoint: "/mcp",
+    tools: ["alice.fhir.search","alice.fhir.read","alice.policy.check","alice.run.medrec","alice.run.evidence","alice.run.compose","alice.run.full_prior_auth"],
+  });
+});
+
+// Legacy simple endpoint for internal UI
+app.post("/mcp/legacy", async (req, res) => {
   try {
     const { tool, args } = req.body ?? {};
     const result = await runTool(store, tool, args);
