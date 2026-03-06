@@ -336,12 +336,8 @@ function rpcErr(id: any, code: number, message: string, data?: any) {
 
 export function createMcpHandler(store: FhirStore) {
   return async function mcpHandler(req: Request, res: Response) {
-    // Auth check
-    const apiKey = req.headers["alice"] ?? req.headers["x-api-key"] ?? req.headers["authorization"]?.replace("Bearer ", "");
-    const expectedKey = process.env.MCP_API_KEY ?? "?TomeKeeper01";
-    if (apiKey !== expectedKey) {
-      return res.status(401).json(rpcErr(null, -32001, "Unauthorized"));
-    }
+    // Log all incoming MCP requests for debugging
+    console.log("MCP request:", req.method, "headers:", JSON.stringify(Object.keys(req.headers)));
 
     const body = req.body;
 

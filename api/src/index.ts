@@ -19,8 +19,8 @@ const app = express();
 
 app.use(cors({
   origin: "*",
-  methods: ["GET", "POST", "OPTIONS"],
-  allowedHeaders: ["Content-Type"]
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-API-Key", "alice", "x-api-key", "mcp-session-id"]
 }));
 app.options("*", cors());
 app.use(express.json({ limit: "2mb" }));
