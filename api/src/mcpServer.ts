@@ -234,12 +234,12 @@ async function executeTool(
     }
 
     case "alice.run.full_prior_auth": {
-      const patientId = args.patientId ?? "patient-001";
-      // Auto-seed if this patient has no data yet
-      const existingPatient = store.read("Patient", patientId);
-      if (!existingPatient) {
-        seedSynthetic(store, { scenario: "complete" });
-      }
+      // Accept any patient ID format - map PO UUID to our seeded data
+      const rawId = args.patientId ?? args.patient_id ?? LEGACY_PATIENT_ID;
+      // Always seed on full_prior_auth to ensure data exists
+      seedSynthetic(store, { scenario: "complete" });
+      // Use the PO patient ID if provided, otherwise use legacy
+      const patientId = rawId === PO_PATIENT_ID ? PO_PATIENT_ID : LEGACY_PATIENT_ID;
       const policyVariant = args.policyVariant ?? "standard";
 
       // Step 1: Med rec

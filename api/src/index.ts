@@ -121,7 +121,12 @@ app.get("/", (_req, res) => {
 
 // ── MCP Streamable HTTP endpoint (spec 2025-03-26) ───────────────────────────
 const mcpHandler = createMcpHandler(store);
-app.post("/mcp", mcpHandler);
+app.post("/mcp", (req, res, next) => {
+  // MCP spec requires Mcp-Session-Id header in responses
+  res.setHeader("Mcp-Session-Id", req.headers["mcp-session-id"] as string ?? "alice-session-1");
+  res.setHeader("Access-Control-Expose-Headers", "Mcp-Session-Id");
+  return mcpHandler(req, res);
+});
 
 // Discovery endpoint
 app.get("/mcp", (_req, res) => {
