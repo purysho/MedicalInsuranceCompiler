@@ -1,0 +1,11 @@
+{
+  "name": "medicalinsurancecompiler",
+  "private": true,
+  "version": "0.1.0",
+  "engines": { "node": ">=20.0.0", "npm": ">=10.0.0" },
+  "workspaces": ["api", "ui"],
+  "scripts": {
+    "build": "cd ui && npm install && npm run build && cd ../api && npm install && npm run build",
+    "start": "npm -w api start"
+  }
+}
