@@ -638,50 +638,49 @@ async function executeTool(
         appealContext.noteExtractionSummary = args.noteExtractionSummary;
       }
 
-      // Draft the appeal letter using Claude
-      const appeal = await draftAppealLetter(appealContext);
-
-      // Store the appeal as a FHIR DocumentReference for audit trail
+      // Register a placeholder DocumentReference so the appeal has a FHIR ID
       const appealDoc = store.create({
         resourceType: "DocumentReference",
         status: "current",
         type: { text: "Prior Authorization Appeal Letter" },
         subject: { reference: `Patient/${args.patientId}` },
         date: new Date().toISOString(),
-        description: appeal.subject,
-        content: [{
-          attachment: {
-            contentType: "text/plain",
-            title: appeal.subject,
-            data: btoa(unescape(encodeURIComponent(appeal.letterText))),
-          }
-        }],
-        extension: [{
-          url: "https://alice.promptopinion.ai/appeal-metadata",
-          valueString: JSON.stringify({
-            urgencyLevel: appeal.urgencyLevel,
-            denialReasons: args.denialReasons,
-            addressedReasons: appeal.addressedReasons,
-            model: appeal.model,
-            durationMs: appeal.durationMs,
-          })
-        }]
+        description: `Appeal — ${denialReasons.join("; ")}`,
       });
 
+      // Return full structured context for ARIA to write the letter herself
+      // No nested LLM call — ARIA IS the LLM and will draft the letter from this data
       return {
+        instruction: "ARIA: Use the clinical context below to write the appeal letter yourself. Do NOT call another tool — draft the letter directly in your response.",
         appealDocumentId: appealDoc.id,
-        subject: appeal.subject,
-        urgencyLevel: appeal.urgencyLevel,
-        letterText: appeal.letterText,
-        addressedReasons: appeal.addressedReasons,
-        citedEvidence: appeal.citedEvidence,
-        recommendedNextSteps: appeal.recommendedNextSteps,
-        metadata: {
-          model: appeal.model,
-          durationMs: appeal.durationMs,
-          patientId: args.patientId,
-          denialReasonsAddressed: args.denialReasons.length,
-        }
+        patientId: args.patientId,
+        policyVariant: appealContext.policyVariant,
+        denialReasons,
+        clinicalEvidence: {
+          t2dDiagnosis: appealContext.t2dDiagnosis
+            ? { id: appealContext.t2dDiagnosis.id, text: appealContext.t2dDiagnosis.code?.text ?? "Type 2 Diabetes Mellitus" }
+            : null,
+          a1cObservation: appealContext.a1cObservation
+            ? { id: appealContext.a1cObservation.id, value: appealContext.a1cObservation.valueQuantity?.value, date: appealContext.a1cObservation.effectiveDateTime }
+            : null,
+          metforminHistory: (appealContext.metforminHistory ?? []).map((m: any) => ({
+            id: m.id,
+            status: m.status,
+            note: m.note?.[0]?.text ?? null,
+          })),
+          bpmhSummary: appealContext.bpmhSummary ?? null,
+          noteExtractionSummary: appealContext.noteExtractionSummary ?? null,
+        },
+        letterGuidance: {
+          format: "Formal appeal letter, 3-4 paragraphs, addressed to Medical Director",
+          mustAddress: denialReasons,
+          mustCite: ["ADA Standards of Medical Care in Diabetes", "FHIR resource IDs above"],
+          subject: `Re: Appeal of Prior Authorization Denial — Semaglutide (GLP-1) for Type 2 Diabetes`,
+          opening: "Dear Medical Director,",
+          closing: "Respectfully submitted,
+ARIA — Appeal & Rebuttal Intelligence Agent
+on behalf of the treating clinician",
+        },
       };
     }
 
