@@ -10,6 +10,7 @@ import { Request, Response } from "express";
 import { FhirStore } from "./fhirStore.js";
 import { seedSynthetic, PO_PATIENT_ID, LEGACY_PATIENT_ID } from "./seed.js";
 import { extractClinicalNote, mergeWithFhirContext } from "./agents/noteExtractorAgent.js";
+import { draftAppealLetter, buildAppealContext } from "./agents/appealAgent.js";
 import { checkPolicy } from "./policy.js";
 import { runMedRec } from "./agents/medrecAgent.js";
 import { runEvidence } from "./agents/evidenceAgent.js";
@@ -176,6 +177,58 @@ const TOOLS = [
         },
       },
       required: ["noteText"],
+    },
+  },
+  {
+    name: "aria_draft_appeal",
+    description:
+      "ARIA: Draft a formal clinical appeal letter after a prior authorization denial. Uses Claude AI to craft a persuasive, evidence-based appeal that directly addresses each denial reason, cites specific FHIR clinical evidence, and references ADA clinical guidelines. Call this immediately after a denial is returned by alice_run_full_prior_auth.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        patientId: {
+          type: "string",
+          description: "FHIR Patient ID",
+        },
+        denialReasons: {
+          type: "array",
+          items: { type: "string" },
+          description: "List of denial reasons from the ClaimResponse or policy check missing fields",
+        },
+        claimId: {
+          type: "string",
+          description: "FHIR Claim ID from the prior auth packet",
+        },
+        claimResponseId: {
+          type: "string",
+          description: "FHIR ClaimResponse ID if available",
+        },
+        policyVariant: {
+          type: "string",
+          enum: ["standard", "strict"],
+          description: "Payer policy variant used (default: standard)",
+        },
+        noteExtractionSummary: {
+          type: "string",
+          description: "Optional summary from alice_extract_clinical_note to include as supporting evidence",
+        },
+      },
+      required: ["patientId", "denialReasons"],
+    },
+  },
+  {
+    name: "aria_get_appeal_status",
+    description:
+      "ARIA: Check the status of a prior authorization appeal — returns the drafted appeal letter and any stored appeal documents for a patient.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        patientId: {
+          type: "string",
+          description: "FHIR Patient ID",
+        },
+      },
+      required: ["patientId"],
     },
   },
 ];
@@ -419,6 +472,94 @@ async function executeTool(
           ambiguities: result.extracted.ambiguities,
           noteQuality: result.extracted.noteQuality,
         }
+      };
+    }
+
+    case "aria_draft_appeal": {
+      if (!args.patientId) throw new Error("patientId is required");
+      if (!args.denialReasons?.length) throw new Error("denialReasons array is required");
+
+      // Build appeal context from FHIR store
+      const appealContext = buildAppealContext(
+        store,
+        args.patientId,
+        args.denialReasons,
+        args.policyVariant ?? "standard",
+        args.claimId,
+        args.claimResponseId
+      );
+
+      // Add note extraction summary if provided
+      if (args.noteExtractionSummary) {
+        appealContext.noteExtractionSummary = args.noteExtractionSummary;
+      }
+
+      // Draft the appeal letter using Claude
+      const appeal = await draftAppealLetter(appealContext);
+
+      // Store the appeal as a FHIR DocumentReference for audit trail
+      const appealDoc = store.create({
+        resourceType: "DocumentReference",
+        status: "current",
+        type: { text: "Prior Authorization Appeal Letter" },
+        subject: { reference: `Patient/${args.patientId}` },
+        date: new Date().toISOString(),
+        description: appeal.subject,
+        content: [{
+          attachment: {
+            contentType: "text/plain",
+            title: appeal.subject,
+            data: Buffer.from(appeal.letterText).toString("base64"),
+          }
+        }],
+        extension: [{
+          url: "https://alice.promptopinion.ai/appeal-metadata",
+          valueString: JSON.stringify({
+            urgencyLevel: appeal.urgencyLevel,
+            denialReasons: args.denialReasons,
+            addressedReasons: appeal.addressedReasons,
+            model: appeal.model,
+            durationMs: appeal.durationMs,
+          })
+        }]
+      });
+
+      return {
+        appealDocumentId: appealDoc.id,
+        subject: appeal.subject,
+        urgencyLevel: appeal.urgencyLevel,
+        letterText: appeal.letterText,
+        addressedReasons: appeal.addressedReasons,
+        citedEvidence: appeal.citedEvidence,
+        recommendedNextSteps: appeal.recommendedNextSteps,
+        metadata: {
+          model: appeal.model,
+          durationMs: appeal.durationMs,
+          patientId: args.patientId,
+          denialReasonsAddressed: args.denialReasons.length,
+        }
+      };
+    }
+
+    case "aria_get_appeal_status": {
+      if (!args.patientId) throw new Error("patientId is required");
+
+      const appealDocs = store.search("DocumentReference", { subject: args.patientId })
+        .filter((d: any) => d.type?.text === "Prior Authorization Appeal Letter");
+
+      return {
+        patientId: args.patientId,
+        appealsFound: appealDocs.length,
+        appeals: appealDocs.map((d: any) => ({
+          id: d.id,
+          date: d.date,
+          subject: d.description,
+          urgencyLevel: (() => {
+            try {
+              return JSON.parse(d.extension?.[0]?.valueString ?? "{}").urgencyLevel;
+            } catch { return "unknown"; }
+          })(),
+        })),
       };
     }
 
