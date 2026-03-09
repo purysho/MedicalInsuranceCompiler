@@ -63,6 +63,11 @@ export default function App() {
 
   const lastRunRef = useRef<number>(0);
 
+  // Audit trail state
+  const [auditTrail, setAuditTrail] = useState<any | null>(null);
+  const [auditBusy, setAuditBusy] = useState(false);
+  const [auditView, setAuditView] = useState<"timeline" | "graph">("timeline");
+
   // SMART Health IT state
   const [smartQuery, setSmartQuery] = useState("");
   const [smartResults, setSmartResults] = useState<any[]>([]);
@@ -283,6 +288,18 @@ export default function App() {
       setMessages(out);
       return out;
     });
+  }
+
+  async function onLoadAudit() {
+    setAuditBusy(true);
+    try {
+      const res = await get("/api/audit/patient-001");
+      setAuditTrail(res);
+    } catch (e: any) {
+      setAuditTrail(null);
+    } finally {
+      setAuditBusy(false);
+    }
   }
 
   async function onSmartSearch() {
@@ -1074,6 +1091,255 @@ export default function App() {
           </div>
         </div>
       </div>
+
+      {/* ── Audit Trail Visualization ─────────────────────────────────────── */}
+      <div className="card" style={{ marginTop: 24, borderColor: "rgba(139,92,246,0.3)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <h2 style={{ margin: 0 }}>🔍 Audit Trail & Provenance</h2>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              className={`small ${auditView === "timeline" ? "primary" : ""}`}
+              onClick={() => setAuditView("timeline")}
+            >Timeline</button>
+            <button
+              className={`small ${auditView === "graph" ? "primary" : ""}`}
+              onClick={() => setAuditView("graph")}
+            >Graph</button>
+            <button className="small" onClick={onLoadAudit} disabled={auditBusy}>
+              {auditBusy ? "Loading…" : "Refresh"}
+            </button>
+          </div>
+        </div>
+
+        {!auditTrail ? (
+          <div className="muted" style={{ textAlign: "center", padding: "32px 0" }}>
+            Run a prior authorization to generate an audit trail.
+            <br />
+            <button className="small" style={{ marginTop: 12 }} onClick={onLoadAudit}>Load Audit Trail</button>
+          </div>
+        ) : (
+          <>
+            {/* Summary bar */}
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+              {[
+                { label: "Decision", value: auditTrail.finalDecision?.toUpperCase() ?? "PENDING",
+                  color: auditTrail.finalDecision === "approved" ? "rgba(34,197,94,0.8)"
+                    : auditTrail.finalDecision === "denied" ? "rgba(239,68,68,0.8)"
+                    : auditTrail.finalDecision === "appealed" ? "rgba(251,191,36,0.8)"
+                    : "rgba(148,163,184,0.8)" },
+                { label: "Events", value: auditTrail.summary.totalEvents, color: "rgba(139,92,246,0.8)" },
+                { label: "Agents", value: auditTrail.summary.agentsInvolved.join(", "), color: "rgba(59,130,246,0.8)" },
+                { label: "AI Decisions", value: auditTrail.summary.aiDecisionsMade, color: "rgba(236,72,153,0.8)" },
+                { label: "FHIR Created", value: auditTrail.summary.fhirResourcesCreated, color: "rgba(20,184,166,0.8)" },
+                { label: "Appeal", value: auditTrail.summary.appealDrafted ? "Yes" : "No",
+                  color: auditTrail.summary.appealDrafted ? "rgba(251,191,36,0.8)" : "rgba(148,163,184,0.5)" },
+                { label: "Duration", value: auditTrail.summary.durationMs ? `${(auditTrail.summary.durationMs/1000).toFixed(1)}s` : "—", color: "rgba(148,163,184,0.8)" },
+              ].map(({ label, value, color }) => (
+                <div key={label} style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${color}`, borderRadius: 8, padding: "8px 14px", minWidth: 80 }}>
+                  <div style={{ fontSize: 10, color: "rgba(148,163,184,0.8)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 2 }}>{label}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color }}>{String(value)}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Data sources */}
+            {auditTrail.summary.dataSourcesUsed?.length > 0 && (
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+                <span className="muted" style={{ fontSize: 11 }}>Data sources:</span>
+                {auditTrail.summary.dataSourcesUsed.map((ds: string) => (
+                  <span key={ds} style={{ fontSize: 11, padding: "2px 8px", borderRadius: 12, background:
+                    ds === "fhir-local" ? "rgba(59,130,246,0.15)" :
+                    ds === "fhir-smart-health-it" ? "rgba(20,184,166,0.15)" :
+                    ds === "ai-note-extraction" ? "rgba(236,72,153,0.15)" :
+                    ds === "ai-policy-check" ? "rgba(139,92,246,0.15)" :
+                    ds === "ai-appeal" ? "rgba(251,191,36,0.15)" :
+                    "rgba(148,163,184,0.15)",
+                    color: "rgba(255,255,255,0.75)", border: "1px solid rgba(255,255,255,0.08)"
+                  }}>
+                    {ds === "fhir-local" ? "📋 Local FHIR" :
+                     ds === "fhir-smart-health-it" ? "🌐 SMART Health IT" :
+                     ds === "ai-note-extraction" ? "🤖 AI Note Extraction" :
+                     ds === "ai-policy-check" ? "⚖️ AI Policy Check" :
+                     ds === "ai-appeal" ? "📝 AI Appeal" :
+                     ds === "synthetic-seed" ? "🧪 Synthetic" : ds}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {auditView === "timeline" ? (
+              /* TIMELINE VIEW */
+              <div style={{ position: "relative" }}>
+                {/* Vertical line */}
+                <div style={{ position: "absolute", left: 18, top: 0, bottom: 0, width: 2, background: "rgba(139,92,246,0.2)", borderRadius: 2 }} />
+                <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+                  {(auditTrail.events ?? []).map((event: any, i: number) => {
+                    const agentColor = event.agent === "ALICE" ? "#3b82f6"
+                      : event.agent === "ARIA" ? "#f59e0b"
+                      : "#6b7280";
+                    const typeIcon = event.type === "pipeline_start" ? "▶" :
+                      event.type === "pipeline_complete" ? "✓" :
+                      event.type === "ai_decision" ? "🤖" :
+                      event.type === "agent_handoff" ? "↗" :
+                      event.type === "resource_created" ? "+" :
+                      event.type === "appeal_drafted" ? "📝" :
+                      event.type === "tool_called" ? "⚙" : "●";
+                    const isAI = event.type === "ai_decision" || event.type === "appeal_drafted";
+                    return (
+                      <div key={event.id ?? i} style={{ display: "flex", gap: 12, paddingBottom: 16, position: "relative" }}>
+                        {/* Node */}
+                        <div style={{ width: 38, flexShrink: 0, display: "flex", justifyContent: "center" }}>
+                          <div style={{
+                            width: 28, height: 28, borderRadius: "50%",
+                            background: `${agentColor}22`, border: `2px solid ${agentColor}`,
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            fontSize: 12, zIndex: 1, position: "relative",
+                          }}>{typeIcon}</div>
+                        </div>
+                        {/* Content */}
+                        <div style={{ flex: 1, background: "rgba(255,255,255,0.03)", borderRadius: 8,
+                          border: `1px solid ${isAI ? "rgba(139,92,246,0.2)" : "rgba(255,255,255,0.06)"}`,
+                          padding: "10px 14px" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 4 }}>
+                            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                              <span style={{ fontSize: 12, fontWeight: 600, color: agentColor }}>{event.agent}</span>
+                              <span style={{ fontSize: 11, fontFamily: "monospace", color: "rgba(148,163,184,0.7)",
+                                background: "rgba(0,0,0,0.2)", padding: "1px 6px", borderRadius: 4 }}>{event.action}</span>
+                            </div>
+                            <span style={{ fontSize: 10, color: "rgba(100,116,139,0.8)", whiteSpace: "nowrap" }}>
+                              {new Date(event.timestamp).toLocaleTimeString()}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: 13, color: "rgba(226,232,240,0.85)", marginBottom: event.aiDecision ? 8 : 0 }}>
+                            {event.description}
+                          </div>
+                          {/* AI Decision block */}
+                          {event.aiDecision && (
+                            <div style={{ marginTop: 8, padding: "8px 10px", background: "rgba(139,92,246,0.08)",
+                              border: "1px solid rgba(139,92,246,0.2)", borderRadius: 6 }}>
+                              <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
+                                <span style={{ fontSize: 11, fontWeight: 600, color:
+                                  event.aiDecision.decision === "APPROVED" ? "#22c55e" :
+                                  event.aiDecision.decision === "DENIED" ? "#ef4444" :
+                                  "#a78bfa" }}>{event.aiDecision.decision}</span>
+                                {event.aiDecision.confidence && (
+                                  <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 8,
+                                    background: event.aiDecision.confidence === "high" ? "rgba(34,197,94,0.15)" :
+                                      event.aiDecision.confidence === "medium" ? "rgba(251,191,36,0.15)" : "rgba(239,68,68,0.15)",
+                                    color: event.aiDecision.confidence === "high" ? "#4ade80" :
+                                      event.aiDecision.confidence === "medium" ? "#fbbf24" : "#f87171",
+                                  }}>Confidence: {event.aiDecision.confidence}</span>
+                                )}
+                                {event.aiDecision.model && (
+                                  <span style={{ fontSize: 10, color: "rgba(148,163,184,0.6)", fontFamily: "monospace" }}>
+                                    {event.aiDecision.model}
+                                  </span>
+                                )}
+                              </div>
+                              <div style={{ fontSize: 12, color: "rgba(203,213,225,0.8)" }}>{event.aiDecision.reasoning}</div>
+                              {event.aiDecision.ambiguities?.length > 0 && (
+                                <div style={{ marginTop: 6 }}>
+                                  {event.aiDecision.ambiguities.map((a: string, j: number) => (
+                                    <div key={j} style={{ fontSize: 11, color: "rgba(251,191,36,0.8)", marginTop: 2 }}>⚠ {a}</div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {/* Resources */}
+                          {event.resourcesCreated?.length > 0 && (
+                            <div style={{ marginTop: 6, display: "flex", gap: 4, flexWrap: "wrap" }}>
+                              {event.resourcesCreated.map((r: any, j: number) => (
+                                <span key={j} style={{ fontSize: 10, padding: "1px 6px", borderRadius: 4,
+                                  background: "rgba(20,184,166,0.1)", color: "rgba(94,234,212,0.8)",
+                                  border: "1px solid rgba(20,184,166,0.2)", fontFamily: "monospace" }}>
+                                  +{r.resourceType}/{r.id?.slice(0,8)}…
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          {/* Data sources */}
+                          {event.dataSources?.length > 0 && (
+                            <div style={{ marginTop: 6, display: "flex", gap: 4, flexWrap: "wrap" }}>
+                              {event.dataSources.map((ds: string, j: number) => (
+                                <span key={j} style={{ fontSize: 10, padding: "1px 6px", borderRadius: 4,
+                                  background: "rgba(255,255,255,0.05)", color: "rgba(148,163,184,0.7)",
+                                  border: "1px solid rgba(255,255,255,0.08)" }}>{ds}</span>
+                              ))}
+                            </div>
+                          )}
+                          {/* Agent handoff */}
+                          {event.handoff && (
+                            <div style={{ marginTop: 8, padding: "6px 10px", background: "rgba(245,158,11,0.08)",
+                              border: "1px solid rgba(245,158,11,0.2)", borderRadius: 6, fontSize: 12 }}>
+                              <span style={{ color: "#f59e0b", fontWeight: 600 }}>↗ Handoff</span>
+                              <span style={{ color: "rgba(203,213,225,0.8)", marginLeft: 8 }}>
+                                {event.handoff.from} → {event.handoff.to}: {event.handoff.reason}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              /* GRAPH VIEW */
+              <div style={{ overflowX: "auto" }}>
+                <svg width="100%" viewBox="0 0 800 320" style={{ minWidth: 600 }}>
+                  <defs>
+                    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                      <path d="M0,0 L0,6 L8,3 z" fill="rgba(139,92,246,0.6)" />
+                    </marker>
+                  </defs>
+                  {/* Nodes */}
+                  {(auditTrail.events ?? []).filter((_: any, i: number) => i < 8).map((event: any, i: number) => {
+                    const x = 60 + (i % 4) * 185;
+                    const y = i < 4 ? 80 : 220;
+                    const agentColor = event.agent === "ALICE" ? "#3b82f6" : event.agent === "ARIA" ? "#f59e0b" : "#6b7280";
+                    const nextI = i + 1;
+                    const nextX = 60 + (nextI % 4) * 185;
+                    const nextY = nextI < 4 ? 80 : 220;
+                    return (
+                      <g key={event.id ?? i}>
+                        {/* Edge to next */}
+                        {i < Math.min((auditTrail.events?.length ?? 0) - 1, 7) && (
+                          <line x1={x + 50} y1={y} x2={nextX - 50} y2={nextY}
+                            stroke="rgba(139,92,246,0.4)" strokeWidth="1.5"
+                            markerEnd="url(#arrow)" strokeDasharray={i === 3 ? "4,3" : "none"} />
+                        )}
+                        {/* Node circle */}
+                        <circle cx={x} cy={y} r={32} fill={`${agentColor}18`} stroke={agentColor} strokeWidth="1.5" />
+                        <text x={x} y={y - 8} textAnchor="middle" fontSize="10" fill={agentColor} fontWeight="600">{event.agent}</text>
+                        <text x={x} y={y + 5} textAnchor="middle" fontSize="8" fill="rgba(148,163,184,0.7)">{event.action?.slice(0, 12)}</text>
+                        <text x={x} y={y + 16} textAnchor="middle" fontSize="8" fill="rgba(148,163,184,0.5)">{event.type?.replace("_"," ")}</text>
+                        {/* AI badge */}
+                        {event.aiDecision && (
+                          <circle cx={x + 28} cy={y - 28} r={8} fill="rgba(139,92,246,0.8)" />
+                        )}
+                        {event.aiDecision && (
+                          <text x={x + 28} y={y - 24} textAnchor="middle" fontSize="8" fill="white">AI</text>
+                        )}
+                      </g>
+                    );
+                  })}
+                  {/* Legend */}
+                  <g transform="translate(620, 20)">
+                    <circle cx={8} cy={8} r={6} fill="rgba(59,130,246,0.2)" stroke="#3b82f6" strokeWidth="1.5" />
+                    <text x={18} y={12} fontSize="9" fill="rgba(148,163,184,0.8)">ALICE</text>
+                    <circle cx={8} cy={26} r={6} fill="rgba(245,158,11,0.2)" stroke="#f59e0b" strokeWidth="1.5" />
+                    <text x={18} y={30} fontSize="9" fill="rgba(148,163,184,0.8)">ARIA</text>
+                    <circle cx={8} cy={44} r={6} fill="rgba(139,92,246,0.8)" />
+                    <text x={18} y={48} fontSize="9" fill="rgba(148,163,184,0.8)">AI Decision</text>
+                  </g>
+                </svg>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
     </div>
   );
 }
@@ -1125,6 +1391,255 @@ function SourceCol({ title, items }: { title: string; items: Array<{ primary: st
           ))
         )}
       </div>
+
+      {/* ── Audit Trail Visualization ─────────────────────────────────────── */}
+      <div className="card" style={{ marginTop: 24, borderColor: "rgba(139,92,246,0.3)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <h2 style={{ margin: 0 }}>🔍 Audit Trail & Provenance</h2>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              className={`small ${auditView === "timeline" ? "primary" : ""}`}
+              onClick={() => setAuditView("timeline")}
+            >Timeline</button>
+            <button
+              className={`small ${auditView === "graph" ? "primary" : ""}`}
+              onClick={() => setAuditView("graph")}
+            >Graph</button>
+            <button className="small" onClick={onLoadAudit} disabled={auditBusy}>
+              {auditBusy ? "Loading…" : "Refresh"}
+            </button>
+          </div>
+        </div>
+
+        {!auditTrail ? (
+          <div className="muted" style={{ textAlign: "center", padding: "32px 0" }}>
+            Run a prior authorization to generate an audit trail.
+            <br />
+            <button className="small" style={{ marginTop: 12 }} onClick={onLoadAudit}>Load Audit Trail</button>
+          </div>
+        ) : (
+          <>
+            {/* Summary bar */}
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+              {[
+                { label: "Decision", value: auditTrail.finalDecision?.toUpperCase() ?? "PENDING",
+                  color: auditTrail.finalDecision === "approved" ? "rgba(34,197,94,0.8)"
+                    : auditTrail.finalDecision === "denied" ? "rgba(239,68,68,0.8)"
+                    : auditTrail.finalDecision === "appealed" ? "rgba(251,191,36,0.8)"
+                    : "rgba(148,163,184,0.8)" },
+                { label: "Events", value: auditTrail.summary.totalEvents, color: "rgba(139,92,246,0.8)" },
+                { label: "Agents", value: auditTrail.summary.agentsInvolved.join(", "), color: "rgba(59,130,246,0.8)" },
+                { label: "AI Decisions", value: auditTrail.summary.aiDecisionsMade, color: "rgba(236,72,153,0.8)" },
+                { label: "FHIR Created", value: auditTrail.summary.fhirResourcesCreated, color: "rgba(20,184,166,0.8)" },
+                { label: "Appeal", value: auditTrail.summary.appealDrafted ? "Yes" : "No",
+                  color: auditTrail.summary.appealDrafted ? "rgba(251,191,36,0.8)" : "rgba(148,163,184,0.5)" },
+                { label: "Duration", value: auditTrail.summary.durationMs ? `${(auditTrail.summary.durationMs/1000).toFixed(1)}s` : "—", color: "rgba(148,163,184,0.8)" },
+              ].map(({ label, value, color }) => (
+                <div key={label} style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${color}`, borderRadius: 8, padding: "8px 14px", minWidth: 80 }}>
+                  <div style={{ fontSize: 10, color: "rgba(148,163,184,0.8)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 2 }}>{label}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color }}>{String(value)}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Data sources */}
+            {auditTrail.summary.dataSourcesUsed?.length > 0 && (
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+                <span className="muted" style={{ fontSize: 11 }}>Data sources:</span>
+                {auditTrail.summary.dataSourcesUsed.map((ds: string) => (
+                  <span key={ds} style={{ fontSize: 11, padding: "2px 8px", borderRadius: 12, background:
+                    ds === "fhir-local" ? "rgba(59,130,246,0.15)" :
+                    ds === "fhir-smart-health-it" ? "rgba(20,184,166,0.15)" :
+                    ds === "ai-note-extraction" ? "rgba(236,72,153,0.15)" :
+                    ds === "ai-policy-check" ? "rgba(139,92,246,0.15)" :
+                    ds === "ai-appeal" ? "rgba(251,191,36,0.15)" :
+                    "rgba(148,163,184,0.15)",
+                    color: "rgba(255,255,255,0.75)", border: "1px solid rgba(255,255,255,0.08)"
+                  }}>
+                    {ds === "fhir-local" ? "📋 Local FHIR" :
+                     ds === "fhir-smart-health-it" ? "🌐 SMART Health IT" :
+                     ds === "ai-note-extraction" ? "🤖 AI Note Extraction" :
+                     ds === "ai-policy-check" ? "⚖️ AI Policy Check" :
+                     ds === "ai-appeal" ? "📝 AI Appeal" :
+                     ds === "synthetic-seed" ? "🧪 Synthetic" : ds}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {auditView === "timeline" ? (
+              /* TIMELINE VIEW */
+              <div style={{ position: "relative" }}>
+                {/* Vertical line */}
+                <div style={{ position: "absolute", left: 18, top: 0, bottom: 0, width: 2, background: "rgba(139,92,246,0.2)", borderRadius: 2 }} />
+                <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+                  {(auditTrail.events ?? []).map((event: any, i: number) => {
+                    const agentColor = event.agent === "ALICE" ? "#3b82f6"
+                      : event.agent === "ARIA" ? "#f59e0b"
+                      : "#6b7280";
+                    const typeIcon = event.type === "pipeline_start" ? "▶" :
+                      event.type === "pipeline_complete" ? "✓" :
+                      event.type === "ai_decision" ? "🤖" :
+                      event.type === "agent_handoff" ? "↗" :
+                      event.type === "resource_created" ? "+" :
+                      event.type === "appeal_drafted" ? "📝" :
+                      event.type === "tool_called" ? "⚙" : "●";
+                    const isAI = event.type === "ai_decision" || event.type === "appeal_drafted";
+                    return (
+                      <div key={event.id ?? i} style={{ display: "flex", gap: 12, paddingBottom: 16, position: "relative" }}>
+                        {/* Node */}
+                        <div style={{ width: 38, flexShrink: 0, display: "flex", justifyContent: "center" }}>
+                          <div style={{
+                            width: 28, height: 28, borderRadius: "50%",
+                            background: `${agentColor}22`, border: `2px solid ${agentColor}`,
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            fontSize: 12, zIndex: 1, position: "relative",
+                          }}>{typeIcon}</div>
+                        </div>
+                        {/* Content */}
+                        <div style={{ flex: 1, background: "rgba(255,255,255,0.03)", borderRadius: 8,
+                          border: `1px solid ${isAI ? "rgba(139,92,246,0.2)" : "rgba(255,255,255,0.06)"}`,
+                          padding: "10px 14px" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 4 }}>
+                            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                              <span style={{ fontSize: 12, fontWeight: 600, color: agentColor }}>{event.agent}</span>
+                              <span style={{ fontSize: 11, fontFamily: "monospace", color: "rgba(148,163,184,0.7)",
+                                background: "rgba(0,0,0,0.2)", padding: "1px 6px", borderRadius: 4 }}>{event.action}</span>
+                            </div>
+                            <span style={{ fontSize: 10, color: "rgba(100,116,139,0.8)", whiteSpace: "nowrap" }}>
+                              {new Date(event.timestamp).toLocaleTimeString()}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: 13, color: "rgba(226,232,240,0.85)", marginBottom: event.aiDecision ? 8 : 0 }}>
+                            {event.description}
+                          </div>
+                          {/* AI Decision block */}
+                          {event.aiDecision && (
+                            <div style={{ marginTop: 8, padding: "8px 10px", background: "rgba(139,92,246,0.08)",
+                              border: "1px solid rgba(139,92,246,0.2)", borderRadius: 6 }}>
+                              <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
+                                <span style={{ fontSize: 11, fontWeight: 600, color:
+                                  event.aiDecision.decision === "APPROVED" ? "#22c55e" :
+                                  event.aiDecision.decision === "DENIED" ? "#ef4444" :
+                                  "#a78bfa" }}>{event.aiDecision.decision}</span>
+                                {event.aiDecision.confidence && (
+                                  <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 8,
+                                    background: event.aiDecision.confidence === "high" ? "rgba(34,197,94,0.15)" :
+                                      event.aiDecision.confidence === "medium" ? "rgba(251,191,36,0.15)" : "rgba(239,68,68,0.15)",
+                                    color: event.aiDecision.confidence === "high" ? "#4ade80" :
+                                      event.aiDecision.confidence === "medium" ? "#fbbf24" : "#f87171",
+                                  }}>Confidence: {event.aiDecision.confidence}</span>
+                                )}
+                                {event.aiDecision.model && (
+                                  <span style={{ fontSize: 10, color: "rgba(148,163,184,0.6)", fontFamily: "monospace" }}>
+                                    {event.aiDecision.model}
+                                  </span>
+                                )}
+                              </div>
+                              <div style={{ fontSize: 12, color: "rgba(203,213,225,0.8)" }}>{event.aiDecision.reasoning}</div>
+                              {event.aiDecision.ambiguities?.length > 0 && (
+                                <div style={{ marginTop: 6 }}>
+                                  {event.aiDecision.ambiguities.map((a: string, j: number) => (
+                                    <div key={j} style={{ fontSize: 11, color: "rgba(251,191,36,0.8)", marginTop: 2 }}>⚠ {a}</div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {/* Resources */}
+                          {event.resourcesCreated?.length > 0 && (
+                            <div style={{ marginTop: 6, display: "flex", gap: 4, flexWrap: "wrap" }}>
+                              {event.resourcesCreated.map((r: any, j: number) => (
+                                <span key={j} style={{ fontSize: 10, padding: "1px 6px", borderRadius: 4,
+                                  background: "rgba(20,184,166,0.1)", color: "rgba(94,234,212,0.8)",
+                                  border: "1px solid rgba(20,184,166,0.2)", fontFamily: "monospace" }}>
+                                  +{r.resourceType}/{r.id?.slice(0,8)}…
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          {/* Data sources */}
+                          {event.dataSources?.length > 0 && (
+                            <div style={{ marginTop: 6, display: "flex", gap: 4, flexWrap: "wrap" }}>
+                              {event.dataSources.map((ds: string, j: number) => (
+                                <span key={j} style={{ fontSize: 10, padding: "1px 6px", borderRadius: 4,
+                                  background: "rgba(255,255,255,0.05)", color: "rgba(148,163,184,0.7)",
+                                  border: "1px solid rgba(255,255,255,0.08)" }}>{ds}</span>
+                              ))}
+                            </div>
+                          )}
+                          {/* Agent handoff */}
+                          {event.handoff && (
+                            <div style={{ marginTop: 8, padding: "6px 10px", background: "rgba(245,158,11,0.08)",
+                              border: "1px solid rgba(245,158,11,0.2)", borderRadius: 6, fontSize: 12 }}>
+                              <span style={{ color: "#f59e0b", fontWeight: 600 }}>↗ Handoff</span>
+                              <span style={{ color: "rgba(203,213,225,0.8)", marginLeft: 8 }}>
+                                {event.handoff.from} → {event.handoff.to}: {event.handoff.reason}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              /* GRAPH VIEW */
+              <div style={{ overflowX: "auto" }}>
+                <svg width="100%" viewBox="0 0 800 320" style={{ minWidth: 600 }}>
+                  <defs>
+                    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                      <path d="M0,0 L0,6 L8,3 z" fill="rgba(139,92,246,0.6)" />
+                    </marker>
+                  </defs>
+                  {/* Nodes */}
+                  {(auditTrail.events ?? []).filter((_: any, i: number) => i < 8).map((event: any, i: number) => {
+                    const x = 60 + (i % 4) * 185;
+                    const y = i < 4 ? 80 : 220;
+                    const agentColor = event.agent === "ALICE" ? "#3b82f6" : event.agent === "ARIA" ? "#f59e0b" : "#6b7280";
+                    const nextI = i + 1;
+                    const nextX = 60 + (nextI % 4) * 185;
+                    const nextY = nextI < 4 ? 80 : 220;
+                    return (
+                      <g key={event.id ?? i}>
+                        {/* Edge to next */}
+                        {i < Math.min((auditTrail.events?.length ?? 0) - 1, 7) && (
+                          <line x1={x + 50} y1={y} x2={nextX - 50} y2={nextY}
+                            stroke="rgba(139,92,246,0.4)" strokeWidth="1.5"
+                            markerEnd="url(#arrow)" strokeDasharray={i === 3 ? "4,3" : "none"} />
+                        )}
+                        {/* Node circle */}
+                        <circle cx={x} cy={y} r={32} fill={`${agentColor}18`} stroke={agentColor} strokeWidth="1.5" />
+                        <text x={x} y={y - 8} textAnchor="middle" fontSize="10" fill={agentColor} fontWeight="600">{event.agent}</text>
+                        <text x={x} y={y + 5} textAnchor="middle" fontSize="8" fill="rgba(148,163,184,0.7)">{event.action?.slice(0, 12)}</text>
+                        <text x={x} y={y + 16} textAnchor="middle" fontSize="8" fill="rgba(148,163,184,0.5)">{event.type?.replace("_"," ")}</text>
+                        {/* AI badge */}
+                        {event.aiDecision && (
+                          <circle cx={x + 28} cy={y - 28} r={8} fill="rgba(139,92,246,0.8)" />
+                        )}
+                        {event.aiDecision && (
+                          <text x={x + 28} y={y - 24} textAnchor="middle" fontSize="8" fill="white">AI</text>
+                        )}
+                      </g>
+                    );
+                  })}
+                  {/* Legend */}
+                  <g transform="translate(620, 20)">
+                    <circle cx={8} cy={8} r={6} fill="rgba(59,130,246,0.2)" stroke="#3b82f6" strokeWidth="1.5" />
+                    <text x={18} y={12} fontSize="9" fill="rgba(148,163,184,0.8)">ALICE</text>
+                    <circle cx={8} cy={26} r={6} fill="rgba(245,158,11,0.2)" stroke="#f59e0b" strokeWidth="1.5" />
+                    <text x={18} y={30} fontSize="9" fill="rgba(148,163,184,0.8)">ARIA</text>
+                    <circle cx={8} cy={44} r={6} fill="rgba(139,92,246,0.8)" />
+                    <text x={18} y={48} fontSize="9" fill="rgba(148,163,184,0.8)">AI Decision</text>
+                  </g>
+                </svg>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
     </div>
   );
 }
