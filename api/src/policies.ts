@@ -38,11 +38,22 @@ export const POLICY_LIBRARY: Record<string, PolicyDefinition> = {
       { key: "a1c", label: "HbA1c ≥ 8.0", type: "observation", operator: ">=", threshold: 8.0, codeHint: "HbA1c" },
       { key: "step", label: "Metformin trial OR intolerance documented", type: "medication", operator: "exists", codeHint: "Metformin" }
     ]
+  },
+  denied: {
+    id: "glp1-t2d-strict-trial",
+    version: "2026.03.15",
+    name: "Demo GLP-1 Policy (T2D) — Strict Trial Required",
+    summary: "Strictest variant: requires HbA1c ≥ 8.0 AND a documented 3-month metformin trial. Intolerance alone is insufficient — a trial duration must be on record. Designed to demonstrate denial + ARIA appeal workflow.",
+    rules: [
+      { key: "t2d", label: "Type 2 Diabetes diagnosis", type: "condition", operator: "exists", codeHint: "Type 2 diabetes mellitus" },
+      { key: "a1c", label: "HbA1c ≥ 8.0", type: "observation", operator: ">=", threshold: 8.0, codeHint: "HbA1c" },
+      { key: "step", label: "Metformin trial ≥ 3 months documented (intolerance alone insufficient)", type: "medication", operator: "exists", codeHint: "Metformin" }
+    ]
   }
 };
 
 export function getPolicyDefinition(variant?: string): PolicyDefinition {
-  return POLICY_LIBRARY[variant === "strict" ? "strict" : "standard"];
+  return POLICY_LIBRARY[variant ?? "standard"] ?? POLICY_LIBRARY["standard"];
 }
 
 export function diffPolicies(fromVariant: string = "standard", toVariant: string = "strict") {

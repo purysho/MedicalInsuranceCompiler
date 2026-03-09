@@ -67,7 +67,7 @@ const TOOLS = [
         },
         policyVariant: {
           type: "string",
-          enum: ["standard", "strict"],
+          enum: ["standard", "strict", "denied"],
           description: "Which payer policy ruleset to evaluate (default: standard)",
         },
       },
@@ -150,7 +150,7 @@ const TOOLS = [
         },
         policyVariant: {
           type: "string",
-          enum: ["standard", "strict"],
+          enum: ["standard", "strict", "denied"],
           description: "Payer policy ruleset to use (default: standard)",
         },
         clinicalNote: {
@@ -205,7 +205,7 @@ const TOOLS = [
         },
         policyVariant: {
           type: "string",
-          enum: ["standard", "strict"],
+          enum: ["standard", "strict", "denied"],
           description: "Payer policy variant used (default: standard)",
         },
         noteExtractionSummary: {

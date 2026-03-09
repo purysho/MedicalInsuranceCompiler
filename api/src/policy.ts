@@ -22,8 +22,19 @@ export function checkPolicy(ctx: any): PolicyResult {
   if (typeof ctx?.a1cValue !== "number") missing.push("Missing HbA1c (Observation)");
   else if (ctx.a1cValue < threshold) missing.push(`HbA1c below threshold (${ctx.a1cValue} < ${threshold})`);
 
-  const hasStep = !!ctx?.hasMetforminTrial || !!ctx?.hasMetforminIntolerance;
-  if (!hasStep) missing.push("Step therapy not met: no metformin trial/intolerance found");
+  // "denied" variant requires documented trial duration — intolerance alone is insufficient
+  const isDeniedVariant = variant === "denied";
+  const hasStep = isDeniedVariant
+    ? !!ctx?.hasMetforminTrial  // intolerance does NOT satisfy this variant
+    : !!ctx?.hasMetforminTrial || !!ctx?.hasMetforminIntolerance;
+
+  if (!hasStep) {
+    if (isDeniedVariant) {
+      missing.push("Step therapy not met: policy requires documented metformin trial ≥ 3 months — intolerance alone is insufficient under this payer contract");
+    } else {
+      missing.push("Step therapy not met: no metformin trial/intolerance found");
+    }
+  }
 
   return { policyName: policy.name, requires, missing, variant, version: policy.version };
 }
