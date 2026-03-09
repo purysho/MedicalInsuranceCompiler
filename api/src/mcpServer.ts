@@ -769,6 +769,13 @@ async function executeTool(
       const patientId = args.patientId ?? LEGACY_PATIENT_ID;
       const policyVariant = args.policyVariant ?? "insulin-standard";
       seedSynthetic(store, { scenario: "complete" });
+      const insulinSessionId = startSession(patientId, "Basal Insulin");
+      appendEvent(insulinSessionId, {
+        type: "tool_called", agent: "ALICE", action: "alice_run_prior_auth_insulin",
+        description: "Basal Insulin prior authorization pipeline initiated",
+        dataSources: ["fhir-local"], resourcesCreated: [], resourcesRead: [],
+        patientId, policyVariant,
+      });
 
       const conditions = store.search("Condition", { subject: patientId });
       const observations = store.search("Observation", { subject: patientId });
@@ -794,17 +801,39 @@ async function executeTool(
         hasT2D, a1cValue, hasMetforminTrial, hasMetforminIntolerance, policyVariant,
       });
 
+      const insulinApproved = policyResult.missing.length === 0;
+      appendEvent(insulinSessionId, {
+        type: "ai_decision", agent: "ALICE", action: "policy_check",
+        description: `Insulin policy evaluation: ${insulinApproved ? "APPROVED" : "DENIED"} — ${policyResult.policyName}`,
+        dataSources: ["ai-policy-check", "fhir-local"],
+        resourcesCreated: [],
+        resourcesRead: [
+          { resourceType: "Condition", id: `condition-t2d-${patientId}` },
+          { resourceType: "Observation", id: `obs-a1c-${patientId}` },
+        ],
+        aiDecision: {
+          decision: insulinApproved ? "APPROVED" : "DENIED",
+          confidence: "high",
+          reasoning: insulinApproved
+            ? "All insulin policy criteria met"
+            : `Missing: ${policyResult.missing.join("; ")}`,
+        },
+        patientId, policyVariant,
+      });
+      completeSession(insulinSessionId, insulinApproved ? "approved" : "denied");
+
       return {
         summary: {
           patientId,
           medication: "Basal Insulin",
           policyVariant,
           policyResult,
-          approved: policyResult.missing.length === 0,
+          approved: insulinApproved,
           a1cValue,
           threshold: policyVariant === "insulin-strict" ? 10.0 : 9.0,
-          note: policyResult.missing.length > 0
-            ? `DENIED — Bernard's HbA1c (${a1cValue}%) does not meet the insulin threshold. ARIA appeal recommended.`
+          auditSessionId: insulinSessionId,
+          note: !insulinApproved
+            ? `DENIED — HbA1c (${a1cValue}%) does not meet insulin threshold. ARIA appeal recommended.`
             : "APPROVED",
         },
         policy: policyResult,
@@ -817,6 +846,13 @@ async function executeTool(
       const patientId = (rawId === PO_RA_PATIENT_ID) ? PO_RA_PATIENT_ID : RA_PATIENT_ID;
       const policyVariant = args.policyVariant ?? "adalimumab-standard";
       seedRA(store);
+      const adaSessionId = startSession(patientId, "Adalimumab (Humira)");
+      appendEvent(adaSessionId, {
+        type: "tool_called", agent: "ALICE", action: "alice_run_prior_auth_adalimumab",
+        description: "Adalimumab (Humira) prior authorization pipeline initiated for Rheumatoid Arthritis",
+        dataSources: ["fhir-local"], resourcesCreated: [], resourcesRead: [],
+        patientId, policyVariant,
+      });
 
       const conditions = store.search("Condition", { subject: patientId });
       const observations = store.search("Observation", { subject: patientId });
@@ -875,6 +911,31 @@ async function executeTool(
         ],
       });
 
+      const adaApproved = policyResult.missing.length === 0;
+      appendEvent(adaSessionId, {
+        type: "ai_decision", agent: "ALICE", action: "policy_check",
+        description: `Adalimumab policy evaluation: ${adaApproved ? "APPROVED" : "DENIED"} — ${policyResult.policyName}`,
+        dataSources: ["ai-policy-check", "fhir-local"],
+        resourcesCreated: [
+          { resourceType: "Claim", id: claim.id },
+          { resourceType: "Bundle", id: bundle.id },
+        ],
+        resourcesRead: [
+          { resourceType: "Condition", id: `condition-ra-${patientId}` },
+          { resourceType: "Observation", id: `obs-das28-${patientId}` },
+          { resourceType: "MedicationStatement", id: `medstmt-mtx-ehr-${patientId}` },
+        ],
+        aiDecision: {
+          decision: adaApproved ? "APPROVED" : "DENIED",
+          confidence: "high",
+          reasoning: adaApproved
+            ? `RA confirmed, DAS28 ${das28Value} meets threshold, MTX step therapy documented`
+            : `Missing: ${policyResult.missing.join("; ")}`,
+        },
+        patientId, policyVariant,
+      });
+      completeSession(adaSessionId, adaApproved ? "approved" : "denied");
+
       return {
         summary: {
           patientId,
@@ -883,12 +944,13 @@ async function executeTool(
           indication: "Rheumatoid Arthritis",
           policyVariant,
           policyResult,
-          approved: policyResult.missing.length === 0,
+          approved: adaApproved,
           das28Value,
           mtxTrial: hasMtxTrial,
           mtxIntolerance: hasMtxIntolerance,
           bundleId: bundle.id,
           claimId: claim.id,
+          auditSessionId: adaSessionId,
         },
         policy: policyResult,
         clinicalEvidence: {
