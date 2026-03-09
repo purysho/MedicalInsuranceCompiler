@@ -11,7 +11,7 @@ import { FhirStore } from "./fhirStore.js";
 import { seedSynthetic, PO_PATIENT_ID, LEGACY_PATIENT_ID } from "./seed.js";
 import { extractClinicalNote, mergeWithFhirContext } from "./agents/noteExtractorAgent.js";
 import { draftAppealLetter, buildAppealContext } from "./agents/appealAgent.js";
-import { searchSmartPatients, searchDiabetesPatients, importPatientFromSmart } from "./fhirClient.js";
+import { searchSmartPatients, searchDiabetesPatients, importPatientFromSmart, LOCAL_SYNTHETIC_IDS } from "./fhirClient.js";
 import { checkPolicy } from "./policy.js";
 import { runMedRec } from "./agents/medrecAgent.js";
 import { runEvidence } from "./agents/evidenceAgent.js";
@@ -220,7 +220,7 @@ const TOOLS = [
   {
     name: "alice_smart_search",
     description:
-      "Search the SMART Health IT public FHIR R4 server for real patients by name. Returns matching patients with their IDs. Use this before importing to find the right patient. Josh Mandel's SMART Health IT server at r4.smarthealthit.org is the gold standard for FHIR interoperability testing.",
+      "Search the SMART Health IT public FHIR R4 server (r4.smarthealthit.org) for EXTERNAL real Synthea-generated patients by name. CRITICAL: This tool only returns patients from the external SMART Health IT server — it never returns local synthetic patients like 'Demo Patient' (patient-001) or Bernard Rieux. Results are exclusively live records from the public FHIR server. Use this before alice_smart_import to find the right external patient.",
     inputSchema: {
       type: "object",
       properties: {
@@ -243,7 +243,7 @@ const TOOLS = [
   {
     name: "alice_smart_import",
     description:
-      "Import a real patient from the SMART Health IT public FHIR R4 server into ALICE's local store. Fetches the full clinical record including conditions, observations, medications, and allergies. Once imported, the full ALICE prior auth pipeline can be run on this patient. Returns an assessment of whether the patient is suitable for GLP-1 prior authorization.",
+      "Import a real external patient from the SMART Health IT public FHIR R4 server (r4.smarthealthit.org) into ALICE's local store. CRITICAL: Only accepts patient IDs returned by alice_smart_search — never accepts local synthetic IDs like 'patient-001' or the Bernard Rieux UUID. Fetches the full clinical record and returns a prior auth suitability assessment.",
     inputSchema: {
       type: "object",
       properties: {
@@ -554,6 +554,14 @@ async function executeTool(
 
     case "alice_smart_import": {
       if (!args.smartPatientId) throw new Error("smartPatientId is required");
+
+      // Explicitly reject synthetic local patient IDs
+      if (LOCAL_SYNTHETIC_IDS.has(args.smartPatientId)) {
+        throw new Error(
+          `Patient ID "${args.smartPatientId}" is a local synthetic patient, not a SMART Health IT record. ` +
+          `Use alice_smart_search to find a real patient from r4.smarthealthit.org first.`
+        );
+      }
 
       const result = await importPatientFromSmart(
         args.smartPatientId,

@@ -39,12 +39,18 @@ export type ImportResult = {
 /**
  * Search for patients on SMART Health IT by name or condition
  */
+// IDs that live only in ALICE's synthetic store — never return these from SMART searches
+export const LOCAL_SYNTHETIC_IDS = new Set([
+  "patient-001",
+  "79f8fd18-5044-452d-b9bd-428b1e35e579",
+]);
+
 export async function searchSmartPatients(
   query: string,
   maxResults: number = 5
 ): Promise<SmartPatientSummary[]> {
   // Search by name
-  const url = `${SMART_BASE}/Patient?name=${encodeURIComponent(query)}&_count=${maxResults}`;
+  const url = `${SMART_BASE}/Patient?name=${encodeURIComponent(query)}&_count=${maxResults * 2}`;
   const res = await fetch(url, {
     headers: { Accept: "application/fhir+json" },
   });
@@ -56,20 +62,23 @@ export async function searchSmartPatients(
   const bundle = await res.json() as any;
   const entries = bundle.entry ?? [];
 
-  return entries.map((e: any) => {
-    const p = e.resource;
-    const nameObj = p.name?.[0];
-    const name = nameObj
-      ? [nameObj.prefix?.[0], nameObj.given?.[0], nameObj.family].filter(Boolean).join(" ")
-      : "Unknown";
-    return {
-      id: p.id,
-      name,
-      birthDate: p.birthDate ?? "unknown",
-      gender: p.gender ?? "unknown",
-      source: "smart-health-it" as const,
-    };
-  });
+  return entries
+    .map((e: any) => {
+      const p = e.resource;
+      const nameObj = p.name?.[0];
+      const name = nameObj
+        ? [nameObj.prefix?.[0], nameObj.given?.[0], nameObj.family].filter(Boolean).join(" ")
+        : "Unknown";
+      return {
+        id: p.id,
+        name,
+        birthDate: p.birthDate ?? "unknown",
+        gender: p.gender ?? "unknown",
+        source: "smart-health-it" as const,
+      };
+    })
+    .filter(p => !LOCAL_SYNTHETIC_IDS.has(p.id))
+    .slice(0, maxResults);
 }
 
 /**
@@ -117,7 +126,7 @@ export async function searchDiabetesPatients(
     if (patients.length >= maxResults) break;
   }
 
-  return patients;
+  return patients.filter(p => !LOCAL_SYNTHETIC_IDS.has(p.id));
 }
 
 /**
