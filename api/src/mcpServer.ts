@@ -491,7 +491,7 @@ async function executeTool(
             attachment: {
               contentType: "application/json",
               title: "AI-extracted prior auth criteria",
-              data: Buffer.from(JSON.stringify(result.extracted)).toString("base64"),
+              data: btoa(unescape(encodeURIComponent(JSON.stringify(result.extracted)))),
             }
           }],
           context: {
@@ -601,16 +601,36 @@ async function executeTool(
 
     case "aria_draft_appeal": {
       if (!args.patientId) throw new Error("patientId is required");
-      if (!args.denialReasons?.length) throw new Error("denialReasons array is required");
+
+      // Normalize denialReasons — accept string, array, or missing (extract from policyResult)
+      let denialReasons: string[] = [];
+      if (Array.isArray(args.denialReasons)) {
+        denialReasons = args.denialReasons;
+      } else if (typeof args.denialReasons === "string") {
+        denialReasons = [args.denialReasons];
+      } else if (args.missingCriteria) {
+        // fallback: some models pass as missingCriteria
+        denialReasons = Array.isArray(args.missingCriteria)
+          ? args.missingCriteria
+          : [String(args.missingCriteria)];
+      } else if (args.missing) {
+        denialReasons = Array.isArray(args.missing)
+          ? args.missing
+          : [String(args.missing)];
+      }
+
+      if (!denialReasons.length) {
+        denialReasons = ["Prior authorization criteria not fully met — see clinical record for details"];
+      }
 
       // Build appeal context from FHIR store
       const appealContext = buildAppealContext(
         store,
         args.patientId,
-        args.denialReasons,
-        args.policyVariant ?? "standard",
-        args.claimId,
-        args.claimResponseId
+        denialReasons,
+        args.policyVariant ?? args.policy_variant ?? "standard",
+        args.claimId ?? args.claim_id,
+        args.claimResponseId ?? args.claim_response_id
       );
 
       // Add note extraction summary if provided
@@ -633,7 +653,7 @@ async function executeTool(
           attachment: {
             contentType: "text/plain",
             title: appeal.subject,
-            data: Buffer.from(appeal.letterText).toString("base64"),
+            data: btoa(unescape(encodeURIComponent(appeal.letterText))),
           }
         }],
         extension: [{
