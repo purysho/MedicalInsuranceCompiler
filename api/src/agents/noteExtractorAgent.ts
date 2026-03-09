@@ -115,8 +115,8 @@ export async function extractClinicalNote(
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1024,
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 800,
       system: SYSTEM_PROMPT,
       messages: [
         {
