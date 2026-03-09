@@ -17,6 +17,8 @@ export type PolicyDefinition = {
 };
 
 export const POLICY_LIBRARY: Record<string, PolicyDefinition> = {
+
+  // ── GLP-1 / Semaglutide (T2D) ────────────────────────────────────────────
   standard: {
     id: "glp1-t2d-standard",
     version: "2026.03.01",
@@ -24,7 +26,7 @@ export const POLICY_LIBRARY: Record<string, PolicyDefinition> = {
     summary: "Requires T2D diagnosis, HbA1c >= 7.0, and metformin trial or documented intolerance.",
     rules: [
       { key: "t2d", label: "Type 2 Diabetes diagnosis", type: "condition", operator: "exists", codeHint: "Type 2 diabetes mellitus" },
-      { key: "a1c", label: "HbA1c ≥ 7.0", type: "observation", operator: ">=", threshold: 7.0, codeHint: "HbA1c" },
+      { key: "a1c", label: "HbA1c >= 7.0", type: "observation", operator: ">=", threshold: 7.0, codeHint: "HbA1c" },
       { key: "step", label: "Metformin trial OR intolerance documented", type: "medication", operator: "exists", codeHint: "Metformin" }
     ]
   },
@@ -35,7 +37,7 @@ export const POLICY_LIBRARY: Record<string, PolicyDefinition> = {
     summary: "Same as standard, but with a tighter HbA1c threshold for approval.",
     rules: [
       { key: "t2d", label: "Type 2 Diabetes diagnosis", type: "condition", operator: "exists", codeHint: "Type 2 diabetes mellitus" },
-      { key: "a1c", label: "HbA1c ≥ 8.0", type: "observation", operator: ">=", threshold: 8.0, codeHint: "HbA1c" },
+      { key: "a1c", label: "HbA1c >= 8.0", type: "observation", operator: ">=", threshold: 8.0, codeHint: "HbA1c" },
       { key: "step", label: "Metformin trial OR intolerance documented", type: "medication", operator: "exists", codeHint: "Metformin" }
     ]
   },
@@ -43,16 +45,15 @@ export const POLICY_LIBRARY: Record<string, PolicyDefinition> = {
     id: "glp1-t2d-strict-trial",
     version: "2026.03.15",
     name: "Demo GLP-1 Policy (T2D) — Strict Trial Required",
-    summary: "Strictest variant: requires HbA1c ≥ 8.0 AND a documented 3-month metformin trial. Intolerance alone is insufficient — a trial duration must be on record. Designed to demonstrate denial + ARIA appeal workflow.",
+    summary: "Strictest variant: requires HbA1c >= 8.0 AND a documented 3-month metformin trial. Intolerance alone is insufficient.",
     rules: [
       { key: "t2d", label: "Type 2 Diabetes diagnosis", type: "condition", operator: "exists", codeHint: "Type 2 diabetes mellitus" },
-      { key: "a1c", label: "HbA1c ≥ 8.0", type: "observation", operator: ">=", threshold: 8.0, codeHint: "HbA1c" },
-      { key: "step", label: "Metformin trial ≥ 3 months documented (intolerance alone insufficient)", type: "medication", operator: "exists", codeHint: "Metformin" }
+      { key: "a1c", label: "HbA1c >= 8.0", type: "observation", operator: ">=", threshold: 8.0, codeHint: "HbA1c" },
+      { key: "step", label: "Metformin trial >= 3 months documented (intolerance alone insufficient)", type: "medication", operator: "exists", codeHint: "Metformin" }
     ]
-  }
-};
+  },
 
-  // ── Insulin (Basal) ──────────────────────────────────────────────────────
+  // ── Basal Insulin (T2D) ───────────────────────────────────────────────────
   "insulin-standard": {
     id: "insulin-t2d-standard",
     version: "2026.03.01",
@@ -61,7 +62,7 @@ export const POLICY_LIBRARY: Record<string, PolicyDefinition> = {
     rules: [
       { key: "t2d", label: "Type 2 Diabetes diagnosis", type: "condition", operator: "exists", codeHint: "Type 2 diabetes mellitus" },
       { key: "a1c", label: "HbA1c >= 9.0 (poor control threshold for insulin)", type: "observation", operator: ">=", threshold: 9.0, codeHint: "HbA1c" },
-      { key: "step", label: "Documented failure on at least one oral hypoglycemic agent (e.g. metformin)", type: "medication", operator: "exists", codeHint: "Metformin" }
+      { key: "step", label: "Documented failure on at least one oral hypoglycemic agent", type: "medication", operator: "exists", codeHint: "Metformin" }
     ]
   },
   "insulin-strict": {
