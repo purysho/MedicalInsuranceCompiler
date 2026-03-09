@@ -63,6 +63,13 @@ export default function App() {
 
   const lastRunRef = useRef<number>(0);
 
+  // SMART Health IT state
+  const [smartQuery, setSmartQuery] = useState("");
+  const [smartResults, setSmartResults] = useState<any[]>([]);
+  const [smartImported, setSmartImported] = useState<any | null>(null);
+  const [smartBusy, setSmartBusy] = useState(false);
+  const [smartError, setSmartError] = useState<string | null>(null);
+
   function resetState(keepSeeded = false) {
     setError(null);
     setMedrec(null);
@@ -276,6 +283,35 @@ export default function App() {
       setMessages(out);
       return out;
     });
+  }
+
+  async function onSmartSearch() {
+    if (!smartQuery.trim()) return;
+    setSmartBusy(true);
+    setSmartError(null);
+    setSmartResults([]);
+    try {
+      const res = await post("/api/smart/search", { query: smartQuery, maxResults: 6 });
+      setSmartResults(res.patients ?? []);
+      if (!res.patients?.length) setSmartError("No patients found. Try a different name.");
+    } catch (e: any) {
+      setSmartError(e.message);
+    } finally {
+      setSmartBusy(false);
+    }
+  }
+
+  async function onSmartImport(patientId: string) {
+    setSmartBusy(true);
+    setSmartError(null);
+    try {
+      const res = await post("/api/smart/import", { smartPatientId: patientId });
+      setSmartImported(res);
+    } catch (e: any) {
+      setSmartError(e.message);
+    } finally {
+      setSmartBusy(false);
+    }
   }
 
   async function onMcpLog() {
@@ -535,6 +571,74 @@ export default function App() {
               <button className="small" onClick={onMessages} disabled={!seeded || !!busy}>A2A Messages</button>
               <button className="small" onClick={onMcpLog} disabled={!seeded || !!busy}>MCP Tools</button>
             </div>
+          </div>
+
+          {/* SMART Health IT Panel */}
+          <div className="card">
+            <h2>🌐 SMART Health IT</h2>
+            <div className="muted" style={{ marginBottom: 10 }}>
+              Live FHIR R4 patient lookup via <strong>r4.smarthealthit.org</strong>. Import real patients and run full prior auth pipeline.
+            </div>
+
+            <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+              <input
+                type="text"
+                placeholder="Search patient by name…"
+                value={smartQuery}
+                onChange={e => setSmartQuery(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && onSmartSearch()}
+                style={{ flex: 1, padding: "6px 10px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.05)", color: "inherit", fontSize: 13 }}
+                disabled={smartBusy}
+              />
+              <button className="small primary" onClick={onSmartSearch} disabled={smartBusy || !smartQuery.trim()}>
+                {smartBusy ? "…" : "Search"}
+              </button>
+            </div>
+
+            {smartError && <div className="muted" style={{ color: "rgba(220,100,100,0.9)", marginBottom: 8, fontSize: 12 }}>{smartError}</div>}
+
+            {smartResults.length > 0 && (
+              <div className="list" style={{ marginBottom: 10 }}>
+                {smartResults.map(p => (
+                  <div key={p.id} className="item" style={{ flexDirection: "column", gap: 4, alignItems: "flex-start" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", width: "100%", alignItems: "center" }}>
+                      <div>
+                        <strong style={{ fontSize: 13 }}>{p.name}</strong>
+                        <span className="muted" style={{ fontSize: 11, marginLeft: 8 }}>{p.birthDate} · {p.gender}</span>
+                      </div>
+                      <button
+                        className="small"
+                        onClick={() => onSmartImport(p.id)}
+                        disabled={smartBusy}
+                        style={{ fontSize: 11 }}
+                      >
+                        Import
+                      </button>
+                    </div>
+                    <div className="muted" style={{ fontSize: 10, fontFamily: "monospace" }}>{p.id}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {smartImported && (
+              <div style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", borderRadius: 8, padding: 10, fontSize: 12 }}>
+                <div style={{ fontWeight: 600, marginBottom: 6 }}>✅ Imported: {smartImported.patientName}</div>
+                <div className="kv"><span className="muted">Patient ID</span><code style={{ fontSize: 11 }}>{smartImported.patientId}</code></div>
+                <div className="kv"><span className="muted">Resources</span><span>{smartImported.resourcesImported}</span></div>
+                <div className="kv"><span className="muted">T2D</span><span>{smartImported.priorAuthRelevance?.hasT2D ? "✅ Yes" : "❌ No"}</span></div>
+                <div className="kv"><span className="muted">HbA1c</span><span>{smartImported.priorAuthRelevance?.hasHbA1c ? "✅ Found" : "❌ Not found"}</span></div>
+                <div className="kv"><span className="muted">Metformin</span><span>{smartImported.priorAuthRelevance?.hasMetformin ? "✅ Found" : "❌ Not found"}</span></div>
+                {smartImported.priorAuthRelevance?.notes?.map((n: string, i: number) => (
+                  <div key={i} className="muted" style={{ fontSize: 11, marginTop: 4 }}>• {n}</div>
+                ))}
+                {smartImported.priorAuthRelevance?.suitableForGlp1PriorAuth && (
+                  <div style={{ marginTop: 8, padding: "4px 8px", background: "rgba(34,197,94,0.12)", borderRadius: 4, fontSize: 11 }}>
+                    Ready for prior auth — use patient ID above in Prompt Opinion chat
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="card">
