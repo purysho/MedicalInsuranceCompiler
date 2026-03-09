@@ -162,7 +162,7 @@ app.get("/mcp", (_req, res) => {
     description: "ALICE — AI-powered prior authorization MCP server",
     transport: "streamable-http",
     endpoint: "/mcp",
-    tools: ["alice_fhir_search","alice_fhir_read","alice_policy_check","alice_run_medrec","alice_run_evidence","alice_run_compose","alice_run_full_prior_auth","alice_extract_clinical_note","aria_draft_appeal","aria_get_appeal_status","alice_smart_search","alice_smart_import","alice_list_patients"],
+    tools: ["alice_fhir_search","alice_fhir_read","alice_policy_check","alice_run_medrec","alice_run_evidence","alice_run_compose","alice_run_full_prior_auth","alice_extract_clinical_note","aria_draft_appeal","aria_get_appeal_status","alice_smart_search","alice_smart_import","alice_list_patients","alice_detect_medication","alice_run_prior_auth_insulin","alice_run_prior_auth_adalimumab"],
   });
 });
 
