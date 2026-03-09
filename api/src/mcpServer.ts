@@ -8,7 +8,7 @@
 
 import { Request, Response } from "express";
 import { FhirStore } from "./fhirStore.js";
-import { seedSynthetic, PO_PATIENT_ID, LEGACY_PATIENT_ID } from "./seed.js";
+import { seedSynthetic, seedRA, PO_PATIENT_ID, LEGACY_PATIENT_ID, RA_PATIENT_ID } from "./seed.js";
 import { extractClinicalNote, mergeWithFhirContext } from "./agents/noteExtractorAgent.js";
 import { draftAppealLetter, buildAppealContext } from "./agents/appealAgent.js";
 import { searchSmartPatients, searchDiabetesPatients, importPatientFromSmart, LOCAL_SYNTHETIC_IDS } from "./fhirClient.js";
@@ -178,6 +178,42 @@ const TOOLS = [
         },
       },
       required: ["noteText"],
+    },
+  },
+  {
+    name: "alice_detect_medication",
+    description:
+      "Auto-detect which medication class a patient needs prior authorization for, based on their FHIR conditions. Returns the recommended medication, appropriate policy variant, and patient eligibility summary. Use this when the user has not specified a medication — ALICE will detect it from the patient record. Supports: GLP-1/semaglutide (T2D), Basal Insulin (T2D severe), Adalimumab/Humira (Rheumatoid Arthritis).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        patientId: { type: "string", description: "FHIR Patient ID" },
+      },
+      required: ["patientId"],
+    },
+  },
+  {
+    name: "alice_run_prior_auth_insulin",
+    description:
+      "Run a complete prior authorization pipeline for Basal Insulin for a T2D patient. Requires HbA1c >= 9.0 and documented failure on oral hypoglycemic agents. Bernard Rieux (HbA1c 8.4%) will be DENIED under this policy — triggering ARIA appeal.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        patientId: { type: "string", description: "FHIR Patient ID" },
+        policyVariant: { type: "string", enum: ["insulin-standard", "insulin-strict"], description: "Insulin policy variant (default: insulin-standard)" },
+      },
+    },
+  },
+  {
+    name: "alice_run_prior_auth_adalimumab",
+    description:
+      "Run a complete prior authorization pipeline for Adalimumab (Humira) for a Rheumatoid Arthritis patient. Requires RA diagnosis, DAS28 score, and MTX step therapy. Dorothea Brooke (RA patient) has DAS28 4.8 — approves on standard, denied on strict.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        patientId: { type: "string", description: "FHIR Patient ID (use patient-ra-001 for demo RA patient Dorothea Brooke)" },
+        policyVariant: { type: "string", enum: ["adalimumab-standard", "adalimumab-strict"], description: "Adalimumab policy variant (default: adalimumab-standard)" },
+      },
     },
   },
   {
@@ -596,6 +632,199 @@ async function executeTool(
               : "SMART Health IT",
           };
         }),
+      };
+    }
+
+    case "alice_detect_medication": {
+      const patientId = args.patientId ?? LEGACY_PATIENT_ID;
+      seedSynthetic(store, { scenario: "complete" });
+      seedRA(store);
+
+      const conditions = store.search("Condition", { subject: patientId });
+      const observations = store.search("Observation", { subject: patientId });
+      const condText = JSON.stringify(conditions).toLowerCase();
+      const obsText = JSON.stringify(observations).toLowerCase();
+
+      const hasRA = condText.includes("rheumatoid") || condText.includes("69896004");
+      const hasT2D = condText.includes("type 2") || condText.includes("diabetes mellitus");
+
+      const a1cObs = observations.find((o: any) =>
+        JSON.stringify(o).toLowerCase().includes("a1c") ||
+        JSON.stringify(o).toLowerCase().includes("glycat")
+      );
+      const a1cValue = a1cObs?.valueQuantity?.value ?? null;
+
+      const das28Obs = observations.find((o: any) =>
+        JSON.stringify(o).toLowerCase().includes("das28")
+      );
+      const das28Value = das28Obs?.valueQuantity?.value ?? null;
+
+      // Determine best medication class
+      let recommended: string;
+      let policyVariant: string;
+      let rationale: string;
+
+      if (hasRA) {
+        recommended = "adalimumab";
+        policyVariant = "adalimumab-standard";
+        rationale = `Rheumatoid Arthritis detected. DAS28: ${das28Value ?? "not found"}. Recommended: Adalimumab prior auth.`;
+      } else if (hasT2D && a1cValue !== null && a1cValue >= 9.0) {
+        recommended = "insulin";
+        policyVariant = "insulin-standard";
+        rationale = `T2D detected with HbA1c ${a1cValue}% (>= 9.0). Poor control — Basal Insulin prior auth recommended.`;
+      } else if (hasT2D) {
+        recommended = "semaglutide";
+        policyVariant = "standard";
+        rationale = `T2D detected with HbA1c ${a1cValue ?? "unknown"}%. GLP-1/Semaglutide prior auth recommended.`;
+      } else {
+        recommended = "unknown";
+        policyVariant = "standard";
+        rationale = "No qualifying condition detected for automated medication selection.";
+      }
+
+      return {
+        patientId,
+        detected: { hasT2D, hasRA, a1cValue, das28Value },
+        recommendation: { medication: recommended, policyVariant, rationale },
+        availableTools: {
+          glp1: "alice_run_full_prior_auth",
+          insulin: "alice_run_prior_auth_insulin",
+          adalimumab: "alice_run_prior_auth_adalimumab",
+        },
+      };
+    }
+
+    case "alice_run_prior_auth_insulin": {
+      const patientId = args.patientId ?? LEGACY_PATIENT_ID;
+      const policyVariant = args.policyVariant ?? "insulin-standard";
+      seedSynthetic(store, { scenario: "complete" });
+
+      const conditions = store.search("Condition", { subject: patientId });
+      const observations = store.search("Observation", { subject: patientId });
+      const statements = store.search("MedicationStatement", { subject: patientId });
+
+      const hasT2D = conditions.some((c: any) =>
+        JSON.stringify(c).toLowerCase().includes("type 2") ||
+        JSON.stringify(c).toLowerCase().includes("diabetes")
+      );
+      const a1cObs = observations.find((o: any) =>
+        JSON.stringify(o).toLowerCase().includes("a1c")
+      );
+      const a1cValue = a1cObs?.valueQuantity?.value ?? null;
+      const hasMetforminTrial = statements.some((s: any) =>
+        JSON.stringify(s).toLowerCase().includes("metformin") && s.status !== "active"
+      );
+      const hasMetforminIntolerance = statements.some((s: any) =>
+        JSON.stringify(s).toLowerCase().includes("metformin") &&
+        JSON.stringify(s).toLowerCase().includes("intoler")
+      );
+
+      const policyResult = checkPolicy({
+        hasT2D, a1cValue, hasMetforminTrial, hasMetforminIntolerance, policyVariant,
+      });
+
+      return {
+        summary: {
+          patientId,
+          medication: "Basal Insulin",
+          policyVariant,
+          policyResult,
+          approved: policyResult.missing.length === 0,
+          a1cValue,
+          threshold: policyVariant === "insulin-strict" ? 10.0 : 9.0,
+          note: policyResult.missing.length > 0
+            ? `DENIED — Bernard's HbA1c (${a1cValue}%) does not meet the insulin threshold. ARIA appeal recommended.`
+            : "APPROVED",
+        },
+        policy: policyResult,
+      };
+    }
+
+    case "alice_run_prior_auth_adalimumab": {
+      const patientId = args.patientId ?? RA_PATIENT_ID;
+      const policyVariant = args.policyVariant ?? "adalimumab-standard";
+      seedRA(store);
+
+      const conditions = store.search("Condition", { subject: patientId });
+      const observations = store.search("Observation", { subject: patientId });
+      const statements = store.search("MedicationStatement", { subject: patientId });
+
+      const hasRA = conditions.some((c: any) =>
+        JSON.stringify(c).toLowerCase().includes("rheumatoid") ||
+        JSON.stringify(c).toLowerCase().includes("69896004")
+      );
+      const das28Obs = observations.find((o: any) =>
+        JSON.stringify(o).toLowerCase().includes("das28")
+      );
+      const das28Value = das28Obs?.valueQuantity?.value ?? null;
+
+      const hasMtxTrial = statements.some((s: any) =>
+        JSON.stringify(s).toLowerCase().includes("methotrexate") && s.status === "stopped" &&
+        s.effectivePeriod?.start
+      );
+      const hasMtxIntolerance = statements.some((s: any) =>
+        JSON.stringify(s).toLowerCase().includes("methotrexate") && (
+          JSON.stringify(s).toLowerCase().includes("hepatotox") ||
+          JSON.stringify(s).toLowerCase().includes("intoler") ||
+          JSON.stringify(s).toLowerCase().includes("elevated lft")
+        )
+      );
+      const hasTwoDmards = statements.filter((s: any) =>
+        (JSON.stringify(s).toLowerCase().includes("methotrexate") ||
+         JSON.stringify(s).toLowerCase().includes("hydroxychloroquine") ||
+         JSON.stringify(s).toLowerCase().includes("sulfasalazine")) &&
+        s.status === "stopped"
+      ).length >= 2;
+
+      const policyResult = checkPolicy({
+        hasRA, das28Value, hasMtxTrial, hasMtxIntolerance,
+        hasTwoDmards, policyVariant,
+      });
+
+      // Compose a FHIR bundle for the RA prior auth
+      const claim = store.create({
+        resourceType: "Claim",
+        status: "active",
+        type: { coding: [{ code: "pharmacy" }] },
+        patient: { reference: `Patient/${patientId}` },
+        insurance: [{ sequence: 1, focal: true, coverage: { reference: "Coverage/coverage-ra-001" } }],
+        item: [{ sequence: 1, productOrService: { text: "Adalimumab 40mg/0.4mL injection (Humira)" } }],
+      });
+
+      const bundle = store.create({
+        resourceType: "Bundle",
+        type: "collection",
+        entry: [
+          { resource: { resourceType: "Patient", id: patientId } },
+          { resource: claim },
+          ...(das28Obs ? [{ resource: das28Obs }] : []),
+          ...conditions.map((c: any) => ({ resource: c })),
+        ],
+      });
+
+      return {
+        summary: {
+          patientId,
+          patientName: "Dorothea Brooke",
+          medication: "Adalimumab (Humira) 40mg",
+          indication: "Rheumatoid Arthritis",
+          policyVariant,
+          policyResult,
+          approved: policyResult.missing.length === 0,
+          das28Value,
+          mtxTrial: hasMtxTrial,
+          mtxIntolerance: hasMtxIntolerance,
+          bundleId: bundle.id,
+          claimId: claim.id,
+        },
+        policy: policyResult,
+        clinicalEvidence: {
+          raCondition: conditions.find((c: any) => JSON.stringify(c).toLowerCase().includes("rheumatoid"))?.id,
+          das28ObsId: das28Obs?.id,
+          mtxStatements: statements
+            .filter((s: any) => JSON.stringify(s).toLowerCase().includes("methotrexate"))
+            .map((s: any) => ({ id: s.id, status: s.status, note: s.note?.[0]?.text })),
+        },
       };
     }
 
