@@ -9,6 +9,7 @@
 import { Request, Response } from "express";
 import { FhirStore } from "./fhirStore.js";
 import { seedSynthetic, PO_PATIENT_ID, LEGACY_PATIENT_ID } from "./seed.js";
+import { extractClinicalNote, mergeWithFhirContext } from "./agents/noteExtractorAgent.js";
 import { checkPolicy } from "./policy.js";
 import { runMedRec } from "./agents/medrecAgent.js";
 import { runEvidence } from "./agents/evidenceAgent.js";
@@ -151,7 +152,30 @@ const TOOLS = [
           enum: ["standard", "strict"],
           description: "Payer policy ruleset to use (default: standard)",
         },
+        clinicalNote: {
+          type: "string",
+          description: "Optional free-text clinical note to supplement FHIR data via AI extraction",
+        },
       },
+    },
+  },
+  {
+    name: "alice_extract_clinical_note",
+    description:
+      "Use Claude AI to extract structured prior authorization criteria from an unstructured clinical note. Identifies T2D diagnosis, HbA1c values, metformin trial history, intolerance documentation, and flags ambiguities. This is the AI-powered extraction step — it handles free-text doctor notes, discharge summaries, and clinic letters that contain no structured FHIR data.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        noteText: {
+          type: "string",
+          description: "The full text of the clinical note, discharge summary, or doctor letter to analyze",
+        },
+        patientId: {
+          type: "string",
+          description: "Optional FHIR Patient ID to associate the extraction with (for audit trail)",
+        },
+      },
+      required: ["noteText"],
     },
   },
 ];
@@ -240,6 +264,16 @@ async function executeTool(
       seedSynthetic(store, { scenario: "complete" });
       // Use the PO patient ID if provided, otherwise use legacy
       const patientId = rawId === PO_PATIENT_ID ? PO_PATIENT_ID : LEGACY_PATIENT_ID;
+
+      // If a clinical note was provided, extract criteria from it using Claude
+      let noteExtractionResult = null;
+      if (args.clinicalNote) {
+        try {
+          noteExtractionResult = await extractClinicalNote(args.clinicalNote);
+        } catch (noteErr: any) {
+          console.warn("Note extraction failed, continuing with FHIR only:", noteErr.message);
+        }
+      }
       const policyVariant = args.policyVariant ?? "standard";
 
       // Step 1: Med rec
@@ -285,11 +319,21 @@ async function executeTool(
       const hasMetforminIntolerance = statements.some((s: any) =>
         (s.note?.[0]?.text ?? "").toLowerCase().includes("intolerance")
       );
+      // Merge FHIR data with note extraction if available
+      let mergedContext = { hasT2D, a1cValue, hasMetforminTrial, hasMetforminIntolerance,
+        sources: {} as Record<string, "fhir"|"note"|"both">, ambiguities: [] as string[] };
+      if (noteExtractionResult) {
+        mergedContext = mergeWithFhirContext(
+          { hasT2D, a1cValue, hasMetforminTrial, hasMetforminIntolerance },
+          noteExtractionResult.extracted
+        );
+      }
+
       const policyResult = checkPolicy({
-        hasT2D,
-        a1cValue,
-        hasMetforminTrial,
-        hasMetforminIntolerance,
+        hasT2D: mergedContext.hasT2D,
+        a1cValue: mergedContext.a1cValue,
+        hasMetforminTrial: mergedContext.hasMetforminTrial,
+        hasMetforminIntolerance: mergedContext.hasMetforminIntolerance,
         policyVariant,
       });
 
@@ -309,11 +353,72 @@ async function executeTool(
           policyResult,
           approved: policyResult.missing.length === 0,
           bundleId: packetResult.bundle.id,
+          dataSources: noteExtractionResult
+            ? { fhir: true, aiNoteExtraction: true, mergedFields: mergedContext.sources }
+            : { fhir: true, aiNoteExtraction: false },
+          ambiguities: mergedContext.ambiguities,
         },
+        noteExtraction: noteExtractionResult ? {
+          extracted: noteExtractionResult.extracted,
+          model: noteExtractionResult.model,
+          durationMs: noteExtractionResult.durationMs,
+        } : null,
         medrec: medrecResult,
         evidence: evidenceResult,
         policy: policyResult,
         packet: packetResult,
+      };
+    }
+
+    case "alice_extract_clinical_note": {
+      if (!args.noteText) throw new Error("noteText is required");
+      const result = await extractClinicalNote(args.noteText);
+
+      // Optionally store extraction as a FHIR DocumentReference for audit
+      if (args.patientId) {
+        store.create({
+          resourceType: "DocumentReference",
+          status: "current",
+          type: { text: "Clinical Note AI Extraction" },
+          subject: { reference: `Patient/${args.patientId}` },
+          date: new Date().toISOString(),
+          content: [{
+            attachment: {
+              contentType: "application/json",
+              title: "AI-extracted prior auth criteria",
+              data: Buffer.from(JSON.stringify(result.extracted)).toString("base64"),
+            }
+          }],
+          context: {
+            event: [{ text: "prior-authorization-extraction" }],
+          },
+          extension: [{
+            url: "https://alice.promptopinion.ai/extraction-metadata",
+            valueString: JSON.stringify({
+              model: result.model,
+              durationMs: result.durationMs,
+              noteQuality: result.extracted.noteQuality,
+            })
+          }]
+        });
+      }
+
+      return {
+        extraction: result.extracted,
+        metadata: {
+          model: result.model,
+          durationMs: result.durationMs,
+          patientId: args.patientId ?? null,
+        },
+        summary: {
+          hasT2D: result.extracted.hasT2D,
+          a1cValue: result.extracted.a1cValue,
+          hasMetforminTrial: result.extracted.hasMetforminTrial,
+          hasMetforminIntolerance: result.extracted.hasMetforminIntolerance,
+          ambiguityCount: result.extracted.ambiguities.length,
+          ambiguities: result.extracted.ambiguities,
+          noteQuality: result.extracted.noteQuality,
+        }
       };
     }
 
