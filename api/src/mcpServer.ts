@@ -677,9 +677,7 @@ async function executeTool(
           mustCite: ["ADA Standards of Medical Care in Diabetes", "FHIR resource IDs above"],
           subject: `Re: Appeal of Prior Authorization Denial — Semaglutide (GLP-1) for Type 2 Diabetes`,
           opening: "Dear Medical Director,",
-          closing: "Respectfully submitted,
-ARIA — Appeal & Rebuttal Intelligence Agent
-on behalf of the treating clinician",
+          closing: "Respectfully submitted,\nARIA — Appeal & Rebuttal Intelligence Agent\non behalf of the treating clinician",
         },
       };
     }
