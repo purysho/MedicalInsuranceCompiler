@@ -13,6 +13,10 @@ import { extractClinicalNote, mergeWithFhirContext } from "./agents/noteExtracto
 import { draftAppealLetter, buildAppealContext } from "./agents/appealAgent.js";
 import { searchSmartPatients, searchDiabetesPatients, importPatientFromSmart, LOCAL_SYNTHETIC_IDS } from "./fhirClient.js";
 import { checkPolicy } from "./policy.js";
+import {
+  startSession, getActiveSession, appendEvent, completeSession,
+  getTrail, getLatestTrailForPatient, getAllTrails,
+} from "./auditTrail.js";
 import { runMedRec } from "./agents/medrecAgent.js";
 import { runEvidence } from "./agents/evidenceAgent.js";
 import { runComposePacket } from "./agents/packetComposerAgent.js";
@@ -305,6 +309,24 @@ const TOOLS = [
     },
   },
   {
+    name: "alice_get_audit_trail",
+    description:
+      "Retrieve the complete audit trail for a patient's prior authorization session. Returns a full timeline of every agent action, FHIR resource created/used, AI decision with confidence scores, data source attribution (FHIR vs AI extraction vs SMART Health IT), and agent handoffs (ALICE to ARIA). Essential for compliance, transparency, and regulatory review.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        patientId: { type: "string", description: "FHIR Patient ID" },
+        sessionId: { type: "string", description: "Specific audit session ID (optional — defaults to most recent)" },
+        format: {
+          type: "string",
+          enum: ["full", "summary", "timeline"],
+          description: "Output format: full (all events), summary (stats only), timeline (events ordered by time)",
+        },
+      },
+      required: ["patientId"],
+    },
+  },
+  {
     name: "aria_get_appeal_status",
     description:
       "ARIA: Check the status of a prior authorization appeal — returns the drafted appeal letter and any stored appeal documents for a patient.",
@@ -406,11 +428,35 @@ async function executeTool(
       // Use the PO patient ID if provided, otherwise use legacy
       const patientId = rawId === PO_PATIENT_ID ? PO_PATIENT_ID : LEGACY_PATIENT_ID;
 
+      // Start audit session
+      const sessionId = startSession(patientId, "Semaglutide (GLP-1)");
+      appendEvent(sessionId, {
+        type: "tool_called", agent: "ALICE", action: "alice_run_full_prior_auth",
+        description: "Full prior authorization pipeline initiated for GLP-1/Semaglutide",
+        dataSources: ["fhir-local"], resourcesCreated: [], resourcesRead: [],
+        patientId, policyVariant: args.policyVariant ?? "standard",
+      });
+
       // If a clinical note was provided, extract criteria from it using Claude
       let noteExtractionResult = null;
       if (args.clinicalNote) {
         try {
           noteExtractionResult = await extractClinicalNote(args.clinicalNote);
+          appendEvent(sessionId, {
+            type: "ai_decision", agent: "ALICE", action: "note_extraction",
+            description: "AI extracted clinical criteria from unstructured note",
+            dataSources: ["ai-note-extraction"],
+            resourcesCreated: [], resourcesRead: [],
+            aiDecision: {
+              model: noteExtractionResult.model,
+              decision: `Extracted: T2D=${noteExtractionResult.extracted.hasT2D}, A1c=${noteExtractionResult.extracted.a1cValue}, MetforminTrial=${noteExtractionResult.extracted.hasMetforminTrial}`,
+              confidence: noteExtractionResult.extracted.noteQuality === "complete" ? "high" : noteExtractionResult.extracted.noteQuality === "partial" ? "medium" : "low",
+              reasoning: noteExtractionResult.extracted.extractionNotes,
+              ambiguities: noteExtractionResult.extracted.ambiguities,
+              durationMs: noteExtractionResult.durationMs,
+            },
+            patientId,
+          });
         } catch (noteErr: any) {
           console.warn("Note extraction failed, continuing with FHIR only:", noteErr.message);
         }
@@ -487,13 +533,38 @@ async function executeTool(
         bpmhListId,
       });
 
+      // Record policy decision in audit trail
+      const approved = policyResult.missing.length === 0;
+      appendEvent(sessionId, {
+        type: "ai_decision", agent: "ALICE", action: "policy_check",
+        description: `Policy evaluation: ${approved ? "APPROVED" : "DENIED"} — ${policyResult.policyName}`,
+        dataSources: ["ai-policy-check", "fhir-local"],
+        resourcesCreated: [{ resourceType: "Claim", id: packetResult.claim?.id ?? "" }],
+        resourcesRead: [
+          { resourceType: "Condition", id: `condition-t2d-${patientId}` },
+          { resourceType: "Observation", id: `obs-a1c-${patientId}` },
+        ],
+        aiDecision: {
+          decision: approved ? "APPROVED" : "DENIED",
+          confidence: "high",
+          reasoning: approved
+            ? "All policy criteria met from FHIR record"
+            : `Missing criteria: ${policyResult.missing.join("; ")}`,
+          ambiguities: mergedContext.ambiguities,
+        },
+        patientId, policyVariant,
+      });
+
+      completeSession(sessionId, approved ? "approved" : "denied");
+
       return {
         summary: {
           patientId,
           policyVariant,
           policyResult,
-          approved: policyResult.missing.length === 0,
+          approved,
           bundleId: packetResult.bundle.id,
+          auditSessionId: sessionId,
           dataSources: noteExtractionResult
             ? { fhir: true, aiNoteExtraction: true, mergedFields: mergedContext.sources }
             : { fhir: true, aiNoteExtraction: false },
@@ -869,6 +940,23 @@ async function executeTool(
         appealContext.noteExtractionSummary = args.noteExtractionSummary;
       }
 
+      // Record ARIA handoff in audit trail
+      const existingSession = getActiveSession(args.patientId) ?? `session-aria-${Date.now()}`;
+      appendEvent(existingSession, {
+        type: "agent_handoff", agent: "ARIA", action: "appeal_drafted",
+        description: `ARIA drafted clinical appeal addressing ${denialReasons.length} denial reason(s)`,
+        dataSources: ["fhir-local", "ai-appeal"],
+        resourcesCreated: [], resourcesRead: [],
+        handoff: { from: "ALICE", to: "ARIA", reason: "Prior authorization denied", context: { denialReasons } },
+        aiDecision: {
+          decision: "APPEAL_DRAFTED",
+          confidence: "high",
+          reasoning: `Appeal addresses: ${denialReasons.join("; ")}`,
+        },
+        patientId: args.patientId,
+      });
+      completeSession(existingSession, "appealed");
+
       // Register a placeholder DocumentReference so the appeal has a FHIR ID
       const appealDoc = store.create({
         resourceType: "DocumentReference",
@@ -911,6 +999,53 @@ async function executeTool(
           closing: "Respectfully submitted,\nARIA — Appeal & Rebuttal Intelligence Agent\non behalf of the treating clinician",
         },
       };
+    }
+
+    case "alice_get_audit_trail": {
+      if (!args.patientId) throw new Error("patientId is required");
+
+      const trail = args.sessionId
+        ? getTrail(args.sessionId)
+        : getLatestTrailForPatient(args.patientId);
+
+      if (!trail) {
+        return {
+          found: false,
+          message: "No audit trail found for this patient. Run a prior authorization first.",
+          patientId: args.patientId,
+        };
+      }
+
+      const format = args.format ?? "full";
+
+      if (format === "summary") {
+        return { found: true, sessionId: trail.sessionId, summary: trail.summary,
+          startedAt: trail.startedAt, completedAt: trail.completedAt,
+          finalDecision: trail.finalDecision };
+      }
+
+      if (format === "timeline") {
+        return {
+          found: true,
+          sessionId: trail.sessionId,
+          finalDecision: trail.finalDecision,
+          timeline: trail.events.map(e => ({
+            seq: e.sequenceNumber,
+            time: e.timestamp,
+            agent: e.agent,
+            action: e.action,
+            description: e.description,
+            dataSources: e.dataSources,
+            resourcesCreated: e.resourcesCreated,
+            aiDecision: e.aiDecision ?? null,
+            handoff: e.handoff ?? null,
+          })),
+          summary: trail.summary,
+        };
+      }
+
+      // full
+      return { found: true, trail };
     }
 
     case "aria_get_appeal_status": {
