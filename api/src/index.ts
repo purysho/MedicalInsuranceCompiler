@@ -119,6 +119,32 @@ app.get("/", (_req, res) => {
   }
 });
 
+// ── SMART Health IT proxy routes ─────────────────────────────────────────────
+import { searchSmartPatients, searchDiabetesPatients, importPatientFromSmart } from "./fhirClient.js";
+
+app.post("/api/smart/search", async (req, res) => {
+  try {
+    const { query, diabetesOnly, maxResults } = req.body;
+    const patients = diabetesOnly
+      ? await searchDiabetesPatients(maxResults ?? 5)
+      : await searchSmartPatients(query ?? "", maxResults ?? 5);
+    res.json({ patients });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post("/api/smart/import", async (req, res) => {
+  try {
+    const { smartPatientId, forceRefresh } = req.body;
+    if (!smartPatientId) return res.status(400).json({ error: "smartPatientId required" });
+    const result = await importPatientFromSmart(smartPatientId, store, { forceRefresh });
+    res.json(result);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── MCP Streamable HTTP endpoint (spec 2025-03-26) ───────────────────────────
 const mcpHandler = createMcpHandler(store);
 app.post("/mcp", (req, res, next) => {
@@ -136,7 +162,7 @@ app.get("/mcp", (_req, res) => {
     description: "ALICE — AI-powered prior authorization MCP server",
     transport: "streamable-http",
     endpoint: "/mcp",
-    tools: ["alice_fhir_search","alice_fhir_read","alice_policy_check","alice_run_medrec","alice_run_evidence","alice_run_compose","alice_run_full_prior_auth","alice_extract_clinical_note","aria_draft_appeal","aria_get_appeal_status"],
+    tools: ["alice_fhir_search","alice_fhir_read","alice_policy_check","alice_run_medrec","alice_run_evidence","alice_run_compose","alice_run_full_prior_auth","alice_extract_clinical_note","aria_draft_appeal","aria_get_appeal_status","alice_smart_search","alice_smart_import","alice_list_patients"],
   });
 });
 

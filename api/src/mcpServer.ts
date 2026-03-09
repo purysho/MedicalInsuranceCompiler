@@ -11,6 +11,7 @@ import { FhirStore } from "./fhirStore.js";
 import { seedSynthetic, PO_PATIENT_ID, LEGACY_PATIENT_ID } from "./seed.js";
 import { extractClinicalNote, mergeWithFhirContext } from "./agents/noteExtractorAgent.js";
 import { draftAppealLetter, buildAppealContext } from "./agents/appealAgent.js";
+import { searchSmartPatients, searchDiabetesPatients, importPatientFromSmart } from "./fhirClient.js";
 import { checkPolicy } from "./policy.js";
 import { runMedRec } from "./agents/medrecAgent.js";
 import { runEvidence } from "./agents/evidenceAgent.js";
@@ -214,6 +215,57 @@ const TOOLS = [
         },
       },
       required: ["patientId", "denialReasons"],
+    },
+  },
+  {
+    name: "alice_smart_search",
+    description:
+      "Search the SMART Health IT public FHIR R4 server for real patients by name. Returns matching patients with their IDs. Use this before importing to find the right patient. Josh Mandel's SMART Health IT server at r4.smarthealthit.org is the gold standard for FHIR interoperability testing.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+          description: "Patient name or partial name to search for",
+        },
+        diabetesOnly: {
+          type: "boolean",
+          description: "If true, only return patients with a Type 2 Diabetes diagnosis (useful for GLP-1 prior auth demos)",
+        },
+        maxResults: {
+          type: "number",
+          description: "Maximum number of results to return (default: 5)",
+        },
+      },
+      required: ["query"],
+    },
+  },
+  {
+    name: "alice_smart_import",
+    description:
+      "Import a real patient from the SMART Health IT public FHIR R4 server into ALICE's local store. Fetches the full clinical record including conditions, observations, medications, and allergies. Once imported, the full ALICE prior auth pipeline can be run on this patient. Returns an assessment of whether the patient is suitable for GLP-1 prior authorization.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        smartPatientId: {
+          type: "string",
+          description: "The FHIR Patient ID on the SMART Health IT server (from alice_smart_search results)",
+        },
+        forceRefresh: {
+          type: "boolean",
+          description: "If true, re-fetch from SMART Health IT even if already cached locally",
+        },
+      },
+      required: ["smartPatientId"],
+    },
+  },
+  {
+    name: "alice_list_patients",
+    description:
+      "List all patients currently available in ALICE's local store — including Bernard Rieux (synthetic) and any patients imported from SMART Health IT.",
+    inputSchema: {
+      type: "object",
+      properties: {},
     },
   },
   {
@@ -472,6 +524,70 @@ async function executeTool(
           ambiguities: result.extracted.ambiguities,
           noteQuality: result.extracted.noteQuality,
         }
+      };
+    }
+
+    case "alice_smart_search": {
+      const query = args.query ?? "";
+      const max = args.maxResults ?? 5;
+
+      let patients;
+      if (args.diabetesOnly) {
+        patients = await searchDiabetesPatients(max);
+      } else {
+        patients = await searchSmartPatients(query, max);
+      }
+
+      return {
+        source: "SMART Health IT — r4.smarthealthit.org",
+        query,
+        resultsFound: patients.length,
+        patients: patients.map(p => ({
+          id: p.id,
+          name: p.name,
+          birthDate: p.birthDate,
+          gender: p.gender,
+          importHint: `Call alice_smart_import with smartPatientId: "${p.id}" to import this patient`,
+        })),
+      };
+    }
+
+    case "alice_smart_import": {
+      if (!args.smartPatientId) throw new Error("smartPatientId is required");
+
+      const result = await importPatientFromSmart(
+        args.smartPatientId,
+        store,
+        { forceRefresh: args.forceRefresh ?? false }
+      );
+
+      return {
+        ...result,
+        nextStep: result.priorAuthRelevance.suitableForGlp1PriorAuth
+          ? `Patient imported. Call alice_run_full_prior_auth with patientId: "${result.patientId}" to run the prior auth pipeline.`
+          : `Patient imported but may not be suitable for GLP-1 prior auth. Review priorAuthRelevance notes above.`,
+      };
+    }
+
+    case "alice_list_patients": {
+      const patients = store.listPatients();
+      return {
+        totalPatients: patients.length,
+        patients: patients.map((p: any) => {
+          const nameObj = p.name?.[0];
+          const name = nameObj
+            ? [nameObj.prefix?.[0], nameObj.given?.[0], nameObj.family].filter(Boolean).join(" ")
+            : "Unknown";
+          return {
+            id: p.id,
+            name,
+            birthDate: p.birthDate ?? "unknown",
+            gender: p.gender ?? "unknown",
+            source: p.id?.startsWith("patient-") || p.id?.includes("79f8fd18")
+              ? "synthetic (ALICE)"
+              : "SMART Health IT",
+          };
+        }),
       };
     }
 

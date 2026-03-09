@@ -78,6 +78,19 @@ export class FhirStore {
   }
 
 
+  /** Insert with a known ID — used when importing from external FHIR servers */
+  upsert(resourceType: string, id: string, resource: any): FhirResource {
+    const copy: FhirResource = { ...resource, resourceType, id };
+    this.store[resourceType] ??= {};
+    this.store[resourceType][id] = copy;
+    return copy;
+  }
+
+  /** List all patients currently in the store */
+  listPatients(): FhirResource[] {
+    return Object.values(this.store?.["Patient"] ?? {});
+  }
+
   clear(): void {
     this.store = {};
   }
