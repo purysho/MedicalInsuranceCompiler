@@ -8,7 +8,7 @@
 
 import { Request, Response } from "express";
 import { FhirStore } from "./fhirStore.js";
-import { seedSynthetic, seedRA, PO_PATIENT_ID, LEGACY_PATIENT_ID, RA_PATIENT_ID } from "./seed.js";
+import { seedSynthetic, seedRA, PO_PATIENT_ID, LEGACY_PATIENT_ID, RA_PATIENT_ID, PO_RA_PATIENT_ID } from "./seed.js";
 import { extractClinicalNote, mergeWithFhirContext } from "./agents/noteExtractorAgent.js";
 import { draftAppealLetter, buildAppealContext } from "./agents/appealAgent.js";
 import { searchSmartPatients, searchDiabetesPatients, importPatientFromSmart, LOCAL_SYNTHETIC_IDS } from "./fhirClient.js";
@@ -741,7 +741,9 @@ async function executeTool(
     }
 
     case "alice_run_prior_auth_adalimumab": {
-      const patientId = args.patientId ?? RA_PATIENT_ID;
+      // Map Prompt Opinion UUID to local RA patient ID
+      const rawId = args.patientId ?? RA_PATIENT_ID;
+      const patientId = (rawId === PO_RA_PATIENT_ID) ? PO_RA_PATIENT_ID : RA_PATIENT_ID;
       const policyVariant = args.policyVariant ?? "adalimumab-standard";
       seedRA(store);
 

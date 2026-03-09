@@ -43,6 +43,8 @@ export type ImportResult = {
 export const LOCAL_SYNTHETIC_IDS = new Set([
   "patient-001",
   "79f8fd18-5044-452d-b9bd-428b1e35e579",
+  "patient-ra-001",
+  "147e21d9-ab4e-449c-aeb4-8f3d6f7b1b4c",
 ]);
 
 export async function searchSmartPatients(
