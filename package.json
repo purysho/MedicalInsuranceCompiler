@@ -5,7 +5,7 @@
   "engines": { "node": ">=20.0.0", "npm": ">=10.0.0" },
   "workspaces": ["api", "ui"],
   "scripts": {
-    "build": "cd ui && npm install && npm run build && cd ../api && npm install && npm run build",
+    "build": "cd ui && npm install && npm run build && mkdir -p ../api/public && cp -r dist/. ../api/public && cd ../api && npm install && npm run build",
     "start": "npm -w api start"
   }
 }
