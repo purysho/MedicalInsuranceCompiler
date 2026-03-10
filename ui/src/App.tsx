@@ -290,16 +290,25 @@ export default function App() {
     });
   }
 
-  async function onLoadAudit() {
+  async function onLoadAudit(patientId?: string) {
     setAuditBusy(true);
-    try {
-      const res = await get("/api/audit/patient-001");
-      setAuditTrail(res);
-    } catch (e: any) {
-      setAuditTrail(null);
-    } finally {
-      setAuditBusy(false);
+    // Try the provided ID, then all known demo IDs
+    const candidates = [
+      patientId,
+      "patient-001",
+      "79f8fd18-5044-452d-b9bd-428b1e35e579",
+      "patient-ra-001",
+      "147e21d9-ab4e-449c-aeb4-8f3d6f7b1b4c",
+    ].filter(Boolean) as string[];
+    let found = null;
+    for (const id of candidates) {
+      try {
+        const res = await get(`/api/audit/${id}`);
+        if (res) { found = res; break; }
+      } catch {}
     }
+    setAuditTrail(found);
+    setAuditBusy(false);
   }
 
   async function onSmartSearch() {
@@ -1105,8 +1114,10 @@ export default function App() {
               className={`small ${auditView === "graph" ? "primary" : ""}`}
               onClick={() => setAuditView("graph")}
             >Graph</button>
-            <button className="small" onClick={onLoadAudit} disabled={auditBusy}>
-              {auditBusy ? "Loading…" : "Refresh"}
+            <button className="small" onClick={() => onLoadAudit("patient-001")} disabled={auditBusy} title="Bernard Rieux">Bernard</button>
+            <button className="small" onClick={() => onLoadAudit("patient-ra-001")} disabled={auditBusy} title="Dorothea Brooke">Dorothea</button>
+            <button className="small" onClick={() => onLoadAudit()} disabled={auditBusy}>
+              {auditBusy ? "Loading…" : "↻ Latest"}
             </button>
           </div>
         </div>
@@ -1405,8 +1416,10 @@ function SourceCol({ title, items }: { title: string; items: Array<{ primary: st
               className={`small ${auditView === "graph" ? "primary" : ""}`}
               onClick={() => setAuditView("graph")}
             >Graph</button>
-            <button className="small" onClick={onLoadAudit} disabled={auditBusy}>
-              {auditBusy ? "Loading…" : "Refresh"}
+            <button className="small" onClick={() => onLoadAudit("patient-001")} disabled={auditBusy} title="Bernard Rieux">Bernard</button>
+            <button className="small" onClick={() => onLoadAudit("patient-ra-001")} disabled={auditBusy} title="Dorothea Brooke">Dorothea</button>
+            <button className="small" onClick={() => onLoadAudit()} disabled={auditBusy}>
+              {auditBusy ? "Loading…" : "↻ Latest"}
             </button>
           </div>
         </div>
