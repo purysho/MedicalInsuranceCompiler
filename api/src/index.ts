@@ -146,27 +146,23 @@ app.post("/api/smart/import", async (req, res) => {
 });
 
 // ── Audit Trail API ──────────────────────────────────────────────────────────
-import { getLatestTrailForPatient, getAllTrails } from "./auditTrail.js";
+import {
+  getLatestTrailForPatient, getAllTrailsForPatient, getAllTrails, registerIdAliases,
+} from "./auditTrail.js";
+
+// Register known aliases on startup so the API can resolve any ID
+registerIdAliases("patient-001", "79f8fd18-5044-452d-b9bd-428b1e35e579");
+registerIdAliases("patient-ra-001", "147e21d9-ab4e-449c-aeb4-8f3d6f7b1b4c");
 
 app.get("/api/audit/:patientId", (req, res) => {
-  // Try the exact ID first, then try mapped IDs
-  const { patientId } = req.params;
-  let trail = getLatestTrailForPatient(patientId);
-
-  // If not found, try alternate IDs
-  if (!trail) {
-    const alternates: Record<string, string> = {
-      [PO_PATIENT_ID]: LEGACY_PATIENT_ID,
-      [LEGACY_PATIENT_ID]: PO_PATIENT_ID,
-      "147e21d9-ab4e-449c-aeb4-8f3d6f7b1b4c": "patient-ra-001",
-      "patient-ra-001": "147e21d9-ab4e-449c-aeb4-8f3d6f7b1b4c",
-    };
-    const alt = alternates[patientId];
-    if (alt) trail = getLatestTrailForPatient(alt);
-  }
-
-  if (!trail) return res.status(404).json({ error: "No audit trail found" });
+  const trail = getLatestTrailForPatient(req.params.patientId);
+  if (!trail) return res.status(404).json({ error: "No audit trail found. Run a prior authorization first." });
   res.json(trail);
+});
+
+app.get("/api/audit/:patientId/all", (req, res) => {
+  const trails = getAllTrailsForPatient(req.params.patientId);
+  res.json({ patientId: req.params.patientId, count: trails.length, trails });
 });
 
 app.get("/api/audit", (_req, res) => {

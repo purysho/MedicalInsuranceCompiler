@@ -14,9 +14,31 @@ import { draftAppealLetter, buildAppealContext } from "./agents/appealAgent.js";
 import { searchSmartPatients, searchDiabetesPatients, importPatientFromSmart, LOCAL_SYNTHETIC_IDS } from "./fhirClient.js";
 import { checkPolicy } from "./policy.js";
 import {
-  startSession, getActiveSession, appendEvent, completeSession,
-  getTrail, getLatestTrailForPatient, getAllTrails,
+  getOrStartSession, startSession, getActiveSession, appendEvent, completeSession,
+  getTrail, getLatestTrailForPatient, getAllTrailsForPatient, getAllTrails,
+  registerIdAliases,
 } from "./auditTrail.js";
+
+// ── Known patient ID aliases — register on startup ───────────────────────────
+registerIdAliases(
+  "patient-001",
+  "79f8fd18-5044-452d-b9bd-428b1e35e579"  // Bernard Rieux PO UUID
+);
+registerIdAliases(
+  "patient-ra-001",
+  "147e21d9-ab4e-449c-aeb4-8f3d6f7b1b4c"  // Dorothea Brooke PO UUID
+);
+
+// ── Tool → agent mapping for catch-all audit ─────────────────────────────────
+function toolToAgent(toolName: string): "ALICE" | "ARIA" {
+  return toolName.startsWith("aria_") ? "ARIA" : "ALICE";
+}
+
+// Extract patient ID from args — tries all common field names
+function extractPatientId(args: Record<string, any>): string | undefined {
+  return args.patientId ?? args.patient_id ?? args.id ?? undefined;
+}
+
 import { runMedRec } from "./agents/medrecAgent.js";
 import { runEvidence } from "./agents/evidenceAgent.js";
 import { runComposePacket } from "./agents/packetComposerAgent.js";
@@ -428,8 +450,8 @@ async function executeTool(
       // Use the PO patient ID if provided, otherwise use legacy
       const patientId = rawId === PO_PATIENT_ID ? PO_PATIENT_ID : LEGACY_PATIENT_ID;
 
-      // Start audit session
-      const sessionId = startSession(patientId, "Semaglutide (GLP-1)");
+      // Get or start audit session (catch-all may have already created one)
+      const sessionId = getOrStartSession(patientId, "Semaglutide (GLP-1)");
       appendEvent(sessionId, {
         type: "tool_called", agent: "ALICE", action: "alice_run_full_prior_auth",
         description: "Full prior authorization pipeline initiated for GLP-1/Semaglutide",
@@ -660,6 +682,11 @@ async function executeTool(
     }
 
     case "alice_smart_import": {
+      // Register the SMART patient's external ID as an alias so audit trail works
+      if (args.patientId) {
+        // Will be linked to internal ID after import — pre-register now
+        registerIdAliases(args.patientId);
+      }
       if (!args.smartPatientId) throw new Error("smartPatientId is required");
 
       // Explicitly reject synthetic local patient IDs
@@ -769,7 +796,7 @@ async function executeTool(
       const patientId = args.patientId ?? LEGACY_PATIENT_ID;
       const policyVariant = args.policyVariant ?? "insulin-standard";
       seedSynthetic(store, { scenario: "complete" });
-      const insulinSessionId = startSession(patientId, "Basal Insulin");
+      const insulinSessionId = getOrStartSession(patientId, "Basal Insulin");
       appendEvent(insulinSessionId, {
         type: "tool_called", agent: "ALICE", action: "alice_run_prior_auth_insulin",
         description: "Basal Insulin prior authorization pipeline initiated",
@@ -846,7 +873,7 @@ async function executeTool(
       const patientId = (rawId === PO_RA_PATIENT_ID) ? PO_RA_PATIENT_ID : RA_PATIENT_ID;
       const policyVariant = args.policyVariant ?? "adalimumab-standard";
       seedRA(store);
-      const adaSessionId = startSession(patientId, "Adalimumab (Humira)");
+      const adaSessionId = getOrStartSession(patientId, "Adalimumab (Humira)");
       appendEvent(adaSessionId, {
         type: "tool_called", agent: "ALICE", action: "alice_run_prior_auth_adalimumab",
         description: "Adalimumab (Humira) prior authorization pipeline initiated for Rheumatoid Arthritis",
@@ -1003,7 +1030,7 @@ async function executeTool(
       }
 
       // Record ARIA handoff in audit trail
-      const existingSession = getActiveSession(args.patientId) ?? `session-aria-${Date.now()}`;
+      const existingSession = getOrStartSession(args.patientId, "Appeal");
       appendEvent(existingSession, {
         type: "agent_handoff", agent: "ARIA", action: "appeal_drafted",
         description: `ARIA drafted clinical appeal addressing ${denialReasons.length} denial reason(s)`,
@@ -1080,10 +1107,18 @@ async function executeTool(
 
       const format = args.format ?? "full";
 
+      const allForPatient = getAllTrailsForPatient(args.patientId);
+
       if (format === "summary") {
-        return { found: true, sessionId: trail.sessionId, summary: trail.summary,
-          startedAt: trail.startedAt, completedAt: trail.completedAt,
-          finalDecision: trail.finalDecision };
+        return {
+          found: true,
+          sessionId: trail.sessionId,
+          summary: trail.summary,
+          startedAt: trail.startedAt,
+          completedAt: trail.completedAt,
+          finalDecision: trail.finalDecision,
+          totalSessions: allForPatient.length,
+        };
       }
 
       if (format === "timeline") {
