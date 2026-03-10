@@ -14,6 +14,13 @@ import { diffPolicies, getPolicyDefinition } from "./policies.js";
 import { randomUUID } from "crypto";
 import path from "path";
 import fs from "fs";
+import { fileURLToPath } from "url";
+import { searchSmartPatients, searchDiabetesPatients, importPatientFromSmart } from "./fhirClient.js";
+import { getLatestTrailForPatient, getAllTrailsForPatient, getAllTrails, registerIdAliases } from "./auditTrail.js";
+
+// ESM-safe __dirname (not available natively with "type":"module")
+const __filename = fileURLToPath(import.meta.url);
+const __dirname_esm = path.dirname(__filename);
 
 const app = express();
 
@@ -26,13 +33,6 @@ app.options("*", cors());
 app.use(express.json({ limit: "2mb" }));
 
 // If the UI has been built (ui/dist), serve it from this same web service.
-// ESM-safe __dirname
-import { fileURLToPath } from "url";
-const __filename = fileURLToPath(import.meta.url);
-const __dirname_esm = path.dirname(__filename);
-
-// UI is built directly into api/public by vite (outDir: "../api/public")
-// At runtime: api/dist/index.js -> api/public is at ../public relative to dist
 const uiPublic = path.resolve(__dirname_esm, "../public");
 const hasUi = fs.existsSync(uiPublic);
 console.log(`[UI] Serving from: ${uiPublic} — exists: ${hasUi}`);
@@ -131,8 +131,6 @@ app.get("/", (_req, res) => {
 });
 
 // ── SMART Health IT proxy routes ─────────────────────────────────────────────
-import { searchSmartPatients, searchDiabetesPatients, importPatientFromSmart } from "./fhirClient.js";
-
 app.post("/api/smart/search", async (req, res) => {
   try {
     const { query, diabetesOnly, maxResults } = req.body;
@@ -157,10 +155,6 @@ app.post("/api/smart/import", async (req, res) => {
 });
 
 // ── Audit Trail API ──────────────────────────────────────────────────────────
-import {
-  getLatestTrailForPatient, getAllTrailsForPatient, getAllTrails, registerIdAliases,
-} from "./auditTrail.js";
-
 // Register known aliases on startup so the API can resolve any ID
 registerIdAliases("patient-001", "79f8fd18-5044-452d-b9bd-428b1e35e579");
 registerIdAliases("patient-ra-001", "147e21d9-ab4e-449c-aeb4-8f3d6f7b1b4c");
