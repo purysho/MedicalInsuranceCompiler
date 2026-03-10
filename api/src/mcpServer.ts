@@ -8,11 +8,12 @@
 
 import { Request, Response } from "express";
 import { FhirStore } from "./fhirStore.js";
-import { seedSynthetic, seedRA, PO_PATIENT_ID, LEGACY_PATIENT_ID, RA_PATIENT_ID, PO_RA_PATIENT_ID } from "./seed.js";
+import { seedSynthetic, seedRA, seedComorbid, PO_PATIENT_ID, LEGACY_PATIENT_ID, RA_PATIENT_ID, PO_RA_PATIENT_ID, COMORBID_PATIENT_ID, PO_COMORBID_PATIENT_ID } from "./seed.js";
 import { extractClinicalNote, mergeWithFhirContext } from "./agents/noteExtractorAgent.js";
 import { draftAppealLetter, buildAppealContext } from "./agents/appealAgent.js";
 import { searchSmartPatients, searchDiabetesPatients, importPatientFromSmart, LOCAL_SYNTHETIC_IDS } from "./fhirClient.js";
 import { checkPolicy } from "./policy.js";
+import { getPolicyDefinition, diffPolicies } from "./policies.js";
 import {
   getOrStartSession, startSession, getActiveSession, appendEvent, completeSession,
   getTrail, getLatestTrailForPatient, getAllTrailsForPatient, getAllTrails,
@@ -1343,7 +1344,7 @@ async function executeTool(
         nextSteps: deniedMeds.length
           ? [`Call aria_draft_appeal for denied medications: ${deniedMeds.join(", ")}`, "Provide denial reasons from this result to aria_draft_appeal"]
           : ["Both approved — no appeals required. Patient may begin dual therapy."],
-        auditSessionId: session.sessionId,
+        auditSessionId: session,
       };
     }
 
