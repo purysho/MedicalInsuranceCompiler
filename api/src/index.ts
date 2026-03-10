@@ -118,15 +118,11 @@ function buildShowMeWhy(requestContext: any) {
 }
 
 app.get("/healthz", (_req, res) => {
-  res.json({ status: "ok", hasDashboard, dashboardPath, cwd: process.cwd(), dirname: __dirname_esm });
+  res.json({ status: "ok", hasDashboard, dashboardPath, cwd: process.cwd() });
 });
 
 app.get("/", (_req, res) => {
-  if (hasUi) {
-    res.sendFile(dashboardPath);
-  } else {
-    res.type("text/plain").send("OK - MedicalInsuranceCompiler API is running");
-  }
+  res.sendFile(dashboardPath);
 });
 
 // ── SMART Health IT proxy routes ─────────────────────────────────────────────
@@ -375,11 +371,9 @@ app.get("/messages", (_req, res) => res.json({ messages: bus.messages }));
 app.get("/mcp-log", (_req, res) => res.json({ tools: getMcpLog() }));
 
 // SPA fallback: serve index.html for non-API GET routes.
-if (hasUi) {
-  app.get(/^\/(?!mcp|seed|fhir-dump|clinician|run|packet|trace|messages|mcp-log|policy-data|show-me-why|simulate).*/, (_req, res) => {
-    res.sendFile(dashboardPath);
-  });
-}
+app.get(/^\/(?!mcp|seed|fhir-dump|clinician|run|packet|trace|messages|mcp-log|policy-data|show-me-why|simulate|api|health).*/, (_req, res) => {
+  res.sendFile(dashboardPath);
+});
 
 const port = Number(process.env.PORT ?? 8787);
 app.listen(port, () => {
