@@ -120,3 +120,108 @@ export function seedRA(store: FhirStore) {
     });
   }
 }
+
+// ── Eleanor Vance — Comorbid T2D + Rheumatoid Arthritis ──────────────────────
+// Needs BOTH GLP-1 (semaglutide) AND Adalimumab prior auths simultaneously.
+// HbA1c 9.1% (above threshold), DAS28 5.6 (above strict threshold).
+// Failed: Metformin (GI intolerance), MTX (hepatotoxicity), Leflunomide (rash).
+export const COMORBID_PATIENT_ID = "patient-comorbid-001";
+export const PO_COMORBID_PATIENT_ID = "comorbid-eleanor-vance-001";
+
+export function seedComorbid(store: FhirStore) {
+  const ids = [COMORBID_PATIENT_ID, PO_COMORBID_PATIENT_ID];
+
+  for (const id of ids) {
+    store.upsert("Patient", id, {
+      resourceType: "Patient", id,
+      name: [{ family: "Vance", given: ["Eleanor"], prefix: ["Dr."] }],
+      birthDate: "1971-09-14", gender: "female",
+    });
+
+    // ── Dual diagnoses ──
+    store.upsert("Condition", `condition-t2d-${id}`, {
+      resourceType: "Condition", id: `condition-t2d-${id}`,
+      clinicalStatus: { coding: [{ code: "active" }] },
+      code: { text: "Type 2 diabetes mellitus", coding: [{ system: "http://snomed.info/sct", code: "44054006" }] },
+      subject: { reference: `Patient/${id}` }, onsetDateTime: "2019-03-01",
+    });
+    store.upsert("Condition", `condition-ra-${id}`, {
+      resourceType: "Condition", id: `condition-ra-${id}`,
+      clinicalStatus: { coding: [{ code: "active" }] },
+      code: { text: "Rheumatoid arthritis", coding: [{ system: "http://snomed.info/sct", code: "69896004" }] },
+      subject: { reference: `Patient/${id}` }, onsetDateTime: "2020-11-15",
+    });
+
+    // ── Labs: HbA1c 9.1% (GLP-1 threshold met) ──
+    store.upsert("Observation", `obs-a1c-${id}`, {
+      resourceType: "Observation", id: `obs-a1c-${id}`, status: "final",
+      code: { text: "HbA1c", coding: [{ display: "Hemoglobin A1c/Hemoglobin.total in Blood" }] },
+      subject: { reference: `Patient/${id}` },
+      effectiveDateTime: "2026-02-20", valueQuantity: { value: 9.1, unit: "%" },
+    });
+
+    // ── Labs: DAS28 5.6 (strict Adalimumab threshold met) ──
+    store.upsert("Observation", `obs-das28-${id}`, {
+      resourceType: "Observation", id: `obs-das28-${id}`, status: "final",
+      code: { text: "DAS28 Disease Activity Score" },
+      subject: { reference: `Patient/${id}` },
+      effectiveDateTime: "2026-02-20", valueQuantity: { value: 5.6, unit: "score" },
+    });
+
+    // ── Failed T2D medications ──
+    store.upsert("MedicationStatement", `medstmt-met-${id}`, {
+      resourceType: "MedicationStatement", id: `medstmt-met-${id}`, status: "stopped",
+      medicationCodeableConcept: { text: "Metformin 1000mg tablet" },
+      subject: { reference: `Patient/${id}` },
+      note: [{ text: "Stopped after 6 weeks: severe GI intolerance (nausea, diarrhoea)" }],
+      effectivePeriod: { start: "2025-04-01", end: "2025-05-15" },
+    });
+    store.upsert("MedicationStatement", `medstmt-sglt2-${id}`, {
+      resourceType: "MedicationStatement", id: `medstmt-sglt2-${id}`, status: "stopped",
+      medicationCodeableConcept: { text: "Empagliflozin 10mg (SGLT-2 inhibitor)" },
+      subject: { reference: `Patient/${id}` },
+      note: [{ text: "Stopped after 3 months: recurrent UTIs, HbA1c remained 9.0%" }],
+      effectivePeriod: { start: "2025-06-01", end: "2025-09-01" },
+    });
+
+    // ── Failed RA medications ──
+    store.upsert("MedicationStatement", `medstmt-mtx-${id}`, {
+      resourceType: "MedicationStatement", id: `medstmt-mtx-${id}`, status: "stopped",
+      medicationCodeableConcept: { text: "Methotrexate 20mg weekly" },
+      subject: { reference: `Patient/${id}` },
+      note: [{ text: "MTX 20mg/week stopped after 5 months: hepatotoxicity (ALT 4× ULN)" }],
+      effectivePeriod: { start: "2024-09-01", end: "2025-02-01" },
+    });
+    store.upsert("MedicationStatement", `medstmt-lef-${id}`, {
+      resourceType: "MedicationStatement", id: `medstmt-lef-${id}`, status: "stopped",
+      medicationCodeableConcept: { text: "Leflunomide 20mg daily" },
+      subject: { reference: `Patient/${id}` },
+      note: [{ text: "Leflunomide stopped after 3 months: severe cutaneous rash" }],
+      effectivePeriod: { start: "2025-02-15", end: "2025-05-15" },
+    });
+
+    // ── Coverage (dual payer — T2D + RA plan) ──
+    store.upsert("Coverage", `coverage-comorbid-${id}`, {
+      resourceType: "Coverage", id: `coverage-comorbid-${id}`, status: "active",
+      beneficiary: { reference: `Patient/${id}` },
+      payor: [{ display: "BlueCross Dual Coverage Plan" }],
+      class: [
+        { type: { text: "group" }, value: "GRP-T2D-RA-001", name: "Dual Condition Coverage" }
+      ],
+    });
+
+    // ── MedicationDispense history ──
+    store.upsert("MedicationDispense", `meddisp-met-${id}`, {
+      resourceType: "MedicationDispense", id: `meddisp-met-${id}`, status: "completed",
+      subject: { reference: `Patient/${id}` },
+      medicationCodeableConcept: { text: "Metformin 1000mg tablet" },
+      whenHandedOver: "2025-04-05", quantity: { value: 60, unit: "tablet" },
+    });
+    store.upsert("MedicationDispense", `meddisp-sglt2-${id}`, {
+      resourceType: "MedicationDispense", id: `meddisp-sglt2-${id}`, status: "completed",
+      subject: { reference: `Patient/${id}` },
+      medicationCodeableConcept: { text: "Empagliflozin 10mg" },
+      whenHandedOver: "2025-06-05", quantity: { value: 90, unit: "tablet" },
+    });
+  }
+}

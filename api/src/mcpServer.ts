@@ -354,6 +354,18 @@ const TOOLS = [
     inputSchema: { type: "object", properties: { patientId: { type: "string", description: "FHIR Patient ID" } }, required: ["patientId"] },
   },
   {
+    name: "alice_run_prior_auth_comorbid",
+    description: "Run DUAL parallel prior authorizations for Eleanor Vance — a patient with BOTH Type 2 Diabetes (needs GLP-1/Semaglutide) AND Rheumatoid Arthritis (needs Adalimumab/Humira). Runs both pipelines simultaneously and returns combined results. Both may be approved, both denied, or one of each — demonstrating ALICE handling real clinical complexity.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        patientId: { type: "string", description: "FHIR Patient ID (default: patient-comorbid-001 for Eleanor Vance)" },
+        glp1PolicyVariant: { type: "string", enum: ["standard", "strict", "denied"], description: "GLP-1 policy variant (default: standard)" },
+        adalimumabPolicyVariant: { type: "string", enum: ["adalimumab-standard", "adalimumab-strict"], description: "Adalimumab policy variant (default: adalimumab-strict)" },
+      },
+    },
+  },
+  {
     name: "payer_counter_deny",
     description: "Simulate a payer issuing a counter-denial after ARIA's initial appeal. Returns new objections. Call after aria_draft_appeal. ARIA should then call aria_submit_rebuttal.",
     inputSchema: {
@@ -1178,6 +1190,160 @@ async function executeTool(
             } catch { return "unknown"; }
           })(),
         })),
+      };
+    }
+
+    case "alice_run_prior_auth_comorbid": {
+      const pid = args.patientId ?? COMORBID_PATIENT_ID;
+
+      // Seed Eleanor if not already present
+      seedComorbid(store);
+      registerIdAliases(COMORBID_PATIENT_ID, PO_COMORBID_PATIENT_ID);
+
+      const glp1Variant = args.glp1PolicyVariant ?? "standard";
+      const adaVariant = args.adalimumabPolicyVariant ?? "adalimumab-strict";
+
+      const session = getOrStartSession(pid, "DualPriorAuth");
+      appendEvent(session, {
+        type: "pipeline_start", agent: "ALICE", action: "dual_prior_auth_start",
+        description: `Starting DUAL prior auth pipeline for comorbid patient — GLP-1 (${glp1Variant}) + Adalimumab (${adaVariant})`,
+        dataSources: ["fhir-local"],
+        resourcesCreated: [], resourcesRead: [],
+        patientId: pid,
+      });
+
+      // ── GLP-1 pipeline ──────────────────────────────────────────────────────
+      const glp1Results: any = {};
+
+      const t2dConds = store.search("Condition", { subject: pid })
+        .filter((c: any) => JSON.stringify(c).toLowerCase().includes("type 2"));
+      const a1cObs = store.search("Observation", { subject: pid })
+        .filter((o: any) => JSON.stringify(o).toLowerCase().includes("a1c"));
+      const metforminStmts = store.search("MedicationStatement", { subject: pid })
+        .filter((s: any) => (s.medicationCodeableConcept?.text ?? "").toLowerCase().includes("metformin"));
+      const sglt2Stmts = store.search("MedicationStatement", { subject: pid })
+        .filter((s: any) => (s.medicationCodeableConcept?.text ?? "").toLowerCase().includes("sglt") || (s.medicationCodeableConcept?.text ?? "").toLowerCase().includes("empagliflozin"));
+
+      const a1cValue = a1cObs[0]?.valueQuantity?.value ?? 0;
+      const hasMetforminTrial = metforminStmts.some((s: any) => s.status === "stopped");
+      const hasSglt2Trial = sglt2Stmts.some((s: any) => s.status === "stopped");
+      const hasOralAgentTrial = hasMetforminTrial || hasSglt2Trial;
+      const hasT2D = t2dConds.length > 0;
+
+      const glp1Policy = getPolicyDefinition(glp1Variant);
+      const glp1Met: string[] = [];
+      const glp1Missing: string[] = [];
+
+      if (hasT2D) glp1Met.push("Type 2 Diabetes Mellitus diagnosis confirmed");
+      else glp1Missing.push("Type 2 Diabetes diagnosis required");
+
+      if (a1cValue >= (glp1Policy?.criteria?.minA1c ?? 7.0)) glp1Met.push(`HbA1c ${a1cValue}% meets threshold (≥${glp1Policy?.criteria?.minA1c ?? 7.0}%)`);
+      else glp1Missing.push(`HbA1c ${a1cValue}% below required threshold of ${glp1Policy?.criteria?.minA1c ?? 7.0}%`);
+
+      if (hasOralAgentTrial) glp1Met.push("Step therapy met: prior oral antidiabetic agent trial documented (Metformin + SGLT-2 inhibitor)");
+      else glp1Missing.push("Step therapy required: must document adequate trial of oral antidiabetic agent");
+
+      glp1Results.approved = glp1Missing.length === 0;
+      glp1Results.met = glp1Met;
+      glp1Results.missing = glp1Missing;
+      glp1Results.medication = "Semaglutide (GLP-1 receptor agonist)";
+      glp1Results.policyVariant = glp1Variant;
+      glp1Results.a1cValue = a1cValue;
+
+      appendEvent(session, {
+        type: "ai_decision", agent: "ALICE", action: "glp1_policy_check",
+        description: `GLP-1 prior auth: ${glp1Results.approved ? "APPROVED" : "DENIED"} — HbA1c ${a1cValue}%, ${glp1Met.length} criteria met`,
+        dataSources: ["fhir-local", "ai-policy-check"],
+        resourcesCreated: [], resourcesRead: a1cObs.slice(0,1).map((o: any) => ({ resourceType: "Observation", id: o.id })),
+        aiDecision: {
+          decision: glp1Results.approved ? "APPROVED" : "DENIED",
+          confidence: "high",
+          reasoning: glp1Results.approved ? glp1Met.join("; ") : glp1Missing.join("; "),
+        },
+        patientId: pid,
+      });
+
+      // ── Adalimumab pipeline ─────────────────────────────────────────────────
+      const adaResults: any = {};
+
+      const raConds = store.search("Condition", { subject: pid })
+        .filter((c: any) => JSON.stringify(c).toLowerCase().includes("rheumatoid"));
+      const das28Obs = store.search("Observation", { subject: pid })
+        .filter((o: any) => JSON.stringify(o).toLowerCase().includes("das28"));
+      const dmardStmts = store.search("MedicationStatement", { subject: pid })
+        .filter((s: any) => {
+          const text = (s.medicationCodeableConcept?.text ?? "").toLowerCase();
+          return text.includes("methotrexate") || text.includes("leflunomide") || text.includes("hydroxychloroquine") || text.includes("sulfasalazine");
+        });
+
+      const das28Value = das28Obs[0]?.valueQuantity?.value ?? 0;
+      const hasRA = raConds.length > 0;
+      const dmardFailures = dmardStmts.filter((s: any) => s.status === "stopped");
+      const adaPolicy = getPolicyDefinition(adaVariant);
+
+      const adaMet: string[] = [];
+      const adaMissing: string[] = [];
+
+      if (hasRA) adaMet.push("Rheumatoid arthritis diagnosis confirmed");
+      else adaMissing.push("Rheumatoid arthritis diagnosis required");
+
+      if (das28Value >= (adaPolicy?.criteria?.minDas28 ?? 3.2)) adaMet.push(`DAS28 ${das28Value} meets threshold (≥${adaPolicy?.criteria?.minDas28 ?? 3.2})`);
+      else adaMissing.push(`DAS28 ${das28Value} below required threshold of ${adaPolicy?.criteria?.minDas28 ?? 3.2}`);
+
+      const requiredDmards = adaPolicy?.criteria?.requiredDmardFailures ?? 1;
+      if (dmardFailures.length >= requiredDmards) adaMet.push(`Step therapy met: ${dmardFailures.length} DMARD failure(s) documented (MTX + Leflunomide)`);
+      else adaMissing.push(`Step therapy insufficient: ${dmardFailures.length} DMARD failure(s) documented, ${requiredDmards} required`);
+
+      adaResults.approved = adaMissing.length === 0;
+      adaResults.met = adaMet;
+      adaResults.missing = adaMissing;
+      adaResults.medication = "Adalimumab (Humira)";
+      adaResults.policyVariant = adaVariant;
+      adaResults.das28Value = das28Value;
+      adaResults.dmardFailures = dmardFailures.length;
+
+      appendEvent(session, {
+        type: "ai_decision", agent: "ALICE", action: "adalimumab_policy_check",
+        description: `Adalimumab prior auth: ${adaResults.approved ? "APPROVED" : "DENIED"} — DAS28 ${das28Value}, ${dmardFailures.length} DMARD failures`,
+        dataSources: ["fhir-local", "ai-policy-check"],
+        resourcesCreated: [], resourcesRead: das28Obs.slice(0,1).map((o: any) => ({ resourceType: "Observation", id: o.id })),
+        aiDecision: {
+          decision: adaResults.approved ? "APPROVED" : "DENIED",
+          confidence: "high",
+          reasoning: adaResults.approved ? adaMet.join("; ") : adaMissing.join("; "),
+        },
+        patientId: pid,
+      });
+
+      // ── Combined summary ────────────────────────────────────────────────────
+      const bothApproved = glp1Results.approved && adaResults.approved;
+      const bothDenied = !glp1Results.approved && !adaResults.approved;
+      const finalDecision = bothApproved ? "approved" : bothDenied ? "denied" : "partial";
+
+      completeSession(session, finalDecision as any);
+
+      const deniedMeds: string[] = [];
+      if (!glp1Results.approved) deniedMeds.push("Semaglutide (GLP-1)");
+      if (!adaResults.approved) deniedMeds.push("Adalimumab (Humira)");
+
+      return {
+        patientId: pid,
+        patientName: "Dr. Eleanor Vance",
+        conditions: ["Type 2 Diabetes Mellitus (HbA1c 9.1%)", "Rheumatoid Arthritis (DAS28 5.6)"],
+        dualPriorAuth: {
+          glp1: glp1Results,
+          adalimumab: adaResults,
+        },
+        overallDecision: finalDecision.toUpperCase(),
+        summary: bothApproved
+          ? "Both prior authorizations APPROVED. Eleanor Vance may begin Semaglutide and Adalimumab therapy."
+          : bothDenied
+          ? "Both prior authorizations DENIED. ARIA should draft dual appeals addressing GLP-1 and Adalimumab denials."
+          : `Partial approval — ${glp1Results.approved ? "GLP-1 APPROVED" : "GLP-1 DENIED"}, ${adaResults.approved ? "Adalimumab APPROVED" : "Adalimumab DENIED"}.`,
+        nextSteps: deniedMeds.length
+          ? [`Call aria_draft_appeal for denied medications: ${deniedMeds.join(", ")}`, "Provide denial reasons from this result to aria_draft_appeal"]
+          : ["Both approved — no appeals required. Patient may begin dual therapy."],
+        auditSessionId: session.sessionId,
       };
     }
 

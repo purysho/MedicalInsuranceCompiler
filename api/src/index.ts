@@ -153,6 +153,7 @@ app.post("/api/smart/import", async (req, res) => {
 // Register known aliases on startup so the API can resolve any ID
 registerIdAliases("patient-001", "79f8fd18-5044-452d-b9bd-428b1e35e579");
 registerIdAliases("patient-ra-001", "147e21d9-ab4e-449c-aeb4-8f3d6f7b1b4c");
+registerIdAliases("patient-comorbid-001", "comorbid-eleanor-vance-001");
 
 app.get("/api/audit/:patientId", (req, res) => {
   const trail = getLatestTrailForPatient(req.params.patientId);
