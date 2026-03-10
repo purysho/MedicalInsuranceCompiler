@@ -350,15 +350,29 @@ const TOOLS = [
   },
   {
     name: "aria_get_appeal_status",
-    description:
-      "ARIA: Check the status of a prior authorization appeal — returns the drafted appeal letter and any stored appeal documents for a patient.",
+    description: "ARIA: Check the status of a prior authorization appeal — returns all appeal documents for a patient.",
+    inputSchema: { type: "object", properties: { patientId: { type: "string", description: "FHIR Patient ID" } }, required: ["patientId"] },
+  },
+  {
+    name: "payer_counter_deny",
+    description: "Simulate a payer issuing a counter-denial after ARIA's initial appeal. Returns new objections. Call after aria_draft_appeal. ARIA should then call aria_submit_rebuttal.",
     inputSchema: {
       type: "object",
       properties: {
-        patientId: {
-          type: "string",
-          description: "FHIR Patient ID",
-        },
+        patientId: { type: "string", description: "FHIR Patient ID" },
+        counterReasons: { type: "array", items: { type: "string" }, description: "Custom counter-denial reasons (optional)" },
+      },
+      required: ["patientId"],
+    },
+  },
+  {
+    name: "aria_submit_rebuttal",
+    description: "ARIA: Draft a formal rebuttal to a payer counter-denial (Round 2+ appeal). Provide counterReasons from payer_counter_deny. ARIA writes the rebuttal letter directly, citing literature and FHIR evidence with escalating urgency.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        patientId: { type: "string", description: "FHIR Patient ID" },
+        counterReasons: { type: "array", items: { type: "string" }, description: "Payer counter-objections to address" },
       },
       required: ["patientId"],
     },
@@ -1164,6 +1178,118 @@ async function executeTool(
             } catch { return "unknown"; }
           })(),
         })),
+      };
+    }
+
+    case "payer_counter_deny": {
+      if (!args.patientId) throw new Error("patientId is required");
+      const appealDocs = store.search("DocumentReference", { subject: args.patientId })
+        .filter((d: any) => d.type?.text === "Prior Authorization Appeal Letter");
+      if (!appealDocs.length) {
+        return { error: "No appeal found for this patient. Run aria_draft_appeal first." };
+      }
+      const latestAppeal = appealDocs[appealDocs.length - 1];
+      const counterReasons: string[] = args.counterReasons ?? [
+        "Appeal letter insufficient: no peer-reviewed literature cited demonstrating superiority over oral antidiabetic agents",
+        "Step therapy documentation incomplete: records do not confirm adequate trial duration (minimum 90 days) at therapeutic dose",
+        "Cost-effectiveness not established: patient has not attempted a generic SGLT-2 inhibitor prior to requesting branded GLP-1 therapy",
+      ];
+      const counterDoc = store.create({
+        resourceType: "DocumentReference",
+        status: "current",
+        type: { text: "Payer Counter-Denial" },
+        subject: { reference: `Patient/${args.patientId}` },
+        date: new Date().toISOString(),
+        description: `Counter-denial to appeal ${latestAppeal.id}`,
+        relatesTo: [{ code: "replaces", target: { reference: `DocumentReference/${latestAppeal.id}` } }],
+      });
+      const session = getOrStartSession(args.patientId, "CounterDenial");
+      appendEvent(session, {
+        type: "agent_handoff", agent: "ALICE", action: "counter_denial_received",
+        description: `Payer issued counter-denial with ${counterReasons.length} new objection(s)`,
+        dataSources: ["payer-system"],
+        resourcesCreated: [{ resourceType: "DocumentReference", id: counterDoc.id }],
+        resourcesRead: [],
+        aiDecision: { decision: "COUNTER_DENIED", confidence: "high", reasoning: counterReasons.join("; ") },
+        patientId: args.patientId,
+      });
+      return {
+        instruction: "ARIA: The payer has counter-denied the appeal. Use aria_submit_rebuttal to draft a targeted rebuttal addressing each new objection.",
+        counterDenialId: counterDoc.id,
+        originalAppealId: latestAppeal.id,
+        patientId: args.patientId,
+        counterReasons,
+        appealRound: appealDocs.length + 1,
+        nextStep: "Call aria_submit_rebuttal with these counterReasons to draft a rebuttal",
+      };
+    }
+
+    case "aria_submit_rebuttal": {
+      if (!args.patientId) throw new Error("patientId is required");
+      const counterReasons: string[] = Array.isArray(args.counterReasons)
+        ? args.counterReasons
+        : [args.counterReasons ?? "Payer counter-denial"];
+      const appealDocs = store.search("DocumentReference", { subject: args.patientId })
+        .filter((d: any) => d.type?.text === "Prior Authorization Appeal Letter");
+      const counterDocs = store.search("DocumentReference", { subject: args.patientId })
+        .filter((d: any) => d.type?.text === "Payer Counter-Denial");
+      const appealRound = appealDocs.length + 1;
+      const observations = store.search("Observation", { subject: args.patientId });
+      const conditions = store.search("Condition", { subject: args.patientId });
+      const a1c = observations.find((o: any) => JSON.stringify(o).toLowerCase().includes("a1c"));
+      const t2d = conditions.find((c: any) => JSON.stringify(c).toLowerCase().includes("type 2"));
+      const rebuttalDoc = store.create({
+        resourceType: "DocumentReference",
+        status: "current",
+        type: { text: "Prior Authorization Appeal Letter" },
+        subject: { reference: `Patient/${args.patientId}` },
+        date: new Date().toISOString(),
+        description: `Rebuttal Round ${appealRound} — ${counterReasons.length} counter-objection(s)`,
+      });
+      const session = getOrStartSession(args.patientId, "Rebuttal");
+      appendEvent(session, {
+        type: "appeal_drafted", agent: "ARIA", action: `rebuttal_round_${appealRound}`,
+        description: `ARIA drafted rebuttal Round ${appealRound} addressing ${counterReasons.length} payer counter-objection(s)`,
+        dataSources: ["fhir-local", "ai-appeal", "payer-system"],
+        resourcesCreated: [{ resourceType: "DocumentReference", id: rebuttalDoc.id }],
+        resourcesRead: [],
+        handoff: { from: "ALICE", to: "ARIA", reason: `Payer counter-denial Round ${appealRound - 1}`, context: { counterReasons } },
+        aiDecision: {
+          decision: "REBUTTAL_DRAFTED", confidence: "high",
+          reasoning: `Round ${appealRound} rebuttal with literature + FHIR evidence`,
+        },
+        patientId: args.patientId,
+      });
+      completeSession(session, "appealed");
+      return {
+        instruction: `ARIA: This is Appeal Round ${appealRound}. Draft a formal rebuttal letter addressing EACH counter-objection below with clinical literature and FHIR evidence. Write the letter directly — do not call another tool.`,
+        rebuttalDocumentId: rebuttalDoc.id,
+        appealRound,
+        patientId: args.patientId,
+        counterObjections: counterReasons,
+        escalationContext: {
+          counterDenialCount: counterDocs.length,
+          recommendedUrgency: appealRound >= 3 ? "urgent" : "expedited",
+          escalationPath: appealRound >= 3
+            ? ["File complaint with state insurance commissioner", "Request peer-to-peer review with payer Medical Director", "Initiate external IRO process"]
+            : ["Request peer-to-peer review", "Submit additional clinical documentation"],
+        },
+        clinicalEvidence: {
+          a1cObservation: a1c ? { id: a1c.id, value: a1c.valueQuantity?.value, date: a1c.effectiveDateTime } : null,
+          t2dDiagnosis: t2d ? { id: t2d.id, text: t2d.code?.text } : null,
+          supportingLiterature: [
+            "Marso SP et al. Semaglutide and Cardiovascular Outcomes — NEJM 2016;375:1834-1844 (SUSTAIN-6)",
+            "ADA Standards of Medical Care in Diabetes 2024 — Section 9: Pharmacologic Approaches",
+            "Davies MJ et al. ADA/EASD Consensus Report on Management of Hyperglycaemia. Diabetologia 2022",
+          ],
+        },
+        rebuttalGuidance: {
+          subject: `Re: Rebuttal Round ${appealRound} — Appeal of Prior Authorization Denial — Semaglutide`,
+          opening: "Dear Medical Director and Appeals Committee,",
+          closing: `Respectfully submitted,\nARIA — Appeal & Rebuttal Intelligence Agent\nRound ${appealRound} of ${Math.max(appealRound, 3)} permitted appeal rounds`,
+          mustAddress: counterReasons,
+          tone: appealRound >= 3 ? "firm and escalatory — reference patient harm from delay" : "professional and evidence-based",
+        },
       };
     }
 
