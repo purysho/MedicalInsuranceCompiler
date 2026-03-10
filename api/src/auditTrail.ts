@@ -18,7 +18,8 @@ export type DataSource =
   | "ai-note-extraction"
   | "ai-policy-check"
   | "ai-appeal"
-  | "synthetic-seed";
+  | "synthetic-seed"
+  | "payer-system";
 
 export type AuditEventType =
   | "tool_called"
