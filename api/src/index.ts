@@ -26,25 +26,18 @@ app.options("*", cors());
 app.use(express.json({ limit: "2mb" }));
 
 // If the UI has been built (ui/dist), serve it from this same web service.
-// ESM-safe path resolution (__dirname not available with "type":"module")
+// ESM-safe __dirname
 import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname_esm = path.dirname(__filename);
 
-// Try multiple path resolutions — cwd() varies between local and Render.
-// On Render: cwd = /opt/render/project/src, dist built at api/dist/index.js
-const uiDistCandidates = [
-  path.resolve(process.cwd(), "ui/dist"),           // Render: root/ui/dist
-  path.resolve(process.cwd(), "../ui/dist"),         // local dev
-  path.resolve(__dirname_esm, "../../ui/dist"),      // api/dist -> api -> root/ui/dist
-  path.resolve(__dirname_esm, "../../../ui/dist"),   // deeper nesting
-];
-const uiDist = uiDistCandidates.find(p => fs.existsSync(p)) ?? uiDistCandidates[0];
-const hasUi = fs.existsSync(uiDist);
-console.log(`[UI] Checked paths:`, uiDistCandidates);
-console.log(`[UI] Using: ${uiDist} — exists: ${hasUi}`);
+// UI is built directly into api/public by vite (outDir: "../api/public")
+// At runtime: api/dist/index.js -> api/public is at ../public relative to dist
+const uiPublic = path.resolve(__dirname_esm, "../public");
+const hasUi = fs.existsSync(uiPublic);
+console.log(`[UI] Serving from: ${uiPublic} — exists: ${hasUi}`);
 if (hasUi) {
-  app.use(express.static(uiDist));
+  app.use(express.static(uiPublic));
 }
 
 const store = new FhirStore();
@@ -126,12 +119,12 @@ function buildShowMeWhy(requestContext: any) {
 }
 
 app.get("/healthz", (_req, res) => {
-  res.json({ status: "ok", hasUi, uiDist, cwd: process.cwd() });
+  res.json({ status: "ok", hasUi, uiPublic, cwd: process.cwd(), dirname: __dirname_esm });
 });
 
 app.get("/", (_req, res) => {
   if (hasUi) {
-    res.sendFile(path.join(uiDist, "index.html"));
+    res.sendFile(path.join(uiPublic, "index.html"));
   } else {
     res.type("text/plain").send("OK - MedicalInsuranceCompiler API is running");
   }
@@ -391,7 +384,7 @@ app.get("/mcp-log", (_req, res) => res.json({ tools: getMcpLog() }));
 // SPA fallback: serve index.html for non-API GET routes.
 if (hasUi) {
   app.get(/^\/(?!mcp|seed|fhir-dump|clinician|run|packet|trace|messages|mcp-log|policy-data|show-me-why|simulate).*/, (_req, res) => {
-    res.sendFile(path.join(uiDist, "index.html"));
+    res.sendFile(path.join(uiPublic, "index.html"));
   });
 }
 
