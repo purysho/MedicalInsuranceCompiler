@@ -32,13 +32,12 @@ app.use(cors({
 app.options("*", cors());
 app.use(express.json({ limit: "2mb" }));
 
-// If the UI has been built (ui/dist), serve it from this same web service.
-const uiPublic = path.resolve(__dirname_esm, "../public");
-const hasUi = fs.existsSync(uiPublic);
-console.log(`[UI] Serving from: ${uiPublic} — exists: ${hasUi}`);
-if (hasUi) {
-  app.use(express.static(uiPublic));
-}
+// Serve dashboard HTML directly — no build step, no path guessing
+// dashboard.html sits in api/src/, compiled to api/dist/../src/dashboard.html
+// but we read it relative to the running file location
+const dashboardPath = path.resolve(__dirname_esm, "../src/dashboard.html");
+const hasDashboard = fs.existsSync(dashboardPath);
+console.log(`[UI] Dashboard: ${dashboardPath} — exists: ${hasDashboard}`);
 
 const store = new FhirStore();
 const bus = new A2ABus();
@@ -119,12 +118,12 @@ function buildShowMeWhy(requestContext: any) {
 }
 
 app.get("/healthz", (_req, res) => {
-  res.json({ status: "ok", hasUi, uiPublic, cwd: process.cwd(), dirname: __dirname_esm });
+  res.json({ status: "ok", hasDashboard, dashboardPath, cwd: process.cwd(), dirname: __dirname_esm });
 });
 
 app.get("/", (_req, res) => {
   if (hasUi) {
-    res.sendFile(path.join(uiPublic, "index.html"));
+    res.sendFile(dashboardPath);
   } else {
     res.type("text/plain").send("OK - MedicalInsuranceCompiler API is running");
   }
@@ -378,7 +377,7 @@ app.get("/mcp-log", (_req, res) => res.json({ tools: getMcpLog() }));
 // SPA fallback: serve index.html for non-API GET routes.
 if (hasUi) {
   app.get(/^\/(?!mcp|seed|fhir-dump|clinician|run|packet|trace|messages|mcp-log|policy-data|show-me-why|simulate).*/, (_req, res) => {
-    res.sendFile(path.join(uiPublic, "index.html"));
+    res.sendFile(dashboardPath);
   });
 }
 
