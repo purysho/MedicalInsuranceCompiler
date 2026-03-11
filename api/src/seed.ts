@@ -126,7 +126,7 @@ export function seedRA(store: FhirStore) {
 // HbA1c 9.1% (above threshold), DAS28 5.6 (above strict threshold).
 // Failed: Metformin (GI intolerance), MTX (hepatotoxicity), Leflunomide (rash).
 export const COMORBID_PATIENT_ID = "patient-comorbid-001";
-export const PO_COMORBID_PATIENT_ID = "comorbid-eleanor-vance-001";
+export const PO_COMORBID_PATIENT_ID = "d6417ffa-1ed8-4bb9-ae4c-d3820c9615f9";
 
 export function seedComorbid(store: FhirStore) {
   const ids = [COMORBID_PATIENT_ID, PO_COMORBID_PATIENT_ID];
