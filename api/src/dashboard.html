@@ -114,6 +114,40 @@ select{background:var(--s2);border:1px solid var(--border2);border-radius:6px;co
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
 .flex1{flex:1;}
 .graph-wrap{overflow-x:auto;background:var(--s2);border-radius:8px;border:1px solid var(--border);padding:12px;}
+
+.prompt-box {
+  background: var(--s2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 9px 12px;
+  font-size: 12px; color: var(--text); line-height: 1.5;
+  min-height: 52px;
+}
+.round-card {
+  background: var(--s2); border: 1px solid var(--border);
+  border-radius: 8px; overflow: hidden; margin-bottom: 10px;
+}
+.round-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 14px; border-bottom: 1px solid var(--border);
+  background: rgba(255,255,255,0.015);
+}
+.round-body { padding: 12px 14px; }
+.counter-card {
+  margin-top: 10px; padding: 10px 12px;
+  background: rgba(248,81,73,0.05); border: 1px solid rgba(248,81,73,0.2);
+  border-radius: 6px;
+}
+.escalation-bar {
+  display: flex; gap: 0; margin-bottom: 14px;
+  border: 1px solid var(--border); border-radius: 7px; overflow: hidden;
+}
+.esc-step {
+  flex: 1; padding: 8px 10px; text-align: center;
+  border-right: 1px solid var(--border); background: var(--s2);
+  font-size: 11px; color: var(--dim); font-family: var(--mono);
+}
+.esc-step:last-child { border-right: none; }
+.esc-step.active { background: rgba(240,165,0,0.1); color: var(--aria); }
+.esc-step.done { background: rgba(63,185,80,0.07); color: var(--green); }
 </style>
 </head>
 <body>
@@ -139,6 +173,7 @@ select{background:var(--s2);border:1px solid var(--border2);border-radius:6px;co
   <div class="nav-item" onclick="showSection('audit')"><span>🔍</span> Audit Trail</div>
   <div class="nav-item" onclick="showSection('smart')"><span>🌐</span> SMART Health IT</div>
   <div class="nav-item" onclick="showSection('fhir')"><span>📦</span> FHIR Store</div>
+  <div class="nav-item" onclick="showSection('appeals')"><span>✉</span> ARIA Appeals</div>
 
   <div class="sidebar-label" style="margin-top:8px">Patients</div>
   <div class="patient-switcher">
@@ -251,14 +286,60 @@ select{background:var(--s2);border:1px solid var(--border2);border-radius:6px;co
     </div>
   </div>
 
+  <div id="section-appeals" style="display:none">
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title"><span style="color:var(--aria)">✉</span> ARIA Appeals &amp; Escalation Tracker</div>
+        <div class="row" style="gap:6px">
+          <button class="btn btn-ghost btn-sm" onclick="loadAppeals('patient-001')">Bernard</button>
+          <button class="btn btn-ghost btn-sm" onclick="loadAppeals('patient-ra-001')">Dorothea</button>
+          <button class="btn btn-ghost btn-sm" onclick="loadAppeals('patient-comorbid-001')">Eleanor</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div id="appeals-out" class="muted center">Select a patient to view their appeals history.</div>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:0" id="aria-prompt-panel">
+      <div class="panel-head">
+        <div class="panel-title"><span style="color:var(--aria)">⚡</span> Prompt Opinion Quick-Launch</div>
+      </div>
+      <div class="panel-body">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:12px">Copy a prompt to trigger ARIA directly in Prompt Opinion for any scenario:</div>
+        <div class="grid2">
+          <div>
+            <div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;color:var(--dim);margin-bottom:6px">Round 1 — Initial Appeal</div>
+            <div class="prompt-box" id="prompt-r1">Run a prior authorization using the denied policy variant for Bernard Rieux, then have ARIA draft a formal appeal letter addressing all denial reasons.</div>
+            <button class="btn btn-aria btn-sm" style="margin-top:6px" onclick="copyPrompt('prompt-r1')">Copy Prompt</button>
+          </div>
+          <div>
+            <div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;color:var(--dim);margin-bottom:6px">Round 2 — Payer Counter-Denial</div>
+            <div class="prompt-box" id="prompt-r2">Simulate the payer counter-denying the appeal, then have ARIA submit a Round 2 rebuttal citing SUSTAIN-6, ADA 2024 guidelines, and ADA/EASD consensus on GLP-1 therapy.</div>
+            <button class="btn btn-aria btn-sm" style="margin-top:6px" onclick="copyPrompt('prompt-r2')">Copy Prompt</button>
+          </div>
+          <div>
+            <div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;color:var(--dim);margin-bottom:6px">Eleanor — Dual Appeal</div>
+            <div class="prompt-box" id="prompt-eleanor">Run a prior authorization for Eleanor Vance using strict GLP-1 and adalimumab-strict policy variants, then have ARIA draft appeals for any denials.</div>
+            <button class="btn btn-aria btn-sm" style="margin-top:6px" onclick="copyPrompt('prompt-eleanor')">Copy Prompt</button>
+          </div>
+          <div>
+            <div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;color:var(--dim);margin-bottom:6px">Show Audit Trail</div>
+            <div class="prompt-box" id="prompt-audit">Show me the complete audit trail for Bernard Rieux including all agent handoffs, AI decisions, and data sources used.</div>
+            <button class="btn btn-aria btn-sm" style="margin-top:6px" onclick="copyPrompt('prompt-audit')">Copy Prompt</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </main>
 </div>
 <script>
 let state={seeded:false,medrec:null,medReq:null,evidence:null,policy:null,packet:null,decision:null,auditTrail:null,auditView:'timeline',smartResults:[],smartImported:null};
 
 function showSection(name){
-  ['pipeline','audit','smart','fhir'].forEach(s=>{document.getElementById('section-'+s).style.display=s===name?'':'none';});
-  document.querySelectorAll('.nav-item').forEach((el,i)=>{el.classList.toggle('active',['pipeline','audit','smart','fhir'][i]===name);});
+  ['pipeline','audit','smart','fhir','appeals'].forEach(s=>{document.getElementById('section-'+s).style.display=s===name?'':'none';});
+  document.querySelectorAll('.nav-item').forEach((el,i)=>{el.classList.toggle('active',['pipeline','audit','smart','fhir','appeals'][i]===name);});
   if(name==='audit'&&!state.auditTrail)loadAudit();
 }
 function selectPatient(p){
@@ -324,6 +405,114 @@ function renderAudit(trail){
 }
 
 async function loadFhir(){setEl('fhir-out','<div class="muted center"><span class="spin"></span></div>');try{const d=await get('/fhir-dump');const types=Object.keys(d);setEl('fhir-out',`<div class="row" style="margin-bottom:10px;flex-wrap:wrap">${types.map(t=>`<span class="badge badge-blue">${t}: ${Array.isArray(d[t])?d[t].length:Object.keys(d[t]??{}).length}</span>`).join('')}</div><pre>${JSON.stringify(d,null,2)}</pre>`);}catch(e){setEl('fhir-out',`<div class="alert alert-err">${e.message}</div>`);}}
+
+// ── Appeals ────────────────────────────────────────────────────────────────
+async function loadAppeals(patientId) {
+  showSection('appeals');
+  setEl('appeals-out', '<div class="muted center"><span class="spin"></span> Loading appeals…</div>');
+  try {
+    const data = await get(`/api/appeals/${patientId}`);
+    renderAppeals(data, patientId);
+  } catch(e) {
+    setEl('appeals-out', `<div class="alert alert-err">${e.message}</div>`);
+  }
+}
+
+function renderAppeals(data, patientId) {
+  if (data.rounds.length === 0) {
+    setEl('appeals-out', `
+      <div class="muted center" style="padding:30px 0">
+        <div style="font-size:14px;margin-bottom:8px">No appeals on file</div>
+        <div style="font-size:12px">Run a prior authorization with the <span style="color:var(--red);font-family:var(--mono)">denied</span> policy variant in Prompt Opinion, then ARIA will draft an appeal.</div>
+      </div>
+    `);
+    return;
+  }
+
+  const statusColors = { no_appeal:'var(--dim)', counter_denied:'var(--red)', round_1_pending:'var(--aria)', round_2_pending:'var(--amber)' };
+  const statusColor = statusColors[data.status] ?? 'var(--aria)';
+
+  // Escalation bar
+  const escSteps = ['Round 1 Appeal', 'Counter-Denial', 'Round 2 Rebuttal', 'IRO / Commissioner'];
+  const activeStep = data.totalCounterDenials > 0 && data.totalRounds >= 2 ? 2 : data.totalCounterDenials > 0 ? 1 : data.totalRounds > 0 ? 0 : -1;
+  const escBar = `
+    <div class="escalation-bar">
+      ${escSteps.map((s, i) => `
+        <div class="esc-step ${i < activeStep ? 'done' : i === activeStep ? 'active' : ''}">
+          <div style="font-size:9px;margin-bottom:2px">${String(i+1).padStart(2,'0')}</div>
+          ${s}
+        </div>
+      `).join('')}
+    </div>
+  `;
+
+  // Status summary
+  const summary = `
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:14px">
+      ${[
+        ['Status', `<span style="color:${statusColor};font-family:var(--mono);font-weight:600">${data.status.replace(/_/g,' ').toUpperCase()}</span>`],
+        ['Rounds', data.totalRounds],
+        ['Counter-Denials', data.totalCounterDenials],
+        ['Escalation', data.escalationPath[0] ?? '—'],
+      ].map(([l,v]) => `
+        <div style="background:var(--s1);padding:10px 14px">
+          <div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin-bottom:4px">${l}</div>
+          <div style="font-size:12px">${v}</div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+
+  // Round cards
+  const rounds = data.rounds.map(r => {
+    const urgencyColor = r.urgencyLevel === 'urgent' ? 'var(--red)' : r.urgencyLevel === 'expedited' ? 'var(--amber)' : 'var(--muted)';
+    return `
+      <div class="round-card">
+        <div class="round-head">
+          <div class="row" style="gap:8px">
+            <span style="font-family:var(--mono);font-weight:600;color:var(--aria)">Round ${r.round}</span>
+            <span class="badge badge-amber" style="font-size:10px">Appeal Letter</span>
+            <span style="font-family:var(--mono);font-size:10px;color:${urgencyColor}">${r.urgencyLevel}</span>
+          </div>
+          <span style="font-family:var(--mono);font-size:10px;color:var(--dim)">${r.date ? new Date(r.date).toLocaleDateString() : '—'}</span>
+        </div>
+        <div class="round-body">
+          <div style="font-size:12px;color:var(--text);margin-bottom:6px">${r.description ?? '—'}</div>
+          <div class="row" style="gap:6px">
+            <span class="tl-tag">ID: ${r.appealId?.slice(0,12)}…</span>
+            <span class="badge badge-blue" style="font-size:10px">FHIR DocumentReference</span>
+          </div>
+          ${r.counterDenial ? `
+            <div class="counter-card">
+              <div class="row" style="gap:8px;margin-bottom:4px">
+                <span style="font-family:var(--mono);font-weight:600;color:var(--red);font-size:12px">✗ Payer Counter-Denial</span>
+                <span style="font-family:var(--mono);font-size:10px;color:var(--dim)">${r.counterDenial.date ? new Date(r.counterDenial.date).toLocaleDateString() : ''}</span>
+              </div>
+              <div style="font-size:12px;color:var(--muted)">${r.counterDenial.description ?? '—'}</div>
+              <div class="tl-tags" style="margin-top:6px"><span class="tl-tag">ID: ${r.counterDenial.id?.slice(0,12)}…</span></div>
+            </div>
+          ` : `
+            <div style="margin-top:8px;padding:7px 10px;background:rgba(63,185,80,0.05);border:1px solid rgba(63,185,80,0.15);border-radius:6px;font-size:12px;color:var(--green)">
+              ⏳ Awaiting payer response
+            </div>
+          `}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  setEl('appeals-out', summary + escBar + rounds);
+}
+
+function copyPrompt(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  navigator.clipboard.writeText(el.textContent.trim()).then(() => {
+    const btns = document.querySelectorAll(`[onclick="copyPrompt('${id}')"]`);
+    btns.forEach(b => { b.textContent = '✓ Copied!'; setTimeout(() => b.textContent = 'Copy Prompt', 1500); });
+  });
+}
+
 </script>
 </body>
 </html>

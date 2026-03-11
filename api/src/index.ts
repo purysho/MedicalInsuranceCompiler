@@ -169,6 +169,49 @@ app.get("/api/audit/:patientId/all", (req, res) => {
 app.get("/api/audit", (_req, res) => {
   res.json(getAllTrails());
 });
+// ── Appeals route ─────────────────────────────────────────────────────────────
+app.get("/api/appeals/:patientId", (req, res) => {
+  const pid = req.params.patientId;
+  const aliases = [pid,
+    "patient-001", "79f8fd18-5044-452d-b9bd-428b1e35e579",
+    "patient-ra-001", "147e21d9-ab4e-449c-aeb4-8f3d6f7b1b4c",
+    "patient-comorbid-001", "d6417ffa-1ed8-4bb9-ae4c-d3820c9615f9",
+  ];
+  const seen = new Set<string>();
+  const allDocs: any[] = [];
+  for (const alias of aliases) {
+    const docs = store.search("DocumentReference", { subject: alias });
+    for (const d of docs) {
+      if (!seen.has(d.id)) { seen.add(d.id); allDocs.push(d); }
+    }
+  }
+  const appealLetters = allDocs.filter((d: any) => d.type?.text === "Prior Authorization Appeal Letter");
+  const counterDenials = allDocs.filter((d: any) => d.type?.text === "Payer Counter-Denial");
+  const rounds = appealLetters.map((d: any, i: number) => {
+    const counter = counterDenials.find((c: any) =>
+      c.relatesTo?.some((r: any) => r.target?.reference?.includes(d.id))
+    );
+    return {
+      round: i + 1,
+      appealId: d.id,
+      date: d.date,
+      description: d.description,
+      urgencyLevel: i >= 2 ? "urgent" : i === 1 ? "expedited" : "standard",
+      counterDenial: counter ? { id: counter.id, date: counter.date, description: counter.description } : null,
+    };
+  });
+  const status = rounds.length === 0 ? "no_appeal"
+    : counterDenials.length >= rounds.length ? "counter_denied"
+    : `round_${rounds.length}_pending`;
+  res.json({
+    patientId: pid, status, totalRounds: rounds.length,
+    totalCounterDenials: counterDenials.length, rounds,
+    escalationPath: rounds.length >= 3
+      ? ["File complaint with state insurance commissioner", "Request peer-to-peer review", "Initiate external IRO process"]
+      : rounds.length >= 2 ? ["Request peer-to-peer review", "Submit additional documentation"]
+      : ["Await payer decision"],
+  });
+});
 
 // ── MCP Streamable HTTP endpoint (spec 2025-03-26) ───────────────────────────
 const mcpHandler = createMcpHandler(store);
