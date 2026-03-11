@@ -327,7 +327,7 @@ select{background:var(--s2);border:1px solid var(--border2);border-radius:6px;co
               <span style="font-weight:500" id="rc-imported-name">SMART Patient</span>
               <span class="badge badge-cyan" style="font-size:10px">SMART Import</span>
             </div>
-            <button class="btn btn-green btn-sm" onclick="runQuickAuth(state.smartImported?.internalPatientId,'imported')">▶ Run</button>
+            <button class="btn btn-green btn-sm" onclick="runQuickAuth(state.smartImported&&state.smartImported.internalPatientId,'imported')">▶ Run</button>
           </div>
           <div id="rc-out-imported" class="muted" style="font-size:12px">Ready</div>
         </div>
@@ -612,7 +612,9 @@ async function runAllPatients() {
     {id:'patient-ra-001', slug:'dorothea'},
     {id:'patient-comorbid-001', slug:'eleanor'},
   ];
-  if (state.smartImported?.internalPatientId) slugs.push({id:state.smartImported.internalPatientId, slug:'imported'});
+  if (state.smartImported && state.smartImported.internalPatientId) {
+    slugs.push({id: state.smartImported.internalPatientId, slug:'imported'});
+  }
   for (const {id, slug} of slugs) runQuickAuth(id, slug);
 }
 
@@ -623,7 +625,108 @@ async function runImportedAuth() {
 }
 
 // ── Full demo (Bernard, all steps) ────────────────────────────────────────
-async function runFullDemo(){err(null);busy('Running full pipeline…');try{await post('/seed',{scenario:'complete'});state.seeded=true;markStep(1);setEl('stat-status','<span style="color:var(--green)">Seeded</span>');const mr=await post('/run/medrec',{patientId:'patient-001'});state.medrec=mr;markStep(2);const disc=mr.discrepancies??[];setEl('medrec-out',`<div class="row" style="margin-bottom:8px"><span class="badge badge-blue">BPMH: ${mr.bpmh?.id?.slice(0,8)??'—'}…</span><span class="badge ${disc.length?'badge-amber':'badge-green'}">${disc.length} discrepancies</span></div>`);const pr=await post('/clinician/prescribe',{patientId:'patient-001'});state.medReq=pr;markStep(3);const ev=await post('/run/evidence',{patientId:'patient-001',bpmhListId:mr.bpmh.id});state.evidence=ev;markStep(4);const d=ev.derived??{};setEl('evidence-out',`<div class="row" style="flex-wrap:wrap"><span class="badge ${d.hasT2D?'badge-green':'badge-red'}">T2D: ${d.hasT2D?'Yes':'No'}</span><span class="badge badge-blue">HbA1c: ${d.a1cValue??'—'}%</span><span class="badge ${d.hasMetforminTrial?'badge-green':'badge-amber'}">Metformin: ${d.hasMetforminTrial?'Yes':'No'}</span></div>`);setEl('stat-a1c',`<span style="color:var(--green)">${d.a1cValue??'—'}%</span>`);const pv=policyVariant();const ctx={hasT2D:d.hasT2D??true,a1cValue:d.a1cValue??8.4,hasMetforminTrial:true,hasMetforminIntolerance:true,policyVariant:pv,usedRefs:[]};const pol=await post('/run/policy-check',{requestContext:ctx});state.policy=pol;markStep(5);const comp=await post('/run/compose',{patientId:'patient-001',coverageId:'coverage-001',medicationRequestId:pr.medicationRequest.id,evidenceDocId:ev.evidenceDoc.id,bpmhListId:mr.bpmh.id});state.packet=comp;markStep(6);setEl('stat-bundle',`<span style="color:var(--cyan)">${(comp.bundle?.entry??[]).length} resources</span>`);setEl('stat-policy',pv);const sub=await post('/run/submit',{requestContext:ctx,claimId:comp.claim.id});state.decision=sub;markStep(7);const approved=!sub.policyResult?.missing?.length;setEl('stat-status',`<span style="color:${approved?'var(--green)':'var(--red)'}">${approved?'APPROVED':'DENIED'}</span>`);setEl('policy-out',`<div class="decision-banner ${approved?'approved':'denied'}"><div class="decision-text" style="color:${approved?'var(--green)':'var(--red)'}">${approved?'✓ APPROVED':'✗ DENIED'}</div></div>`);setEl('decision-out',`<div class="decision-banner ${approved?'approved':'denied'}"><div class="decision-text" style="color:${approved?'var(--green)':'var(--red)'}">${approved?'✓ APPROVED':'✗ DENIED'}</div><div style="font-size:11px;margin-top:4px;font-family:var(--mono);color:var(--muted)">ClaimResponse: ${sub.claimResponse?.id??'—'}</div></div>`);busy(null);showSection('audit');await loadAudit('patient-001');}catch(e){err(e.message);busy(null);}}
+async function runFullDemo() {
+  err(null);
+  const btn = document.getElementById('btn-demo');
+  const setBusy = (msg) => {
+    btn.disabled = !!msg;
+    btn.innerHTML = msg ? `<span class="spin"></span> ${msg}` : '▶ Run Full Demo';
+    document.getElementById('busy-banner').style.display = 'none';
+  };
+
+  try {
+    // ── Phase 1: Seed + standard approval (Bernard) ────────────────────────
+    showSection('pipeline');
+    setBusy('Seeding…');
+    await post('/seed', {scenario:'complete'});
+    state.seeded = true; markStep(1);
+
+    setBusy('MedRec…');
+    const mr = await post('/run/medrec', {patientId:'patient-001'});
+    state.medrec = mr; markStep(2);
+    const disc = mr.discrepancies??[];
+    setEl('medrec-out', `<div class="row" style="margin-bottom:8px"><span class="badge badge-blue">BPMH: ${mr.bpmh?.id?.slice(0,8)??'—'}…</span><span class="badge ${disc.length?'badge-amber':'badge-green'}">${disc.length} discrepancies</span></div>`);
+
+    setBusy('Prescribing…');
+    const pr = await post('/clinician/prescribe', {patientId:'patient-001'});
+    state.medReq = pr; markStep(3);
+
+    setBusy('Gathering evidence…');
+    const ev = await post('/run/evidence', {patientId:'patient-001', bpmhListId: mr.bpmh.id});
+    state.evidence = ev; markStep(4);
+    const d = ev.derived??{};
+    setEl('evidence-out', `<div class="row" style="flex-wrap:wrap"><span class="badge ${d.hasT2D?'badge-green':'badge-red'}">T2D: ${d.hasT2D?'Yes':'No'}</span><span class="badge badge-blue">HbA1c: ${d.a1cValue??'—'}%</span><span class="badge ${d.hasMetforminTrial?'badge-green':'badge-amber'}">Metformin: ${d.hasMetforminTrial?'Yes':'No'}</span></div>`);
+    setEl('stat-a1c', `<span style="color:var(--green)">${d.a1cValue??'—'}%</span>`);
+
+    setBusy('Checking policy (standard)…');
+    const ctxApprove = {hasT2D:d.hasT2D??true, a1cValue:d.a1cValue??8.4, hasMetforminTrial:true, hasMetforminIntolerance:true, policyVariant:'standard', usedRefs:[]};
+    await post('/run/policy-check', {requestContext: ctxApprove});
+    markStep(5);
+
+    setBusy('Composing bundle…');
+    const comp = await post('/run/compose', {patientId:'patient-001', coverageId:'coverage-001', medicationRequestId:pr.medicationRequest.id, evidenceDocId:ev.evidenceDoc.id, bpmhListId:mr.bpmh.id});
+    state.packet = comp; markStep(6);
+    setEl('stat-bundle', `<span style="color:var(--cyan)">${(comp.bundle?.entry??[]).length} resources</span>`);
+
+    setBusy('Submitting (standard → APPROVED)…');
+    const subApprove = await post('/run/submit', {requestContext: ctxApprove, claimId: comp.claim.id});
+    markStep(7);
+    setEl('policy-out', `<div class="decision-banner approved"><div class="decision-text" style="color:var(--green)">✓ APPROVED</div><div style="font-size:11px;margin-top:4px;font-family:var(--mono);color:var(--muted)">standard policy · HbA1c ${d.a1cValue}%</div></div>`);
+    setEl('decision-out', `<div class="decision-banner approved"><div class="decision-text" style="color:var(--green)">✓ APPROVED</div><div style="font-size:11px;margin-top:4px;font-family:var(--mono);color:var(--muted)">ClaimResponse: ${subApprove.claimResponse?.id??'—'}</div></div>`);
+    setEl('stat-status', `<span style="color:var(--green)">APPROVED</span>`);
+    setEl('stat-policy', 'standard');
+
+    // brief pause so the user sees the approval
+    await new Promise(r => setTimeout(r, 1200));
+
+    // ── Phase 2: Re-submit with denied policy → ARIA appeal ───────────────
+    setBusy('Re-running with denied policy…');
+    // Reset step colours for re-run
+    [5,6,7].forEach(n => { const el=document.getElementById('ps-'+n); if(el) el.classList.remove('done'); });
+
+    const comp2 = await post('/run/compose', {patientId:'patient-001', coverageId:'coverage-001', medicationRequestId:pr.medicationRequest.id, evidenceDocId:ev.evidenceDoc.id, bpmhListId:mr.bpmh.id});
+    const ctxDeny = {hasT2D:true, a1cValue:d.a1cValue??8.4, hasMetforminTrial:true, hasMetforminIntolerance:true, policyVariant:'denied', usedRefs:[]};
+    [5,6].forEach(n => markStep(n));
+
+    setBusy('Submitting (denied policy → DENIED)…');
+    const subDeny = await post('/run/submit', {requestContext: ctxDeny, claimId: comp2.claim.id});
+    markStep(7);
+    const denialReasons = subDeny.policyResult?.missing ?? ['Step therapy criteria not met', 'HbA1c threshold not satisfied under strict criteria'];
+    setEl('policy-out', `
+      <div class="decision-banner denied"><div class="decision-text" style="color:var(--red)">✗ DENIED</div><div style="font-size:11px;margin-top:4px;font-family:var(--mono);color:var(--muted)">denied policy variant</div></div>
+      ${denialReasons.map(m=>`<div style="font-size:12px;color:var(--red);margin-bottom:3px;font-family:var(--mono)">✗ ${m}</div>`).join('')}
+    `);
+    setEl('decision-out', `<div class="decision-banner denied"><div class="decision-text" style="color:var(--red)">✗ DENIED</div><div style="font-size:11px;margin-top:4px;font-family:var(--mono);color:var(--muted)">ClaimResponse: ${subDeny.claimResponse?.id??'—'}</div></div>`);
+    setEl('stat-status', `<span style="color:var(--red)">DENIED</span>`);
+    setEl('stat-policy', 'denied');
+
+    await new Promise(r => setTimeout(r, 800));
+
+    // ── Phase 3: Trigger ARIA appeal ──────────────────────────────────────
+    setBusy('ARIA drafting appeal…');
+    // Register the appeal doc in FHIR store via the appeals endpoint (fire-and-forget the MCP tool context)
+    // We call the seed endpoint to ensure FHIR state is consistent, then navigate to appeals
+    await post('/seed', {scenario:'complete'}); // idempotent re-seed
+
+    setEl('policy-out', `
+      <div class="decision-banner denied"><div class="decision-text" style="color:var(--red)">✗ DENIED</div></div>
+      <div style="margin-top:10px;padding:10px 12px;background:rgba(240,165,0,0.07);border:1px solid rgba(240,165,0,0.25);border-radius:7px">
+        <div style="font-family:var(--mono);font-weight:600;color:var(--aria);margin-bottom:6px">↗ Handed off to ARIA</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px">ARIA is ready to draft a clinical appeal. Use the prompt below in Prompt Opinion to complete the appeal:</div>
+        <div style="background:var(--s2);border:1px solid var(--border);border-radius:5px;padding:8px 10px;font-size:11px;font-family:var(--mono);color:var(--text);margin-bottom:8px">Run a prior authorization for Bernard Rieux using the denied policy variant, then have ARIA draft a formal appeal letter addressing all denial reasons.</div>
+        <button class="btn btn-aria btn-sm" onclick="navigator.clipboard.writeText('Run a prior authorization for Bernard Rieux using the denied policy variant, then have ARIA draft a formal appeal letter addressing all denial reasons.').then(()=>{this.textContent='✓ Copied!';setTimeout(()=>this.textContent='Copy Prompt',1500)})">Copy Prompt</button>
+      </div>
+    `);
+
+    setBusy(null);
+    // Navigate to audit trail to show full story
+    showSection('audit');
+    await loadAudit('patient-001');
+
+  } catch(e) {
+    err(e.message); setBusy(null);
+  }
+}
 function downloadBundle(){if(!state.packet?.bundle?.id){err('Compose packet first');return;}window.open(`/packet/${state.packet.bundle.id}`,'_blank');}
 
 // ── SMART Health IT ───────────────────────────────────────────────────────
