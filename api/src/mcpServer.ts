@@ -1232,14 +1232,16 @@ async function executeTool(
       const hasT2D = t2dConds.length > 0;
 
       const glp1Policy = getPolicyDefinition(glp1Variant);
+      const glp1A1cRule = glp1Policy.rules.find((r: any) => r.key === "a1c");
+      const glp1A1cThreshold = glp1A1cRule?.threshold ?? 7.0;
       const glp1Met: string[] = [];
       const glp1Missing: string[] = [];
 
       if (hasT2D) glp1Met.push("Type 2 Diabetes Mellitus diagnosis confirmed");
       else glp1Missing.push("Type 2 Diabetes diagnosis required");
 
-      if (a1cValue >= (glp1Policy?.criteria?.minA1c ?? 7.0)) glp1Met.push(`HbA1c ${a1cValue}% meets threshold (≥${glp1Policy?.criteria?.minA1c ?? 7.0}%)`);
-      else glp1Missing.push(`HbA1c ${a1cValue}% below required threshold of ${glp1Policy?.criteria?.minA1c ?? 7.0}%`);
+      if (a1cValue >= glp1A1cThreshold) glp1Met.push(`HbA1c ${a1cValue}% meets threshold (≥${glp1A1cThreshold}%)`);
+      else glp1Missing.push(`HbA1c ${a1cValue}% below required threshold of ${glp1A1cThreshold}%`);
 
       if (hasOralAgentTrial) glp1Met.push("Step therapy met: prior oral antidiabetic agent trial documented (Metformin + SGLT-2 inhibitor)");
       else glp1Missing.push("Step therapy required: must document adequate trial of oral antidiabetic agent");
@@ -1281,6 +1283,10 @@ async function executeTool(
       const hasRA = raConds.length > 0;
       const dmardFailures = dmardStmts.filter((s: any) => s.status === "stopped");
       const adaPolicy = getPolicyDefinition(adaVariant);
+      const adaDas28Rule = adaPolicy.rules.find((r: any) => r.key === "das28");
+      const adaDas28Threshold = adaDas28Rule?.threshold ?? 3.2;
+      const adaDmardRule = adaPolicy.rules.find((r: any) => r.key === "dmard_failure" || r.key === "dmard");
+      const requiredDmards = adaDmardRule ? 2 : 1;
 
       const adaMet: string[] = [];
       const adaMissing: string[] = [];
@@ -1288,10 +1294,8 @@ async function executeTool(
       if (hasRA) adaMet.push("Rheumatoid arthritis diagnosis confirmed");
       else adaMissing.push("Rheumatoid arthritis diagnosis required");
 
-      if (das28Value >= (adaPolicy?.criteria?.minDas28 ?? 3.2)) adaMet.push(`DAS28 ${das28Value} meets threshold (≥${adaPolicy?.criteria?.minDas28 ?? 3.2})`);
-      else adaMissing.push(`DAS28 ${das28Value} below required threshold of ${adaPolicy?.criteria?.minDas28 ?? 3.2}`);
-
-      const requiredDmards = adaPolicy?.criteria?.requiredDmardFailures ?? 1;
+      if (das28Value >= adaDas28Threshold) adaMet.push(`DAS28 ${das28Value} meets threshold (≥${adaDas28Threshold})`);
+      else adaMissing.push(`DAS28 ${das28Value} below required threshold of ${adaDas28Threshold}`);
       if (dmardFailures.length >= requiredDmards) adaMet.push(`Step therapy met: ${dmardFailures.length} DMARD failure(s) documented (MTX + Leflunomide)`);
       else adaMissing.push(`Step therapy insufficient: ${dmardFailures.length} DMARD failure(s) documented, ${requiredDmards} required`);
 
