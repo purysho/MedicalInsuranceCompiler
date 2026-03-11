@@ -4,765 +4,326 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>ALICE — Prior Authorization Intelligence</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <style>
-  :root {
-    --bg: #080c10;
-    --surface: #0d1117;
-    --surface2: #161b22;
-    --border: rgba(255,255,255,0.07);
-    --alice: #3b82f6;
-    --aria: #f59e0b;
-    --green: #22c55e;
-    --red: #ef4444;
-    --purple: #a78bfa;
-    --teal: #2dd4bf;
-    --text: #e2e8f0;
-    --muted: #64748b;
-    --font: 'Syne', sans-serif;
-    --mono: 'JetBrains Mono', monospace;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--font);
-    min-height: 100vh;
-    font-size: 14px;
-    line-height: 1.6;
-  }
-  /* Grain overlay */
-  body::before {
-    content: '';
-    position: fixed; inset: 0; z-index: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
-    pointer-events: none;
-  }
-  .wrap { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 24px 20px 60px; }
-
-  /* Header */
-  .hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
-  .brand { display: flex; align-items: center; gap: 14px; }
-  .logo {
-    width: 44px; height: 44px; border-radius: 12px;
-    background: linear-gradient(135deg, var(--alice), var(--purple));
-    display: flex; align-items: center; justify-content: center;
-    font-size: 20px; font-weight: 800; color: white; letter-spacing: -1px;
-    box-shadow: 0 0 20px rgba(59,130,246,0.3);
-  }
-  .brand-text h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
-  .brand-text p { font-size: 11px; color: var(--muted); font-family: var(--mono); }
-  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 2s infinite; }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-
-  /* Cards */
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 20px;
-    margin-bottom: 16px;
-  }
-  .card-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  @media(max-width:680px){ .grid2 { grid-template-columns: 1fr; } }
-
-  /* Buttons */
-  button {
-    font-family: var(--font); font-size: 13px; font-weight: 600;
-    border: none; border-radius: 8px; cursor: pointer;
-    padding: 9px 16px; transition: all 0.15s;
-  }
-  .btn-primary {
-    background: var(--alice); color: white;
-    box-shadow: 0 0 16px rgba(59,130,246,0.25);
-  }
-  .btn-primary:hover { background: #2563eb; box-shadow: 0 0 24px rgba(59,130,246,0.4); }
-  .btn-ghost {
-    background: var(--surface2); color: var(--text);
-    border: 1px solid var(--border);
-  }
-  .btn-ghost:hover { border-color: rgba(255,255,255,0.15); background: #1e2530; }
-  .btn-sm { padding: 6px 12px; font-size: 12px; border-radius: 6px; }
-  button:disabled { opacity: 0.4; cursor: not-allowed; }
-  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
-
-  /* Badges */
-  .badge {
-    display: inline-flex; align-items: center; gap: 5px;
-    padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
-    font-family: var(--mono);
-  }
-  .badge-green { background: rgba(34,197,94,0.12); color: #4ade80; border: 1px solid rgba(34,197,94,0.25); }
-  .badge-red { background: rgba(239,68,68,0.12); color: #f87171; border: 1px solid rgba(239,68,68,0.25); }
-  .badge-amber { background: rgba(245,158,11,0.12); color: #fbbf24; border: 1px solid rgba(245,158,11,0.25); }
-  .badge-blue { background: rgba(59,130,246,0.12); color: #93c5fd; border: 1px solid rgba(59,130,246,0.25); }
-  .badge-purple { background: rgba(167,139,250,0.12); color: #c4b5fd; border: 1px solid rgba(167,139,250,0.25); }
-
-  /* Stats row */
-  .stats { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
-  .stat {
-    flex: 1; min-width: 100px;
-    background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
-    padding: 12px 14px;
-  }
-  .stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; font-family: var(--mono); }
-  .stat-value { font-size: 18px; font-weight: 700; font-family: var(--mono); }
-
-  /* Alert */
-  .alert { padding: 12px 16px; border-radius: 10px; font-size: 13px; margin-bottom: 12px; }
-  .alert-err { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25); color: #fca5a5; }
-  .alert-ok { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.25); color: #86efac; }
-  .alert-info { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.25); color: #93c5fd; }
-
-  /* Code block */
-  pre {
-    background: #0a0d10; border: 1px solid var(--border); border-radius: 8px;
-    padding: 12px 14px; font-family: var(--mono); font-size: 11px;
-    overflow-x: auto; color: #94a3b8; max-height: 240px; overflow-y: auto;
-    white-space: pre-wrap; word-break: break-all;
-  }
-
-  /* Timeline */
-  .timeline { position: relative; }
-  .timeline::before { content: ''; position: absolute; left: 15px; top: 0; bottom: 0; width: 2px; background: rgba(139,92,246,0.2); border-radius: 2px; }
-  .tl-item { display: flex; gap: 12px; padding-bottom: 14px; position: relative; }
-  .tl-node {
-    width: 32px; height: 32px; flex-shrink: 0;
-    border-radius: 50%; display: flex; align-items: center; justify-content: center;
-    font-size: 12px; z-index: 1; position: relative;
-    border: 2px solid; background: var(--surface);
-  }
-  .tl-content {
-    flex: 1; background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 10px; padding: 10px 14px;
-  }
-  .tl-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; flex-wrap: wrap; gap: 6px; }
-  .tl-agent { font-size: 12px; font-weight: 700; font-family: var(--mono); }
-  .tl-action { font-size: 10px; font-family: var(--mono); background: rgba(0,0,0,0.3); padding: 1px 7px; border-radius: 4px; color: var(--muted); }
-  .tl-time { font-size: 10px; color: var(--muted); font-family: var(--mono); }
-  .tl-desc { font-size: 12px; color: #cbd5e1; }
-  .tl-ai {
-    margin-top: 8px; padding: 8px 10px;
-    background: rgba(139,92,246,0.07); border: 1px solid rgba(139,92,246,0.2); border-radius: 7px;
-    font-size: 12px;
-  }
-  .tl-tags { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px; }
-  .tl-tag { font-size: 10px; padding: 1px 7px; border-radius: 4px; font-family: var(--mono); background: rgba(255,255,255,0.04); color: var(--muted); border: 1px solid rgba(255,255,255,0.06); }
-
-  /* SMART results */
-  .patient-card {
-    background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
-    padding: 12px 14px; display: flex; justify-content: space-between; align-items: center;
-    margin-bottom: 8px;
-  }
-  .patient-name { font-weight: 700; font-size: 13px; }
-  .patient-meta { font-size: 11px; color: var(--muted); font-family: var(--mono); }
-
-  /* Input */
-  input[type=text] {
-    background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
-    color: var(--text); font-family: var(--font); font-size: 13px;
-    padding: 9px 14px; width: 100%; outline: none;
-    transition: border-color 0.15s;
-  }
-  input[type=text]:focus { border-color: var(--alice); }
-  .input-row { display: flex; gap: 8px; margin-bottom: 12px; }
-  .input-row input { flex: 1; }
-
-  /* Tabs */
-  .tabs { display: flex; gap: 4px; margin-bottom: 16px; }
-  .tab { padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid transparent; transition: all 0.15s; color: var(--muted); }
-  .tab.active { background: rgba(59,130,246,0.15); color: var(--alice); border-color: rgba(59,130,246,0.3); }
-  .tab:hover:not(.active) { color: var(--text); background: var(--surface2); }
-
-  /* Section divider */
-  .section-hdr {
-    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;
-    color: var(--muted); padding: 6px 0; margin: 20px 0 12px;
-    border-bottom: 1px solid var(--border);
-  }
-
-  /* Spinner */
-  .spin { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.2); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  /* Muted */
-  .muted { color: var(--muted); font-size: 12px; }
-  .center { text-align: center; padding: 24px 0; }
-
-  /* Graph SVG */
-  .graph-wrap { overflow-x: auto; background: var(--surface2); border-radius: 10px; border: 1px solid var(--border); padding: 16px; }
+:root {
+  --bg:#03080f;--s1:#070e18;--s2:#0b1422;--s3:#101d2e;
+  --border:rgba(56,139,253,0.12);--border2:rgba(56,139,253,0.22);
+  --alice:#388bfd;--aria:#f0a500;--green:#3fb950;--red:#f85149;
+  --cyan:#39d0d8;--purple:#bc8cff;--amber:#d29922;
+  --text:#cdd9e5;--muted:#768390;--dim:#444c56;
+  --mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13px;line-height:1.6;min-height:100vh;background-image:linear-gradient(rgba(56,139,253,0.02) 1px,transparent 1px),linear-gradient(90deg,rgba(56,139,253,0.02) 1px,transparent 1px);background-size:40px 40px;}
+.shell{display:grid;grid-template-columns:220px 1fr;grid-template-rows:52px 1fr;min-height:100vh;}
+.topbar{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;padding:0 20px;background:var(--s1);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;}
+.topbar-brand{display:flex;align-items:center;gap:10px;}
+.topbar-logo{width:28px;height:28px;border-radius:6px;background:linear-gradient(135deg,var(--alice),var(--purple));display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:600;font-size:13px;color:#fff;box-shadow:0 0 12px rgba(56,139,253,0.4);}
+.topbar-name{font-family:var(--mono);font-weight:600;font-size:14px;letter-spacing:.04em;color:#fff;}
+.topbar-sub{font-size:11px;color:var(--muted);margin-left:4px;}
+.topbar-right{display:flex;align-items:center;gap:10px;}
+.live-pill{display:flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;background:rgba(63,185,80,0.1);border:1px solid rgba(63,185,80,0.25);font-family:var(--mono);font-size:11px;color:var(--green);}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:blink 2s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.sidebar{background:var(--s1);border-right:1px solid var(--border);padding:14px 0;overflow-y:auto;}
+.sidebar-label{font-family:var(--mono);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--dim);padding:8px 14px 4px;}
+.nav-item{display:flex;align-items:center;gap:9px;padding:7px 14px;cursor:pointer;font-size:12px;color:var(--muted);transition:all .12s;border-left:2px solid transparent;}
+.nav-item:hover{background:var(--s2);color:var(--text);}
+.nav-item.active{background:rgba(56,139,253,0.08);color:var(--alice);border-left-color:var(--alice);}
+.patient-switcher{margin:4px 12px 8px;border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+.patient-btn{width:100%;padding:8px 10px;background:none;border:none;border-bottom:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:12px;cursor:pointer;text-align:left;transition:all .12s;display:flex;align-items:center;gap:8px;}
+.patient-btn:last-child{border-bottom:none;}
+.patient-btn:hover{background:var(--s2);color:var(--text);}
+.patient-btn.active{background:rgba(56,139,253,0.08);color:var(--alice);}
+.patient-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.sidebar-status{margin:4px 12px 4px;padding:10px 12px;background:var(--s2);border:1px solid var(--border);border-radius:8px;}
+.status-row{display:flex;justify-content:space-between;margin-bottom:5px;align-items:center;}
+.status-row:last-child{margin-bottom:0;}
+.status-lbl{font-family:var(--mono);font-size:10px;text-transform:uppercase;color:var(--dim);}
+.status-val{font-family:var(--mono);font-size:11px;color:var(--muted);}
+.main{overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:14px;}
+.panel{background:var(--s1);border:1px solid var(--border);border-radius:10px;overflow:hidden;animation:fadeIn .25s ease both;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.panel-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);background:rgba(255,255,255,0.015);}
+.panel-title{font-family:var(--mono);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);display:flex;align-items:center;gap:7px;}
+.panel-body{padding:14px;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media(max-width:860px){.grid2{grid-template-columns:1fr;}}
+.pipeline-track{display:flex;background:var(--s2);border-radius:7px;overflow:hidden;border:1px solid var(--border);margin-bottom:12px;}
+.pipe-step{flex:1;padding:10px 6px;text-align:center;border-right:1px solid var(--border);cursor:pointer;transition:all .12s;background:none;border-top:none;border-bottom:none;border-left:none;color:var(--dim);font-family:var(--sans);}
+.pipe-step:last-child{border-right:none;}
+.pipe-step:hover{background:rgba(56,139,253,0.07);color:var(--text);}
+.pipe-step.done{color:var(--green);}
+.pipe-step .sn{font-family:var(--mono);font-size:9px;color:var(--dim);display:block;margin-bottom:2px;}
+.pipe-step .sl{font-size:11px;font-weight:500;}
+button{font-family:var(--sans);cursor:pointer;transition:all .12s;border:none;}
+.btn{padding:7px 13px;border-radius:6px;font-size:12px;font-weight:500;}
+.btn-primary{background:var(--alice);color:#fff;box-shadow:0 0 10px rgba(56,139,253,0.3);}
+.btn-primary:hover{background:#58a6ff;box-shadow:0 0 18px rgba(56,139,253,0.5);}
+.btn-ghost{background:var(--s2);color:var(--text);border:1px solid var(--border2);}
+.btn-ghost:hover{background:var(--s3);border-color:rgba(56,139,253,0.4);}
+.btn-sm{padding:5px 10px;font-size:11px;border-radius:5px;}
+button:disabled{opacity:.35;cursor:not-allowed;}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:4px;font-family:var(--mono);font-size:11px;font-weight:500;}
+.badge-green{background:rgba(63,185,80,0.1);color:#3fb950;border:1px solid rgba(63,185,80,0.2);}
+.badge-red{background:rgba(248,81,73,0.1);color:#f85149;border:1px solid rgba(248,81,73,0.2);}
+.badge-amber{background:rgba(210,153,34,0.1);color:#d29922;border:1px solid rgba(210,153,34,0.2);}
+.badge-blue{background:rgba(56,139,253,0.1);color:#388bfd;border:1px solid rgba(56,139,253,0.2);}
+.badge-purple{background:rgba(188,140,255,0.1);color:#bc8cff;border:1px solid rgba(188,140,255,0.2);}
+.badge-cyan{background:rgba(57,208,216,0.1);color:#39d0d8;border:1px solid rgba(57,208,216,0.2);}
+.alert{padding:8px 12px;border-radius:6px;font-size:12px;font-family:var(--mono);}
+.alert-err{background:rgba(248,81,73,0.08);border:1px solid rgba(248,81,73,0.25);color:#f85149;}
+.alert-ok{background:rgba(63,185,80,0.08);border:1px solid rgba(63,185,80,0.25);color:#3fb950;}
+.alert-info{background:rgba(56,139,253,0.08);border:1px solid rgba(56,139,253,0.25);color:#388bfd;}
+pre{background:#020609;border:1px solid var(--border);border-radius:6px;padding:10px 12px;font-family:var(--mono);font-size:11px;color:#768390;overflow:auto;max-height:220px;white-space:pre-wrap;word-break:break-all;}
+input[type=text]{background:var(--s2);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-family:var(--sans);font-size:12px;padding:7px 12px;outline:none;width:100%;transition:border-color .12s;}
+input[type=text]:focus{border-color:var(--alice);}
+select{background:var(--s2);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:11px;padding:6px 10px;outline:none;cursor:pointer;}
+.tabs{display:flex;gap:2px;}
+.tab{padding:5px 11px;border-radius:5px;font-size:11px;font-family:var(--mono);cursor:pointer;border:1px solid transparent;color:var(--muted);transition:all .12s;background:none;}
+.tab.active{background:rgba(56,139,253,0.12);color:var(--alice);border-color:rgba(56,139,253,0.25);}
+.tab:hover:not(.active){color:var(--text);background:var(--s2);}
+.timeline{position:relative;}
+.tl-item{display:flex;gap:10px;padding-bottom:12px;}
+.tl-spine{display:flex;flex-direction:column;align-items:center;flex-shrink:0;width:26px;}
+.tl-node{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;border:1.5px solid;background:var(--s1);z-index:1;}
+.tl-line{flex:1;width:1px;background:var(--border);min-height:10px;margin-top:2px;}
+.tl-item:last-child .tl-line{display:none;}
+.tl-content{flex:1;background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;min-width:0;}
+.tl-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3px;gap:6px;flex-wrap:wrap;}
+.tl-agent{font-family:var(--mono);font-size:12px;font-weight:600;}
+.tl-action{font-family:var(--mono);font-size:10px;color:var(--dim);background:rgba(0,0,0,.3);padding:1px 6px;border-radius:3px;}
+.tl-time{font-family:var(--mono);font-size:10px;color:var(--dim);}
+.tl-desc{font-size:12px;color:#adbac7;}
+.tl-ai{margin-top:7px;padding:7px 10px;background:rgba(188,140,255,.05);border:1px solid rgba(188,140,255,.15);border-radius:6px;}
+.tl-tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:5px;}
+.tl-tag{font-family:var(--mono);font-size:10px;padding:1px 6px;border-radius:3px;background:rgba(255,255,255,.03);color:var(--dim);border:1px solid rgba(255,255,255,.05);}
+.tl-handoff{margin-top:7px;padding:6px 10px;background:rgba(240,165,0,.05);border:1px solid rgba(240,165,0,.18);border-radius:6px;}
+.decision-banner{padding:14px;border-radius:8px;text-align:center;margin-bottom:10px;}
+.decision-banner.approved{background:rgba(63,185,80,.08);border:1px solid rgba(63,185,80,.25);}
+.decision-banner.denied{background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.25);}
+.decision-text{font-family:var(--mono);font-size:17px;font-weight:600;letter-spacing:.05em;}
+.pt-card{background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:9px 12px;display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:10px;}
+.pt-name{font-weight:500;font-size:13px;margin-bottom:2px;}
+.pt-meta{font-family:var(--mono);font-size:10px;color:var(--muted);}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.15);border-top-color:currentColor;border-radius:50%;animation:spin .6s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.muted{color:var(--muted);}
+.center{text-align:center;padding:18px 0;}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.flex1{flex:1;}
+.graph-wrap{overflow-x:auto;background:var(--s2);border-radius:8px;border:1px solid var(--border);padding:12px;}
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="shell">
 
-  <!-- Header -->
-  <div class="hdr">
-    <div class="brand">
-      <div class="logo">A</div>
-      <div class="brand-text">
-        <h1>ALICE</h1>
-        <p>Automated Lifecycle for Insurance &amp; Clinical Evidence</p>
+<header class="topbar">
+  <div class="topbar-brand">
+    <div class="topbar-logo">A</div>
+    <span class="topbar-name">ALICE</span>
+    <span class="topbar-sub">/ Prior Authorization Intelligence</span>
+  </div>
+  <div class="topbar-right">
+    <div id="error-banner" class="alert alert-err" style="display:none;padding:4px 10px;font-size:11px"></div>
+    <div id="busy-banner" class="alert alert-info" style="display:none;padding:4px 10px;font-size:11px"></div>
+    <div class="live-pill"><div class="live-dot"></div>LIVE</div>
+    <button class="btn btn-primary" onclick="runFullDemo()" id="btn-demo">▶ Run Full Demo</button>
+  </div>
+</header>
+
+<aside class="sidebar">
+  <div class="sidebar-label">Navigation</div>
+  <div class="nav-item active" onclick="showSection('pipeline')"><span>⚡</span> Pipeline</div>
+  <div class="nav-item" onclick="showSection('audit')"><span>🔍</span> Audit Trail</div>
+  <div class="nav-item" onclick="showSection('smart')"><span>🌐</span> SMART Health IT</div>
+  <div class="nav-item" onclick="showSection('fhir')"><span>📦</span> FHIR Store</div>
+
+  <div class="sidebar-label" style="margin-top:8px">Patients</div>
+  <div class="patient-switcher">
+    <button class="patient-btn active" id="pt-bernard" onclick="selectPatient('bernard')">
+      <span class="patient-dot" style="background:#388bfd"></span>
+      <div><div style="font-weight:500;color:var(--text);font-size:12px">Bernard Rieux</div><div style="font-size:10px;font-family:var(--mono)">T2D · GLP-1</div></div>
+    </button>
+    <button class="patient-btn" id="pt-dorothea" onclick="selectPatient('dorothea')">
+      <span class="patient-dot" style="background:#bc8cff"></span>
+      <div><div style="font-weight:500;color:var(--text);font-size:12px">Dorothea Brooke</div><div style="font-size:10px;font-family:var(--mono)">RA · Adalimumab</div></div>
+    </button>
+    <button class="patient-btn" id="pt-eleanor" onclick="selectPatient('eleanor')">
+      <span class="patient-dot" style="background:#f0a500"></span>
+      <div><div style="font-weight:500;color:var(--text);font-size:12px">Eleanor Vance</div><div style="font-size:10px;font-family:var(--mono)">T2D+RA · Dual</div></div>
+    </button>
+  </div>
+
+  <div class="sidebar-label" style="margin-top:8px">Policy Variant</div>
+  <div style="padding:0 12px 8px">
+    <select id="policy-variant" style="width:100%">
+      <option value="standard">standard</option>
+      <option value="strict">strict</option>
+      <option value="denied">denied</option>
+      <option value="insulin-standard">insulin-standard</option>
+      <option value="insulin-strict">insulin-strict</option>
+      <option value="adalimumab-standard">adalimumab-standard</option>
+      <option value="adalimumab-strict">adalimumab-strict</option>
+    </select>
+  </div>
+
+  <div class="sidebar-label">Status</div>
+  <div class="sidebar-status">
+    <div class="status-row"><span class="status-lbl">Decision</span><span class="status-val" id="stat-status">—</span></div>
+    <div class="status-row"><span class="status-lbl">HbA1c</span><span class="status-val" id="stat-a1c">—</span></div>
+    <div class="status-row"><span class="status-lbl">Bundle</span><span class="status-val" id="stat-bundle">—</span></div>
+    <div class="status-row"><span class="status-lbl">Policy</span><span class="status-val" id="stat-policy">standard</span></div>
+  </div>
+</aside>
+
+<main class="main">
+
+  <div id="section-pipeline">
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title" id="pipeline-title"><span style="color:var(--alice)">⚡</span> Prior Auth Pipeline — Bernard Rieux</div>
+        <button class="btn btn-ghost btn-sm" onclick="downloadBundle()">⬇ Bundle</button>
       </div>
-    </div>
-    <div style="display:flex;align-items:center;gap:12px">
-      <span class="badge badge-green"><span class="status-dot"></span> Live</span>
-      <button class="btn-primary" onclick="runFullDemo()" id="btn-demo">▶ Run Full Demo</button>
-    </div>
-  </div>
-
-  <!-- Error banner -->
-  <div id="error-banner" class="alert alert-err" style="display:none"></div>
-  <div id="busy-banner" class="alert alert-info" style="display:none"></div>
-
-  <!-- Stats -->
-  <div class="stats" id="stats">
-    <div class="stat"><div class="stat-label">Status</div><div class="stat-value" id="stat-status" style="color:var(--muted)">—</div></div>
-    <div class="stat"><div class="stat-label">Patient</div><div class="stat-value" id="stat-patient" style="font-size:13px;color:var(--muted)">patient-001</div></div>
-    <div class="stat"><div class="stat-label">HbA1c</div><div class="stat-value" id="stat-a1c" style="color:var(--muted)">—</div></div>
-    <div class="stat"><div class="stat-label">Policy</div><div class="stat-value" id="stat-policy" style="font-size:12px;color:var(--muted)">standard</div></div>
-    <div class="stat"><div class="stat-label">Bundle</div><div class="stat-value" id="stat-bundle" style="font-size:12px;color:var(--muted)">—</div></div>
-  </div>
-
-  <!-- Main controls -->
-  <div class="card">
-    <div class="card-title">⚡ Pipeline Controls</div>
-    <div class="btn-row" style="margin-bottom:12px">
-      <button class="btn-ghost btn-sm" onclick="onSeed()">1. Seed FHIR</button>
-      <button class="btn-ghost btn-sm" onclick="onMedRec()">2. MedRec</button>
-      <button class="btn-ghost btn-sm" onclick="onPrescribe()">3. Prescribe</button>
-      <button class="btn-ghost btn-sm" onclick="onEvidence()">4. Evidence</button>
-      <button class="btn-ghost btn-sm" onclick="onPolicy()">5. Policy</button>
-      <button class="btn-ghost btn-sm" onclick="onCompose()">6. Compose</button>
-      <button class="btn-ghost btn-sm" onclick="onSubmit()">7. Submit</button>
-    </div>
-    <div class="btn-row">
-      <select id="policy-variant" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font);padding:7px 12px;font-size:12px">
-        <option value="standard">standard</option>
-        <option value="strict">strict</option>
-        <option value="denied">denied</option>
-      </select>
-      <button class="btn-ghost btn-sm" onclick="downloadBundle()">⬇ Bundle</button>
-    </div>
-  </div>
-
-  <div class="grid2">
-
-    <!-- MedRec -->
-    <div class="card">
-      <div class="card-title">💊 Medication Reconciliation</div>
-      <div id="medrec-out" class="muted center">Run Step 2</div>
-    </div>
-
-    <!-- Policy -->
-    <div class="card">
-      <div class="card-title">⚖️ Policy Check</div>
-      <div id="policy-out" class="muted center">Run Step 5</div>
-    </div>
-
-    <!-- Evidence -->
-    <div class="card">
-      <div class="card-title">📋 Clinical Evidence</div>
-      <div id="evidence-out" class="muted center">Run Step 4</div>
-    </div>
-
-    <!-- Decision -->
-    <div class="card">
-      <div class="card-title">🏥 Payer Decision</div>
-      <div id="decision-out" class="muted center">Run Step 7</div>
-    </div>
-
-  </div>
-
-  <!-- SMART Health IT -->
-  <div class="card">
-    <div class="card-title">🌐 SMART Health IT — Live Patient Search</div>
-    <div class="input-row">
-      <input type="text" id="smart-query" placeholder="Search by name (e.g. Smith, Johnson…)" onkeydown="if(event.key==='Enter')onSmartSearch()"/>
-      <button class="btn-ghost btn-sm" onclick="onSmartSearch()" id="btn-smart">Search</button>
-    </div>
-    <div id="smart-out" class="muted">Search external FHIR patients from r4.smarthealthit.org</div>
-  </div>
-
-  <!-- Audit Trail -->
-  <div class="card" style="border-color:rgba(139,92,246,0.3)">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
-      <div class="card-title" style="margin:0">🔍 Audit Trail &amp; Provenance</div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <div class="tabs" style="margin:0">
-          <div class="tab active" id="tab-timeline" onclick="setAuditView('timeline')">Timeline</div>
-          <div class="tab" id="tab-graph" onclick="setAuditView('graph')">Graph</div>
+      <div class="panel-body">
+        <div class="pipeline-track">
+          <button class="pipe-step" id="ps-1" onclick="onSeed()"><span class="sn">01</span><span class="sl">Seed</span></button>
+          <button class="pipe-step" id="ps-2" onclick="onMedRec()"><span class="sn">02</span><span class="sl">MedRec</span></button>
+          <button class="pipe-step" id="ps-3" onclick="onPrescribe()"><span class="sn">03</span><span class="sl">Prescribe</span></button>
+          <button class="pipe-step" id="ps-4" onclick="onEvidence()"><span class="sn">04</span><span class="sl">Evidence</span></button>
+          <button class="pipe-step" id="ps-5" onclick="onPolicy()"><span class="sn">05</span><span class="sl">Policy</span></button>
+          <button class="pipe-step" id="ps-6" onclick="onCompose()"><span class="sn">06</span><span class="sl">Compose</span></button>
+          <button class="pipe-step" id="ps-7" onclick="onSubmit()"><span class="sn">07</span><span class="sl">Submit</span></button>
         </div>
-        <button class="btn-ghost btn-sm" onclick="loadAudit('patient-001')">Bernard</button>
-        <button class="btn-ghost btn-sm" onclick="loadAudit('patient-ra-001')">Dorothea</button>
-        <button class="btn-ghost btn-sm" onclick="loadAudit('patient-comorbid-001')">Eleanor</button>
-        <button class="btn-ghost btn-sm" onclick="loadAudit()">↻ Latest</button>
       </div>
     </div>
-    <div id="audit-out">
-      <div class="muted center">Run a prior authorization in Prompt Opinion, then click a patient name above.</div>
+    <div class="grid2">
+      <div class="panel"><div class="panel-head"><div class="panel-title"><span style="color:var(--alice)">💊</span> Medication Reconciliation</div></div><div class="panel-body"><div id="medrec-out" class="muted center">Run Step 02</div></div></div>
+      <div class="panel"><div class="panel-head"><div class="panel-title"><span style="color:var(--alice)">📋</span> Clinical Evidence</div></div><div class="panel-body"><div id="evidence-out" class="muted center">Run Step 04</div></div></div>
+      <div class="panel"><div class="panel-head"><div class="panel-title"><span style="color:var(--alice)">⚖️</span> Policy Check</div></div><div class="panel-body"><div id="policy-out" class="muted center">Run Step 05</div></div></div>
+      <div class="panel"><div class="panel-head"><div class="panel-title"><span style="color:var(--alice)">🏥</span> Payer Decision</div></div><div class="panel-body"><div id="decision-out" class="muted center">Run Step 07</div></div></div>
     </div>
   </div>
 
-  <!-- Raw FHIR dump -->
-  <div class="card">
-    <div class="card-title">📦 Raw FHIR Store</div>
-    <div class="btn-row" style="margin-bottom:10px">
-      <button class="btn-ghost btn-sm" onclick="loadFhir()">Load FHIR Dump</button>
+  <div id="section-audit" style="display:none">
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title"><span style="color:var(--purple)">🔍</span> Audit Trail &amp; Provenance</div>
+        <div class="row" style="gap:6px">
+          <div class="tabs">
+            <button class="tab active" id="tab-timeline" onclick="setAuditView('timeline')">Timeline</button>
+            <button class="tab" id="tab-graph" onclick="setAuditView('graph')">Graph</button>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="loadAudit('patient-001')">Bernard</button>
+          <button class="btn btn-ghost btn-sm" onclick="loadAudit('patient-ra-001')">Dorothea</button>
+          <button class="btn btn-ghost btn-sm" onclick="loadAudit('patient-comorbid-001')">Eleanor</button>
+          <button class="btn btn-ghost btn-sm" onclick="loadAudit()">↻</button>
+        </div>
+      </div>
+      <div class="panel-body"><div id="audit-out" class="muted center">Run a prior authorization in Prompt Opinion, then click a patient name above.</div></div>
     </div>
-    <div id="fhir-out" class="muted">Click to inspect raw FHIR resources</div>
   </div>
 
-</div><!-- /wrap -->
+  <div id="section-smart" style="display:none">
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title"><span style="color:var(--cyan)">🌐</span> SMART Health IT — Live Patient Search</div>
+        <span class="badge badge-cyan" style="font-size:10px">r4.smarthealthit.org · synthetic</span>
+      </div>
+      <div class="panel-body">
+        <div class="row" style="margin-bottom:12px">
+          <input type="text" class="flex1" id="smart-query" placeholder="Search by name (e.g. Smith, Johnson, Williams…)" onkeydown="if(event.key==='Enter')onSmartSearch()"/>
+          <button class="btn btn-ghost btn-sm" onclick="onSmartSearch()">Search</button>
+        </div>
+        <div id="smart-out" class="muted" style="font-size:12px">Public FHIR R4 sandbox — synthetic patients only.</div>
+      </div>
+    </div>
+  </div>
 
+  <div id="section-fhir" style="display:none">
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title"><span style="color:var(--cyan)">📦</span> Raw FHIR Store</div>
+        <button class="btn btn-ghost btn-sm" onclick="loadFhir()">Load Dump</button>
+      </div>
+      <div class="panel-body"><div id="fhir-out" class="muted center">Click Load Dump to inspect raw FHIR resources.</div></div>
+    </div>
+  </div>
+
+</main>
+</div>
 <script>
-// ── State ──────────────────────────────────────────────────────────────────
-let state = {
-  seeded: false,
-  medrec: null,
-  medReq: null,
-  evidence: null,
-  policy: null,
-  packet: null,
-  decision: null,
-  auditTrail: null,
-  auditView: 'timeline',
-  smartResults: [],
-  smartImported: null,
-};
+let state={seeded:false,medrec:null,medReq:null,evidence:null,policy:null,packet:null,decision:null,auditTrail:null,auditView:'timeline',smartResults:[],smartImported:null};
 
-// ── Helpers ────────────────────────────────────────────────────────────────
-async function api(method, path, body) {
-  const opts = { method, headers: { 'Content-Type': 'application/json' } };
-  if (body) opts.body = JSON.stringify(body);
-  const r = await fetch(path, opts);
-  if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+function showSection(name){
+  ['pipeline','audit','smart','fhir'].forEach(s=>{document.getElementById('section-'+s).style.display=s===name?'':'none';});
+  document.querySelectorAll('.nav-item').forEach((el,i)=>{el.classList.toggle('active',['pipeline','audit','smart','fhir'][i]===name);});
+  if(name==='audit'&&!state.auditTrail)loadAudit();
+}
+function selectPatient(p){
+  document.querySelectorAll('.patient-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('pt-'+p).classList.add('active');
+  const names={bernard:'Bernard Rieux',dorothea:'Dorothea Brooke',eleanor:'Eleanor Vance'};
+  document.getElementById('pipeline-title').innerHTML=`<span style="color:var(--alice)">⚡</span> Prior Auth Pipeline — ${names[p]}`;
+}
+async function api(method,path,body){
+  const opts={method,headers:{'Content-Type':'application/json'}};
+  if(body)opts.body=JSON.stringify(body);
+  const r=await fetch(path,opts);
+  if(!r.ok)throw new Error(`${r.status} ${await r.text()}`);
   return r.json();
 }
-const get = p => api('GET', p);
-const post = (p, b) => api('POST', p, b);
-
-function busy(msg) {
-  document.getElementById('busy-banner').style.display = msg ? 'block' : 'none';
-  document.getElementById('busy-banner').textContent = msg ? `⏳ ${msg}` : '';
-  document.getElementById('btn-demo').disabled = !!msg;
-  document.getElementById('btn-demo').innerHTML = msg ? '<span class="spin"></span>' : '▶ Run Full Demo';
+const get=p=>api('GET',p);
+const post=(p,b)=>api('POST',p,b);
+function busy(msg){
+  document.getElementById('busy-banner').style.display=msg?'block':'none';
+  document.getElementById('busy-banner').textContent=msg?`⏳ ${msg}`:'';
+  document.getElementById('btn-demo').disabled=!!msg;
+  document.getElementById('btn-demo').innerHTML=msg?'<span class="spin"></span>':'▶ Run Full Demo';
 }
+function err(msg){const el=document.getElementById('error-banner');el.style.display=msg?'block':'none';el.textContent=msg||'';}
+function setEl(id,html){const el=document.getElementById(id);if(el)el.innerHTML=html;}
+function markStep(n){const el=document.getElementById('ps-'+n);if(el)el.classList.add('done');}
+function policyVariant(){return document.getElementById('policy-variant').value;}
 
-function err(msg) {
-  const el = document.getElementById('error-banner');
-  el.style.display = msg ? 'block' : 'none';
-  el.textContent = msg || '';
-}
+async function onSeed(){busy('Seeding FHIR data…');err(null);try{await post('/seed',{scenario:'complete'});state.seeded=true;markStep(1);busy(null);setEl('stat-status','<span style="color:var(--green)">Seeded</span>');}catch(e){err(e.message);busy(null);}}
+async function onMedRec(){busy('Running MedRec…');err(null);try{const out=await post('/run/medrec',{patientId:'patient-001'});state.medrec=out;markStep(2);busy(null);const disc=out.discrepancies??[];setEl('medrec-out',`<div class="row" style="margin-bottom:8px"><span class="badge badge-blue">BPMH: ${out.bpmh?.id?.slice(0,8)??'—'}…</span><span class="badge ${disc.length?'badge-amber':'badge-green'}">${disc.length} discrepancies</span></div>${disc.length?disc.map(d=>`<div class="muted" style="font-size:12px;margin-bottom:3px">⚠ ${d}</div>`).join(''):'<div class="muted" style="font-size:12px">No discrepancies</div>'}`);}catch(e){err(e.message);busy(null);}}
+async function onPrescribe(){busy('Creating MedicationRequest…');err(null);try{const out=await post('/clinician/prescribe',{patientId:'patient-001'});state.medReq=out;markStep(3);busy(null);}catch(e){err(e.message);busy(null);}}
+async function onEvidence(){if(!state.medrec?.bpmh?.id){err('Run MedRec first (Step 02)');return;}busy('Gathering clinical evidence…');err(null);try{const out=await post('/run/evidence',{patientId:'patient-001',bpmhListId:state.medrec.bpmh.id});state.evidence=out;markStep(4);const d=out.derived??{};busy(null);setEl('evidence-out',`<div class="row" style="margin-bottom:8px;flex-wrap:wrap"><span class="badge ${d.hasT2D?'badge-green':'badge-red'}">T2D: ${d.hasT2D?'Yes':'No'}</span><span class="badge badge-blue">HbA1c: ${d.a1cValue??'—'}%</span><span class="badge ${d.hasMetforminTrial?'badge-green':'badge-amber'}">Metformin: ${d.hasMetforminTrial?'Yes':'No'}</span></div><div class="muted" style="font-size:11px;font-family:var(--mono)">Doc: ${out.evidenceDoc?.id??'—'}</div>`);setEl('stat-a1c',`<span style="color:${(d.a1cValue>=8)?'var(--green)':'var(--amber)'}">${d.a1cValue??'—'}%</span>`);}catch(e){err(e.message);busy(null);}}
+async function onPolicy(){busy('Checking policy…');err(null);try{const ctx={hasT2D:state.evidence?.derived?.hasT2D??true,a1cValue:state.evidence?.derived?.a1cValue??8.4,hasMetforminTrial:state.evidence?.derived?.hasMetforminTrial??true,hasMetforminIntolerance:state.evidence?.derived?.intolerance??true,policyVariant:policyVariant(),usedRefs:[]};const out=await post('/run/policy-check',{requestContext:ctx});state.policy=out;markStep(5);const approved=!out.missing?.length;busy(null);setEl('stat-status',`<span style="color:${approved?'var(--green)':'var(--red)'}">${approved?'APPROVED':'DENIED'}</span>`);setEl('stat-policy',policyVariant());setEl('policy-out',`<div class="decision-banner ${approved?'approved':'denied'}"><div class="decision-text" style="color:${approved?'var(--green)':'var(--red)'}">${approved?'✓ APPROVED':'✗ DENIED'}</div></div>${(out.missing??[]).map(m=>`<div style="font-size:12px;color:var(--red);margin-bottom:3px;font-family:var(--mono)">✗ ${m}</div>`).join('')}${(out.met??[]).map(m=>`<div style="font-size:12px;color:var(--green);margin-bottom:3px;font-family:var(--mono)">✓ ${m}</div>`).join('')}`);}catch(e){err(e.message);busy(null);}}
+async function onCompose(){if(!state.medReq?.medicationRequest?.id){err('Run Prescribe first');return;}if(!state.evidence?.evidenceDoc?.id){err('Run Evidence first');return;}if(!state.medrec?.bpmh?.id){err('Run MedRec first');return;}busy('Composing FHIR Bundle…');err(null);try{const out=await post('/run/compose',{patientId:'patient-001',coverageId:'coverage-001',medicationRequestId:state.medReq.medicationRequest.id,evidenceDocId:state.evidence.evidenceDoc.id,bpmhListId:state.medrec.bpmh.id});state.packet=out;markStep(6);busy(null);setEl('stat-bundle',`<span style="color:var(--cyan)">${(out.bundle?.entry??[]).length} resources</span>`);}catch(e){err(e.message);busy(null);}}
+async function onSubmit(){if(!state.packet?.claim?.id){err('Compose packet first');return;}busy('Submitting to payer…');err(null);try{const ctx={hasT2D:state.evidence?.derived?.hasT2D??true,a1cValue:state.evidence?.derived?.a1cValue??8.4,hasMetforminTrial:true,hasMetforminIntolerance:true,policyVariant:policyVariant(),usedRefs:[]};const out=await post('/run/submit',{requestContext:ctx,claimId:state.packet.claim.id});state.decision=out;markStep(7);const approved=out.policyResult?.missing?.length===0;busy(null);setEl('stat-status',`<span style="color:${approved?'var(--green)':'var(--red)'}">${approved?'APPROVED':'DENIED'}</span>`);setEl('decision-out',`<div class="decision-banner ${approved?'approved':'denied'}"><div class="decision-text" style="color:${approved?'var(--green)':'var(--red)'}">${approved?'✓ APPROVED':'✗ DENIED'}</div><div style="font-size:11px;margin-top:4px;font-family:var(--mono);color:var(--muted)">ClaimResponse: ${out.claimResponse?.id??'—'}</div></div>${(out.policyResult?.missing??[]).map(m=>`<div style="font-size:12px;color:var(--red);margin-bottom:3px;font-family:var(--mono)">✗ ${m}</div>`).join('')}`);}catch(e){err(e.message);busy(null);}}
 
-function setEl(id, html) {
-  const el = document.getElementById(id);
-  if (el) el.innerHTML = html;
-}
+async function runFullDemo(){err(null);busy('Running full pipeline…');try{await post('/seed',{scenario:'complete'});state.seeded=true;markStep(1);setEl('stat-status','<span style="color:var(--green)">Seeded</span>');const mr=await post('/run/medrec',{patientId:'patient-001'});state.medrec=mr;markStep(2);const disc=mr.discrepancies??[];setEl('medrec-out',`<div class="row" style="margin-bottom:8px"><span class="badge badge-blue">BPMH: ${mr.bpmh?.id?.slice(0,8)??'—'}…</span><span class="badge ${disc.length?'badge-amber':'badge-green'}">${disc.length} discrepancies</span></div>`);const pr=await post('/clinician/prescribe',{patientId:'patient-001'});state.medReq=pr;markStep(3);const ev=await post('/run/evidence',{patientId:'patient-001',bpmhListId:mr.bpmh.id});state.evidence=ev;markStep(4);const d=ev.derived??{};setEl('evidence-out',`<div class="row" style="flex-wrap:wrap"><span class="badge ${d.hasT2D?'badge-green':'badge-red'}">T2D: ${d.hasT2D?'Yes':'No'}</span><span class="badge badge-blue">HbA1c: ${d.a1cValue??'—'}%</span><span class="badge ${d.hasMetforminTrial?'badge-green':'badge-amber'}">Metformin: ${d.hasMetforminTrial?'Yes':'No'}</span></div>`);setEl('stat-a1c',`<span style="color:var(--green)">${d.a1cValue??'—'}%</span>`);const pv=policyVariant();const ctx={hasT2D:d.hasT2D??true,a1cValue:d.a1cValue??8.4,hasMetforminTrial:true,hasMetforminIntolerance:true,policyVariant:pv,usedRefs:[]};const pol=await post('/run/policy-check',{requestContext:ctx});state.policy=pol;markStep(5);const comp=await post('/run/compose',{patientId:'patient-001',coverageId:'coverage-001',medicationRequestId:pr.medicationRequest.id,evidenceDocId:ev.evidenceDoc.id,bpmhListId:mr.bpmh.id});state.packet=comp;markStep(6);setEl('stat-bundle',`<span style="color:var(--cyan)">${(comp.bundle?.entry??[]).length} resources</span>`);setEl('stat-policy',pv);const sub=await post('/run/submit',{requestContext:ctx,claimId:comp.claim.id});state.decision=sub;markStep(7);const approved=!sub.policyResult?.missing?.length;setEl('stat-status',`<span style="color:${approved?'var(--green)':'var(--red)'}">${approved?'APPROVED':'DENIED'}</span>`);setEl('policy-out',`<div class="decision-banner ${approved?'approved':'denied'}"><div class="decision-text" style="color:${approved?'var(--green)':'var(--red)'}">${approved?'✓ APPROVED':'✗ DENIED'}</div></div>`);setEl('decision-out',`<div class="decision-banner ${approved?'approved':'denied'}"><div class="decision-text" style="color:${approved?'var(--green)':'var(--red)'}">${approved?'✓ APPROVED':'✗ DENIED'}</div><div style="font-size:11px;margin-top:4px;font-family:var(--mono);color:var(--muted)">ClaimResponse: ${sub.claimResponse?.id??'—'}</div></div>`);busy(null);showSection('audit');await loadAudit('patient-001');}catch(e){err(e.message);busy(null);}}
 
-function json2html(obj) {
-  return `<pre>${JSON.stringify(obj, null, 2)}</pre>`;
-}
+function downloadBundle(){if(!state.packet?.bundle?.id){err('Compose packet first');return;}window.open(`/packet/${state.packet.bundle.id}`,'_blank');}
 
-function policyVariant() {
-  return document.getElementById('policy-variant').value;
-}
+async function onSmartSearch(){const q=document.getElementById('smart-query').value.trim();if(!q)return;setEl('smart-out','<div class="muted center"><span class="spin"></span> Searching r4.smarthealthit.org…</div>');try{const res=await post('/api/smart/search',{query:q,maxResults:6});const patients=res.patients??[];if(!patients.length){setEl('smart-out','<div class="muted center">No patients found. Try Smith, Johnson, or Williams.</div>');return;}setEl('smart-out',patients.map(p=>`<div class="pt-card"><div><div class="pt-name">${p.name?.[0]?.text??p.name?.[0]?.family??p.id}</div><div class="pt-meta">DOB: ${p.birthDate??'—'} · ${p.gender??'—'} · ${p.id?.slice(0,18)}…</div></div><button class="btn btn-ghost btn-sm" onclick="onSmartImport('${p.id}')">Import →</button></div>`).join(''));}catch(e){setEl('smart-out',`<div class="alert alert-err">${e.message}</div>`);}}
+async function onSmartImport(patientId){setEl('smart-out','<div class="muted center"><span class="spin"></span> Importing…</div>');try{const res=await post('/api/smart/import',{smartPatientId:patientId});state.smartImported=res;setEl('smart-out',`<div class="alert alert-ok" style="margin-bottom:8px">✓ Imported: ${res.patient?.name?.[0]?.text??patientId}</div><div class="muted" style="font-size:11px;font-family:var(--mono)">Internal ID: ${res.internalPatientId}</div>`);}catch(e){setEl('smart-out',`<div class="alert alert-err">${e.message}</div>`);}}
 
-// ── Pipeline steps ─────────────────────────────────────────────────────────
-async function onSeed() {
-  busy('Seeding FHIR data…');
-  err(null);
-  try {
-    await post('/seed', { scenario: 'complete' });
-    state.seeded = true;
-    busy(null);
-    setEl('stat-status', '<span style="color:var(--green)">Seeded</span>');
-  } catch(e) { err(e.message); busy(null); }
-}
+function setAuditView(v){state.auditView=v;document.getElementById('tab-timeline').className=`tab ${v==='timeline'?'active':''}`;document.getElementById('tab-graph').className=`tab ${v==='graph'?'active':''}`;if(state.auditTrail)renderAudit(state.auditTrail);}
+async function loadAudit(patientId){const candidates=patientId?[patientId]:['patient-001','79f8fd18-5044-452d-b9bd-428b1e35e579','patient-ra-001','147e21d9-ab4e-449c-aeb4-8f3d6f7b1b4c'];setEl('audit-out','<div class="muted center"><span class="spin"></span> Loading audit trail…</div>');for(const id of candidates){try{const trail=await get(`/api/audit/${id}`);if(trail){state.auditTrail=trail;renderAudit(trail);return;}}catch{}}setEl('audit-out','<div class="muted center">No audit trail found. Run a prior authorization first.</div>');}
 
-async function onMedRec() {
-  busy('Running MedRec…');
-  err(null);
-  try {
-    const out = await post('/run/medrec', { patientId: 'patient-001' });
-    state.medrec = out;
-    busy(null);
-    const disc = out.discrepancies ?? [];
-    setEl('medrec-out', `
-      <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
-        <span class="badge badge-blue">BPMH: ${out.bpmh?.id?.slice(0,8) ?? '—'}…</span>
-        <span class="badge ${disc.length ? 'badge-amber' : 'badge-green'}">${disc.length} discrepancies</span>
-      </div>
-      ${disc.length ? disc.map(d=>`<div class="muted" style="font-size:12px;margin-bottom:4px">⚠ ${d}</div>`).join('') : '<div class="muted">No discrepancies</div>'}
-    `);
-  } catch(e) { err(e.message); busy(null); }
-}
-
-async function onPrescribe() {
-  busy('Creating MedicationRequest…');
-  err(null);
-  try {
-    const out = await post('/clinician/prescribe', { patientId: 'patient-001' });
-    state.medReq = out;
-    busy(null);
-  } catch(e) { err(e.message); busy(null); }
-}
-
-async function onEvidence() {
-  if (!state.medrec?.bpmh?.id) { err('Run MedRec first (Step 2)'); return; }
-  busy('Gathering clinical evidence…');
-  err(null);
-  try {
-    const out = await post('/run/evidence', { patientId: 'patient-001', bpmhListId: state.medrec.bpmh.id });
-    state.evidence = out;
-    const d = out.derived ?? {};
-    busy(null);
-    setEl('evidence-out', `
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
-        <span class="badge ${d.hasT2D ? 'badge-green' : 'badge-red'}">T2D: ${d.hasT2D ? 'Yes' : 'No'}</span>
-        <span class="badge badge-blue">HbA1c: ${d.a1cValue ?? '—'}%</span>
-        <span class="badge ${d.hasMetforminTrial ? 'badge-green' : 'badge-amber'}">Metformin trial: ${d.hasMetforminTrial ? 'Yes' : 'No'}</span>
-      </div>
-      <div class="muted" style="font-size:11px">Doc: ${out.evidenceDoc?.id ?? '—'}</div>
-    `);
-    setEl('stat-a1c', `<span style="color:${(d.a1cValue>=8)?'var(--green)':'var(--amber)'};">${d.a1cValue ?? '—'}%</span>`);
-  } catch(e) { err(e.message); busy(null); }
-}
-
-async function onPolicy() {
-  busy('Checking policy…');
-  err(null);
-  try {
-    const ctx = {
-      hasT2D: state.evidence?.derived?.hasT2D ?? true,
-      a1cValue: state.evidence?.derived?.a1cValue ?? 8.4,
-      hasMetforminTrial: state.evidence?.derived?.hasMetforminTrial ?? true,
-      hasMetforminIntolerance: state.evidence?.derived?.intolerance ?? true,
-      policyVariant: policyVariant(),
-      usedRefs: []
-    };
-    const out = await post('/run/policy-check', { requestContext: ctx });
-    state.policy = out;
-    const approved = !out.missing?.length;
-    busy(null);
-    setEl('stat-status', `<span style="color:${approved?'var(--green)':'var(--red)'}">${approved?'APPROVED':'DENIED'}</span>`);
-    setEl('stat-policy', policyVariant());
-    setEl('policy-out', `
-      <div style="margin-bottom:10px">
-        <span class="badge ${approved ? 'badge-green' : 'badge-red'}" style="font-size:13px;padding:5px 14px">
-          ${approved ? '✓ APPROVED' : '✗ DENIED'}
-        </span>
-      </div>
-      ${(out.missing??[]).map(m=>`<div class="muted" style="font-size:12px;margin-bottom:4px">✗ ${m}</div>`).join('')}
-      ${(out.met??[]).map(m=>`<div style="font-size:12px;color:var(--green);margin-bottom:4px">✓ ${m}</div>`).join('')}
-    `);
-  } catch(e) { err(e.message); busy(null); }
-}
-
-async function onCompose() {
-  if (!state.medReq?.medicationRequest?.id) { err('Run Prescribe first (Step 3)'); return; }
-  if (!state.evidence?.evidenceDoc?.id) { err('Run Evidence first (Step 4)'); return; }
-  if (!state.medrec?.bpmh?.id) { err('Run MedRec first (Step 2)'); return; }
-  busy('Composing FHIR Bundle…');
-  err(null);
-  try {
-    const out = await post('/run/compose', {
-      patientId: 'patient-001', coverageId: 'coverage-001',
-      medicationRequestId: state.medReq.medicationRequest.id,
-      evidenceDocId: state.evidence.evidenceDoc.id,
-      bpmhListId: state.medrec.bpmh.id,
-    });
-    state.packet = out;
-    const entries = out.bundle?.entry ?? [];
-    busy(null);
-    setEl('stat-bundle', `<span style="color:var(--teal)">${entries.length} resources</span>`);
-  } catch(e) { err(e.message); busy(null); }
-}
-
-async function onSubmit() {
-  if (!state.packet?.claim?.id) { err('Compose packet first (Step 6)'); return; }
-  busy('Submitting to payer…');
-  err(null);
-  try {
-    const ctx = {
-      hasT2D: state.evidence?.derived?.hasT2D ?? true,
-      a1cValue: state.evidence?.derived?.a1cValue ?? 8.4,
-      hasMetforminTrial: true,
-      hasMetforminIntolerance: true,
-      policyVariant: policyVariant(),
-      usedRefs: []
-    };
-    const out = await post('/run/submit', { requestContext: ctx, claimId: state.packet.claim.id });
-    state.decision = out;
-    const approved = out.policyResult?.missing?.length === 0;
-    busy(null);
-    setEl('stat-status', `<span style="color:${approved?'var(--green)':'var(--red)'}">${approved?'APPROVED':'DENIED'}</span>`);
-    setEl('decision-out', `
-      <div style="margin-bottom:10px">
-        <span class="badge ${approved ? 'badge-green' : 'badge-red'}" style="font-size:13px;padding:5px 14px">
-          ${approved ? '✓ APPROVED' : '✗ DENIED'}
-        </span>
-      </div>
-      <div class="muted" style="font-size:11px;margin-top:8px">ClaimResponse: ${out.claimResponse?.id ?? '—'}</div>
-      ${(out.policyResult?.missing??[]).map(m=>`<div class="muted" style="font-size:12px;color:var(--red)">✗ ${m}</div>`).join('')}
-    `);
-  } catch(e) { err(e.message); busy(null); }
-}
-
-async function runFullDemo() {
-  err(null);
-  busy('Running full pipeline…');
-  try {
-    await post('/seed', { scenario: 'complete' });
-    state.seeded = true;
-    setEl('stat-status', '<span style="color:var(--green)">Seeded</span>');
-
-    const mr = await post('/run/medrec', { patientId: 'patient-001' });
-    state.medrec = mr;
-    const disc = mr.discrepancies ?? [];
-    setEl('medrec-out', `
-      <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
-        <span class="badge badge-blue">BPMH: ${mr.bpmh?.id?.slice(0,8) ?? '—'}…</span>
-        <span class="badge ${disc.length ? 'badge-amber' : 'badge-green'}">${disc.length} discrepancies</span>
-      </div>
-    `);
-
-    const pr = await post('/clinician/prescribe', { patientId: 'patient-001' });
-    state.medReq = pr;
-
-    const ev = await post('/run/evidence', { patientId: 'patient-001', bpmhListId: mr.bpmh.id });
-    state.evidence = ev;
-    const d = ev.derived ?? {};
-    setEl('evidence-out', `
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <span class="badge ${d.hasT2D ? 'badge-green' : 'badge-red'}">T2D: ${d.hasT2D ? 'Yes' : 'No'}</span>
-        <span class="badge badge-blue">HbA1c: ${d.a1cValue ?? '—'}%</span>
-        <span class="badge ${d.hasMetforminTrial ? 'badge-green' : 'badge-amber'}">Metformin: ${d.hasMetforminTrial ? 'Yes' : 'No'}</span>
-      </div>
-    `);
-    setEl('stat-a1c', `<span style="color:var(--green)">${d.a1cValue ?? '—'}%</span>`);
-
-    const pv = policyVariant();
-    const ctx = { hasT2D: d.hasT2D ?? true, a1cValue: d.a1cValue ?? 8.4, hasMetforminTrial: true, hasMetforminIntolerance: true, policyVariant: pv, usedRefs: [] };
-    const pol = await post('/run/policy-check', { requestContext: ctx });
-    state.policy = pol;
-
-    const comp = await post('/run/compose', {
-      patientId: 'patient-001', coverageId: 'coverage-001',
-      medicationRequestId: pr.medicationRequest.id,
-      evidenceDocId: ev.evidenceDoc.id,
-      bpmhListId: mr.bpmh.id,
-    });
-    state.packet = comp;
-    setEl('stat-bundle', `<span style="color:var(--teal)">${(comp.bundle?.entry ?? []).length} resources</span>`);
-    setEl('stat-policy', pv);
-
-    const sub = await post('/run/submit', { requestContext: ctx, claimId: comp.claim.id });
-    state.decision = sub;
-    const approved = !sub.policyResult?.missing?.length;
-    setEl('stat-status', `<span style="color:${approved?'var(--green)':'var(--red)'}">${approved?'APPROVED':'DENIED'}</span>`);
-    setEl('policy-out', `<div><span class="badge ${approved?'badge-green':'badge-red'}" style="font-size:13px;padding:5px 14px">${approved?'✓ APPROVED':'✗ DENIED'}</span></div>`);
-    setEl('decision-out', `
-      <div style="margin-bottom:8px"><span class="badge ${approved?'badge-green':'badge-red'}" style="font-size:13px;padding:5px 14px">${approved?'✓ APPROVED':'✗ DENIED'}</span></div>
-      <div class="muted" style="font-size:11px">ClaimResponse: ${sub.claimResponse?.id ?? '—'}</div>
-    `);
-
-    busy(null);
-    await loadAudit('patient-001');
-  } catch(e) { err(e.message); busy(null); }
-}
-
-function downloadBundle() {
-  if (!state.packet?.bundle?.id) { err('Compose packet first'); return; }
-  window.open(`/packet/${state.packet.bundle.id}`, '_blank');
-}
-
-// ── SMART Health IT ────────────────────────────────────────────────────────
-async function onSmartSearch() {
-  const q = document.getElementById('smart-query').value.trim();
-  if (!q) return;
-  setEl('smart-out', '<div class="muted center"><span class="spin"></span> Searching r4.smarthealthit.org…</div>');
-  try {
-    const res = await post('/api/smart/search', { query: q, maxResults: 6 });
-    const patients = res.patients ?? [];
-    if (!patients.length) {
-      setEl('smart-out', '<div class="muted center">No patients found. Try Smith, Johnson, or Williams.</div>');
-      return;
-    }
-    setEl('smart-out', patients.map(p => `
-      <div class="patient-card">
-        <div>
-          <div class="patient-name">${p.name?.[0]?.text ?? p.name?.[0]?.family ?? p.id}</div>
-          <div class="patient-meta">DOB: ${p.birthDate ?? '—'} · ${p.gender ?? '—'} · ID: ${p.id?.slice(0,16)}…</div>
-        </div>
-        <button class="btn-ghost btn-sm" onclick="onSmartImport('${p.id}')">Import →</button>
-      </div>
-    `).join(''));
-  } catch(e) { setEl('smart-out', `<div class="alert alert-err">${e.message}</div>`); }
-}
-
-async function onSmartImport(patientId) {
-  setEl('smart-out', '<div class="muted center"><span class="spin"></span> Importing patient…</div>');
-  try {
-    const res = await post('/api/smart/import', { smartPatientId: patientId });
-    state.smartImported = res;
-    setEl('smart-out', `
-      <div class="alert alert-ok">✓ Imported: ${res.patient?.name?.[0]?.text ?? patientId}</div>
-      <div class="muted" style="font-size:11px;margin-top:8px">Internal ID: ${res.internalPatientId}</div>
-    `);
-  } catch(e) { setEl('smart-out', `<div class="alert alert-err">${e.message}</div>`); }
-}
-
-// ── Audit Trail ────────────────────────────────────────────────────────────
-function setAuditView(v) {
-  state.auditView = v;
-  document.getElementById('tab-timeline').className = `tab ${v==='timeline'?'active':''}`;
-  document.getElementById('tab-graph').className = `tab ${v==='graph'?'active':''}`;
-  if (state.auditTrail) renderAudit(state.auditTrail);
-}
-
-async function loadAudit(patientId) {
-  const candidates = patientId
-    ? [patientId]
-    : ['patient-001','79f8fd18-5044-452d-b9bd-428b1e35e579','patient-ra-001','147e21d9-ab4e-449c-aeb4-8f3d6f7b1b4c'];
-  setEl('audit-out', '<div class="muted center"><span class="spin"></span> Loading audit trail…</div>');
-  for (const id of candidates) {
-    try {
-      const trail = await get(`/api/audit/${id}`);
-      if (trail) { state.auditTrail = trail; renderAudit(trail); return; }
-    } catch {}
-  }
-  setEl('audit-out', '<div class="muted center">No audit trail found. Run a prior authorization first.</div>');
-}
-
-function renderAudit(trail) {
-  const s = trail.summary;
-  const dec = trail.finalDecision;
-  const decColor = dec==='approved'?'var(--green)':dec==='denied'?'var(--red)':dec==='appealed'?'var(--aria)':'var(--muted)';
-
-  const summaryHtml = `
-    <div class="stats" style="margin-bottom:14px">
-      <div class="stat"><div class="stat-label">Decision</div><div class="stat-value" style="color:${decColor};font-size:14px">${(dec??'—').toUpperCase()}</div></div>
-      <div class="stat"><div class="stat-label">Events</div><div class="stat-value">${s.totalEvents}</div></div>
-      <div class="stat"><div class="stat-label">Agents</div><div class="stat-value" style="font-size:12px">${s.agentsInvolved.join(', ')}</div></div>
-      <div class="stat"><div class="stat-label">AI Decisions</div><div class="stat-value">${s.aiDecisionsMade}</div></div>
-      <div class="stat"><div class="stat-label">Duration</div><div class="stat-value" style="font-size:13px">${s.durationMs ? (s.durationMs/1000).toFixed(1)+'s' : '—'}</div></div>
-    </div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
-      ${(s.dataSourcesUsed??[]).map(ds => `<span class="tl-tag">${
-        ds==='fhir-local'?'📋 Local FHIR':
-        ds==='fhir-smart-health-it'?'🌐 SMART Health IT':
-        ds==='ai-note-extraction'?'🤖 AI Note Extraction':
-        ds==='ai-policy-check'?'⚖️ AI Policy Check':
-        ds==='ai-appeal'?'📝 AI Appeal':ds
-      }</span>`).join('')}
-    </div>
-  `;
-
-  if (state.auditView === 'timeline') {
-    const eventsHtml = (trail.events??[]).map(ev => {
-      const agentColor = ev.agent==='ALICE'?'var(--alice)':ev.agent==='ARIA'?'var(--aria)':'var(--muted)';
-      const icon = ev.type==='pipeline_start'?'▶':ev.type==='pipeline_complete'?'✓':ev.type==='ai_decision'?'🤖':ev.type==='agent_handoff'?'↗':ev.type==='appeal_drafted'?'📝':'●';
-      return `
-        <div class="tl-item">
-          <div class="tl-node" style="border-color:${agentColor};color:${agentColor}">${icon}</div>
-          <div class="tl-content">
-            <div class="tl-header">
-              <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-                <span class="tl-agent" style="color:${agentColor}">${ev.agent}</span>
-                <span class="tl-action">${ev.action}</span>
-              </div>
-              <span class="tl-time">${new Date(ev.timestamp).toLocaleTimeString()}</span>
-            </div>
-            <div class="tl-desc">${ev.description}</div>
-            ${ev.aiDecision ? `
-              <div class="tl-ai">
-                <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px;flex-wrap:wrap">
-                  <span style="font-weight:700;font-size:12px;color:${ev.aiDecision.decision==='APPROVED'?'var(--green)':ev.aiDecision.decision==='DENIED'?'var(--red)':'var(--purple)'}">${ev.aiDecision.decision}</span>
-                  ${ev.aiDecision.confidence ? `<span class="badge ${ev.aiDecision.confidence==='high'?'badge-green':ev.aiDecision.confidence==='medium'?'badge-amber':'badge-red'}" style="font-size:10px">confidence: ${ev.aiDecision.confidence}</span>` : ''}
-                  ${ev.aiDecision.model ? `<span class="muted" style="font-size:10px">${ev.aiDecision.model}</span>` : ''}
-                </div>
-                <div class="muted" style="font-size:12px">${ev.aiDecision.reasoning}</div>
-                ${(ev.aiDecision.ambiguities??[]).map(a=>`<div style="font-size:11px;color:var(--amber);margin-top:3px">⚠ ${a}</div>`).join('')}
-              </div>
-            ` : ''}
-            ${(ev.resourcesCreated??[]).length ? `
-              <div class="tl-tags" style="margin-top:6px">
-                ${ev.resourcesCreated.map(r=>`<span class="tl-tag" style="color:var(--teal)">+${r.resourceType}/${r.id?.slice(0,8)}…</span>`).join('')}
-              </div>
-            ` : ''}
-            ${(ev.dataSources??[]).length ? `
-              <div class="tl-tags">
-                ${ev.dataSources.map(ds=>`<span class="tl-tag">${ds}</span>`).join('')}
-              </div>
-            ` : ''}
-            ${ev.handoff ? `
-              <div style="margin-top:8px;padding:6px 10px;background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.2);border-radius:6px;font-size:12px">
-                <span style="color:var(--aria);font-weight:700">↗ Handoff</span>
-                <span class="muted" style="margin-left:8px">${ev.handoff.from} → ${ev.handoff.to}: ${ev.handoff.reason}</span>
-              </div>
-            ` : ''}
-          </div>
-        </div>
-      `;
+function renderAudit(trail){
+  const s=trail.summary;const dec=trail.finalDecision;
+  const decColor=dec==='approved'?'var(--green)':dec==='denied'?'var(--red)':dec==='appealed'?'var(--aria)':'var(--muted)';
+  const summaryHtml=`<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:14px">${[['Decision',`<span style="color:${decColor};font-family:var(--mono);font-weight:600">${(dec??'—').toUpperCase()}</span>`],['Events',s.totalEvents],['Agents',s.agentsInvolved?.join(' · ')??'—'],['AI Calls',s.aiDecisionsMade],['Duration',s.durationMs?(s.durationMs/1000).toFixed(1)+'s':'—']].map(([l,v])=>`<div style="background:var(--s1);padding:10px 14px"><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin-bottom:4px">${l}</div><div style="font-family:var(--mono);font-size:13px;font-weight:500">${v}</div></div>`).join('')}</div><div class="row" style="margin-bottom:14px;flex-wrap:wrap">${(s.dataSourcesUsed??[]).map(ds=>`<span class="tl-tag">${ds==='fhir-local'?'📋 Local FHIR':ds==='fhir-smart-health-it'?'🌐 SMART Health IT':ds==='ai-note-extraction'?'🤖 AI Extraction':ds==='ai-policy-check'?'⚖️ Policy Check':ds==='ai-appeal'?'📝 AI Appeal':ds==='payer-system'?'🏦 Payer':ds}</span>`).join('')}</div>`;
+  if(state.auditView==='timeline'){
+    const eventsHtml=(trail.events??[]).map(ev=>{
+      const agentColor=ev.agent==='ALICE'?'var(--alice)':ev.agent==='ARIA'?'var(--aria)':'var(--muted)';
+      const icon=ev.type==='pipeline_start'?'▶':ev.type==='pipeline_complete'?'✓':ev.type==='ai_decision'?'◈':ev.type==='agent_handoff'?'↗':ev.type==='appeal_drafted'?'✉':'·';
+      return `<div class="tl-item"><div class="tl-spine"><div class="tl-node" style="border-color:${agentColor};color:${agentColor}">${icon}</div><div class="tl-line"></div></div><div class="tl-content"><div class="tl-header"><div class="row" style="gap:6px"><span class="tl-agent" style="color:${agentColor}">${ev.agent}</span><span class="tl-action">${ev.action}</span></div><span class="tl-time">${new Date(ev.timestamp).toLocaleTimeString()}</span></div><div class="tl-desc">${ev.description}</div>${ev.aiDecision?`<div class="tl-ai"><div class="row" style="margin-bottom:4px;flex-wrap:wrap"><span style="font-weight:600;font-size:12px;font-family:var(--mono);color:${ev.aiDecision.decision==='APPROVED'?'var(--green)':ev.aiDecision.decision==='DENIED'?'var(--red)':'var(--purple)'}">${ev.aiDecision.decision}</span>${ev.aiDecision.confidence?`<span class="badge ${ev.aiDecision.confidence==='high'?'badge-green':ev.aiDecision.confidence==='medium'?'badge-amber':'badge-red'}" style="font-size:10px">${ev.aiDecision.confidence}</span>`:''}</div><div class="muted" style="font-size:12px">${ev.aiDecision.reasoning}</div></div>`:''} ${(ev.resourcesCreated??[]).length?`<div class="tl-tags">${ev.resourcesCreated.map(r=>`<span class="tl-tag" style="color:var(--cyan)">+${r.resourceType}/${r.id?.slice(0,8)}…</span>`).join('')}</div>`:''}${(ev.dataSources??[]).length?`<div class="tl-tags">${ev.dataSources.map(ds=>`<span class="tl-tag">${ds}</span>`).join('')}</div>`:''}${ev.handoff?`<div class="tl-handoff"><span style="color:var(--aria);font-weight:600;font-family:var(--mono)">↗ Handoff</span><span class="muted" style="margin-left:8px;font-size:12px">${ev.handoff.from} → ${ev.handoff.to}: ${ev.handoff.reason}</span></div>`:''}</div></div>`;
     }).join('');
-    setEl('audit-out', summaryHtml + `<div class="timeline">${eventsHtml}</div>`);
+    setEl('audit-out',summaryHtml+`<div class="timeline">${eventsHtml}</div>`);
   } else {
-    // Graph view
-    const events = (trail.events??[]).slice(0,8);
-    const svgNodes = events.map((ev,i) => {
-      const x = 60 + (i%4)*185;
-      const y = i<4 ? 80 : 220;
-      const agentColor = ev.agent==='ALICE'?'#3b82f6':ev.agent==='ARIA'?'#f59e0b':'#6b7280';
-      const ni = i+1, nx = 60+(ni%4)*185, ny = ni<4?80:220;
-      return `
-        ${i < Math.min(events.length-1,7) ? `<line x1="${x+36}" y1="${y}" x2="${nx-36}" y2="${ny}" stroke="rgba(139,92,246,0.4)" stroke-width="1.5" marker-end="url(#arr)" stroke-dasharray="${i===3?'4,3':'none'}"/>` : ''}
-        <circle cx="${x}" cy="${y}" r="32" fill="${agentColor}18" stroke="${agentColor}" stroke-width="1.5"/>
-        <text x="${x}" y="${y-8}" text-anchor="middle" font-size="10" fill="${agentColor}" font-weight="600">${ev.agent}</text>
-        <text x="${x}" y="${y+5}" text-anchor="middle" font-size="8" fill="rgba(148,163,184,0.7)">${(ev.action??'').slice(0,12)}</text>
-        <text x="${x}" y="${y+16}" text-anchor="middle" font-size="8" fill="rgba(148,163,184,0.5)">${(ev.type??'').replace('_',' ')}</text>
-        ${ev.aiDecision ? `<circle cx="${x+28}" cy="${y-28}" r="8" fill="rgba(139,92,246,0.8)"/><text x="${x+28}" y="${y-24}" text-anchor="middle" font-size="8" fill="white">AI</text>` : ''}
-      `;
-    }).join('');
-    setEl('audit-out', summaryHtml + `
-      <div class="graph-wrap">
-        <svg width="100%" viewBox="0 0 800 320" style="min-width:500px">
-          <defs>
-            <marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-              <path d="M0,0 L0,6 L8,3 z" fill="rgba(139,92,246,0.6)"/>
-            </marker>
-          </defs>
-          ${svgNodes}
-          <g transform="translate(680,20)">
-            <circle cx="8" cy="8" r="6" fill="rgba(59,130,246,0.2)" stroke="#3b82f6" stroke-width="1.5"/>
-            <text x="18" y="12" font-size="9" fill="rgba(148,163,184,0.8)">ALICE</text>
-            <circle cx="8" cy="26" r="6" fill="rgba(245,158,11,0.2)" stroke="#f59e0b" stroke-width="1.5"/>
-            <text x="18" y="30" font-size="9" fill="rgba(148,163,184,0.8)">ARIA</text>
-            <circle cx="8" cy="44" r="6" fill="rgba(139,92,246,0.8)"/>
-            <text x="18" y="48" font-size="9" fill="rgba(148,163,184,0.8)">AI Decision</text>
-          </g>
-        </svg>
-      </div>
-    `);
+    const events=(trail.events??[]).slice(0,8);
+    const svgNodes=events.map((ev,i)=>{const x=60+(i%4)*185;const y=i<4?80:220;const ac=ev.agent==='ALICE'?'#388bfd':ev.agent==='ARIA'?'#f0a500':'#768390';const ni=i+1,nx=60+(ni%4)*185,ny=ni<4?80:220;return `${i<Math.min(events.length-1,7)?`<line x1="${x+28}" y1="${y}" x2="${nx-28}" y2="${ny}" stroke="rgba(56,139,253,0.3)" stroke-width="1.5" marker-end="url(#arr)"/>`:''}<circle cx="${x}" cy="${y}" r="26" fill="${ac}14" stroke="${ac}" stroke-width="1.5"/><text x="${x}" y="${y-5}" text-anchor="middle" font-size="10" fill="${ac}" font-weight="600" font-family="IBM Plex Mono">${ev.agent}</text><text x="${x}" y="${y+7}" text-anchor="middle" font-size="8" fill="rgba(118,131,144,0.8)" font-family="IBM Plex Mono">${(ev.action??'').slice(0,12)}</text>${ev.aiDecision?`<circle cx="${x+22}" cy="${y-22}" r="6" fill="rgba(188,140,255,0.85)"/><text x="${x+22}" y="${y-18}" text-anchor="middle" font-size="7" fill="white">AI</text>`:''}`}).join('');
+    setEl('audit-out',summaryHtml+`<div class="graph-wrap"><svg width="100%" viewBox="0 0 800 320" style="min-width:500px"><defs><marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="rgba(56,139,253,0.5)"/></marker></defs>${svgNodes}<g transform="translate(700,14)"><circle cx="5" cy="5" r="5" fill="rgba(56,139,253,0.2)" stroke="#388bfd" stroke-width="1.5"/><text x="13" y="9" font-size="9" fill="#768390" font-family="IBM Plex Mono">ALICE</text><circle cx="5" cy="21" r="5" fill="rgba(240,165,0,0.2)" stroke="#f0a500" stroke-width="1.5"/><text x="13" y="25" font-size="9" fill="#768390" font-family="IBM Plex Mono">ARIA</text><circle cx="5" cy="37" r="5" fill="rgba(188,140,255,0.85)"/><text x="13" y="41" font-size="9" fill="#768390" font-family="IBM Plex Mono">AI Decision</text></g></svg></div>`);
   }
 }
 
-// ── FHIR dump ──────────────────────────────────────────────────────────────
-async function loadFhir() {
-  setEl('fhir-out', '<div class="muted center"><span class="spin"></span></div>');
-  try {
-    const d = await get('/fhir-dump');
-    const types = Object.keys(d);
-    setEl('fhir-out', `
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
-        ${types.map(t=>`<span class="badge badge-blue">${t}: ${Array.isArray(d[t])?d[t].length:Object.keys(d[t]??{}).length}</span>`).join('')}
-      </div>
-      <pre>${JSON.stringify(d, null, 2)}</pre>
-    `);
-  } catch(e) { setEl('fhir-out', `<div class="alert alert-err">${e.message}</div>`); }
-}
+async function loadFhir(){setEl('fhir-out','<div class="muted center"><span class="spin"></span></div>');try{const d=await get('/fhir-dump');const types=Object.keys(d);setEl('fhir-out',`<div class="row" style="margin-bottom:10px;flex-wrap:wrap">${types.map(t=>`<span class="badge badge-blue">${t}: ${Array.isArray(d[t])?d[t].length:Object.keys(d[t]??{}).length}</span>`).join('')}</div><pre>${JSON.stringify(d,null,2)}</pre>`);}catch(e){setEl('fhir-out',`<div class="alert alert-err">${e.message}</div>`);}}
 </script>
 </body>
 </html>
