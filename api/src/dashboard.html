@@ -17,6 +17,7 @@
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13px;line-height:1.6;min-height:100vh;background-image:linear-gradient(rgba(56,139,253,0.02) 1px,transparent 1px),linear-gradient(90deg,rgba(56,139,253,0.02) 1px,transparent 1px);background-size:40px 40px;}
 .shell{display:grid;grid-template-columns:220px 1fr;grid-template-rows:52px 1fr;min-height:100vh;}
+/* topbar */
 .topbar{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;padding:0 20px;background:var(--s1);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;}
 .topbar-brand{display:flex;align-items:center;gap:10px;}
 .topbar-logo{width:28px;height:28px;border-radius:6px;background:linear-gradient(135deg,var(--alice),var(--purple));display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:600;font-size:13px;color:#fff;box-shadow:0 0 12px rgba(56,139,253,0.4);}
@@ -25,7 +26,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
 .topbar-right{display:flex;align-items:center;gap:10px;}
 .live-pill{display:flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;background:rgba(63,185,80,0.1);border:1px solid rgba(63,185,80,0.25);font-family:var(--mono);font-size:11px;color:var(--green);}
 .live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:blink 2s infinite;}
+.sync-pill{display:flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;border:1px solid var(--border2);font-family:var(--mono);font-size:11px;color:var(--muted);cursor:pointer;background:var(--s2);transition:all .15s;}
+.sync-pill:hover{border-color:rgba(56,139,253,0.4);color:var(--alice);}
+.sync-pill.syncing{color:var(--alice);border-color:rgba(56,139,253,0.4);}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+/* sidebar */
 .sidebar{background:var(--s1);border-right:1px solid var(--border);padding:14px 0;overflow-y:auto;}
 .sidebar-label{font-family:var(--mono);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--dim);padding:8px 14px 4px;}
 .nav-item{display:flex;align-items:center;gap:9px;padding:7px 14px;cursor:pointer;font-size:12px;color:var(--muted);transition:all .12s;border-left:2px solid transparent;}
@@ -42,6 +47,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
 .status-row:last-child{margin-bottom:0;}
 .status-lbl{font-family:var(--mono);font-size:10px;text-transform:uppercase;color:var(--dim);}
 .status-val{font-family:var(--mono);font-size:11px;color:var(--muted);}
+/* main */
 .main{overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:14px;}
 .panel{background:var(--s1);border:1px solid var(--border);border-radius:10px;overflow:hidden;animation:fadeIn .25s ease both;}
 @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
@@ -50,6 +56,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
 .panel-body{padding:14px;}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
 @media(max-width:860px){.grid2{grid-template-columns:1fr;}}
+/* pipeline */
 .pipeline-track{display:flex;background:var(--s2);border-radius:7px;overflow:hidden;border:1px solid var(--border);margin-bottom:12px;}
 .pipe-step{flex:1;padding:10px 6px;text-align:center;border-right:1px solid var(--border);cursor:pointer;transition:all .12s;background:none;border-top:none;border-bottom:none;border-left:none;color:var(--dim);font-family:var(--sans);}
 .pipe-step:last-child{border-right:none;}
@@ -57,14 +64,25 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
 .pipe-step.done{color:var(--green);}
 .pipe-step .sn{font-family:var(--mono);font-size:9px;color:var(--dim);display:block;margin-bottom:2px;}
 .pipe-step .sl{font-size:11px;font-weight:500;}
+/* patient cards in run-auth */
+.pat-run-card{background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:8px;transition:border-color .12s;}
+.pat-run-card.running{border-color:rgba(56,139,253,0.4);}
+.pat-run-card.done-approved{border-color:rgba(63,185,80,0.35);}
+.pat-run-card.done-denied{border-color:rgba(248,81,73,0.35);}
+/* buttons */
 button{font-family:var(--sans);cursor:pointer;transition:all .12s;border:none;}
 .btn{padding:7px 13px;border-radius:6px;font-size:12px;font-weight:500;}
 .btn-primary{background:var(--alice);color:#fff;box-shadow:0 0 10px rgba(56,139,253,0.3);}
 .btn-primary:hover{background:#58a6ff;box-shadow:0 0 18px rgba(56,139,253,0.5);}
 .btn-ghost{background:var(--s2);color:var(--text);border:1px solid var(--border2);}
 .btn-ghost:hover{background:var(--s3);border-color:rgba(56,139,253,0.4);}
+.btn-aria{background:rgba(240,165,0,0.1);color:var(--aria);border:1px solid rgba(240,165,0,0.25);}
+.btn-aria:hover{background:rgba(240,165,0,0.18);}
+.btn-green{background:rgba(63,185,80,0.12);color:var(--green);border:1px solid rgba(63,185,80,0.25);}
+.btn-green:hover{background:rgba(63,185,80,0.2);}
 .btn-sm{padding:5px 10px;font-size:11px;border-radius:5px;}
 button:disabled{opacity:.35;cursor:not-allowed;}
+/* badges */
 .badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:4px;font-family:var(--mono);font-size:11px;font-weight:500;}
 .badge-green{background:rgba(63,185,80,0.1);color:#3fb950;border:1px solid rgba(63,185,80,0.2);}
 .badge-red{background:rgba(248,81,73,0.1);color:#f85149;border:1px solid rgba(248,81,73,0.2);}
@@ -72,6 +90,7 @@ button:disabled{opacity:.35;cursor:not-allowed;}
 .badge-blue{background:rgba(56,139,253,0.1);color:#388bfd;border:1px solid rgba(56,139,253,0.2);}
 .badge-purple{background:rgba(188,140,255,0.1);color:#bc8cff;border:1px solid rgba(188,140,255,0.2);}
 .badge-cyan{background:rgba(57,208,216,0.1);color:#39d0d8;border:1px solid rgba(57,208,216,0.2);}
+/* alerts */
 .alert{padding:8px 12px;border-radius:6px;font-size:12px;font-family:var(--mono);}
 .alert-err{background:rgba(248,81,73,0.08);border:1px solid rgba(248,81,73,0.25);color:#f85149;}
 .alert-ok{background:rgba(63,185,80,0.08);border:1px solid rgba(63,185,80,0.25);color:#3fb950;}
@@ -80,10 +99,12 @@ pre{background:#020609;border:1px solid var(--border);border-radius:6px;padding:
 input[type=text]{background:var(--s2);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-family:var(--sans);font-size:12px;padding:7px 12px;outline:none;width:100%;transition:border-color .12s;}
 input[type=text]:focus{border-color:var(--alice);}
 select{background:var(--s2);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:11px;padding:6px 10px;outline:none;cursor:pointer;}
+/* tabs */
 .tabs{display:flex;gap:2px;}
 .tab{padding:5px 11px;border-radius:5px;font-size:11px;font-family:var(--mono);cursor:pointer;border:1px solid transparent;color:var(--muted);transition:all .12s;background:none;}
 .tab.active{background:rgba(56,139,253,0.12);color:var(--alice);border-color:rgba(56,139,253,0.25);}
 .tab:hover:not(.active){color:var(--text);background:var(--s2);}
+/* timeline */
 .timeline{position:relative;}
 .tl-item{display:flex;gap:10px;padding-bottom:12px;}
 .tl-spine{display:flex;flex-direction:column;align-items:center;flex-shrink:0;width:26px;}
@@ -95,59 +116,45 @@ select{background:var(--s2);border:1px solid var(--border2);border-radius:6px;co
 .tl-agent{font-family:var(--mono);font-size:12px;font-weight:600;}
 .tl-action{font-family:var(--mono);font-size:10px;color:var(--dim);background:rgba(0,0,0,.3);padding:1px 6px;border-radius:3px;}
 .tl-time{font-family:var(--mono);font-size:10px;color:var(--dim);}
+.tl-patient-tag{font-family:var(--mono);font-size:10px;padding:1px 7px;border-radius:3px;background:rgba(56,139,253,0.1);color:var(--alice);border:1px solid rgba(56,139,253,0.2);}
 .tl-desc{font-size:12px;color:#adbac7;}
 .tl-ai{margin-top:7px;padding:7px 10px;background:rgba(188,140,255,.05);border:1px solid rgba(188,140,255,.15);border-radius:6px;}
 .tl-tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:5px;}
 .tl-tag{font-family:var(--mono);font-size:10px;padding:1px 6px;border-radius:3px;background:rgba(255,255,255,.03);color:var(--dim);border:1px solid rgba(255,255,255,.05);}
 .tl-handoff{margin-top:7px;padding:6px 10px;background:rgba(240,165,0,.05);border:1px solid rgba(240,165,0,.18);border-radius:6px;}
+/* decisions */
 .decision-banner{padding:14px;border-radius:8px;text-align:center;margin-bottom:10px;}
 .decision-banner.approved{background:rgba(63,185,80,.08);border:1px solid rgba(63,185,80,.25);}
 .decision-banner.denied{background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.25);}
 .decision-text{font-family:var(--mono);font-size:17px;font-weight:600;letter-spacing:.05em;}
+/* patient cards (smart) */
 .pt-card{background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:9px 12px;display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:10px;}
 .pt-name{font-weight:500;font-size:13px;margin-bottom:2px;}
 .pt-meta{font-family:var(--mono);font-size:10px;color:var(--muted);}
+/* spinner */
 .spin{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.15);border-top-color:currentColor;border-radius:50%;animation:spin .6s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg)}}
+/* misc */
 .muted{color:var(--muted);}
 .center{text-align:center;padding:18px 0;}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
 .flex1{flex:1;}
 .graph-wrap{overflow-x:auto;background:var(--s2);border-radius:8px;border:1px solid var(--border);padding:12px;}
-
-.prompt-box {
-  background: var(--s2); border: 1px solid var(--border);
-  border-radius: 6px; padding: 9px 12px;
-  font-size: 12px; color: var(--text); line-height: 1.5;
-  min-height: 52px;
-}
-.round-card {
-  background: var(--s2); border: 1px solid var(--border);
-  border-radius: 8px; overflow: hidden; margin-bottom: 10px;
-}
-.round-head {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 9px 14px; border-bottom: 1px solid var(--border);
-  background: rgba(255,255,255,0.015);
-}
-.round-body { padding: 12px 14px; }
-.counter-card {
-  margin-top: 10px; padding: 10px 12px;
-  background: rgba(248,81,73,0.05); border: 1px solid rgba(248,81,73,0.2);
-  border-radius: 6px;
-}
-.escalation-bar {
-  display: flex; gap: 0; margin-bottom: 14px;
-  border: 1px solid var(--border); border-radius: 7px; overflow: hidden;
-}
-.esc-step {
-  flex: 1; padding: 8px 10px; text-align: center;
-  border-right: 1px solid var(--border); background: var(--s2);
-  font-size: 11px; color: var(--dim); font-family: var(--mono);
-}
-.esc-step:last-child { border-right: none; }
-.esc-step.active { background: rgba(240,165,0,0.1); color: var(--aria); }
-.esc-step.done { background: rgba(63,185,80,0.07); color: var(--green); }
+/* prompt boxes */
+.prompt-box{background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:9px 12px;font-size:12px;color:var(--text);line-height:1.5;min-height:52px;}
+/* appeals */
+.round-card{background:var(--s2);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:10px;}
+.round-head{display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid var(--border);background:rgba(255,255,255,0.015);}
+.round-body{padding:12px 14px;}
+.counter-card{margin-top:10px;padding:10px 12px;background:rgba(248,81,73,0.05);border:1px solid rgba(248,81,73,0.2);border-radius:6px;}
+.escalation-bar{display:flex;margin-bottom:14px;border:1px solid var(--border);border-radius:7px;overflow:hidden;}
+.esc-step{flex:1;padding:8px 10px;text-align:center;border-right:1px solid var(--border);background:var(--s2);font-size:11px;color:var(--dim);font-family:var(--mono);}
+.esc-step:last-child{border-right:none;}
+.esc-step.active{background:rgba(240,165,0,0.1);color:var(--aria);}
+.esc-step.done{background:rgba(63,185,80,0.07);color:var(--green);}
+/* sync flash */
+@keyframes syncFlash{0%{background:rgba(56,139,253,0.15)}100%{background:transparent}}
+.sync-flash{animation:syncFlash 1s ease;}
 </style>
 </head>
 <body>
@@ -162,6 +169,10 @@ select{background:var(--s2);border:1px solid var(--border2);border-radius:6px;co
   <div class="topbar-right">
     <div id="error-banner" class="alert alert-err" style="display:none;padding:4px 10px;font-size:11px"></div>
     <div id="busy-banner" class="alert alert-info" style="display:none;padding:4px 10px;font-size:11px"></div>
+    <div class="sync-pill" id="sync-pill" onclick="toggleAutoSync()" title="Auto-sync with Prompt Opinion every 10s">
+      <span id="sync-icon">⟳</span>
+      <span id="sync-label">Sync OFF</span>
+    </div>
     <div class="live-pill"><div class="live-dot"></div>LIVE</div>
     <button class="btn btn-primary" onclick="runFullDemo()" id="btn-demo">▶ Run Full Demo</button>
   </div>
@@ -170,10 +181,11 @@ select{background:var(--s2);border:1px solid var(--border2);border-radius:6px;co
 <aside class="sidebar">
   <div class="sidebar-label">Navigation</div>
   <div class="nav-item active" onclick="showSection('pipeline')"><span>⚡</span> Pipeline</div>
+  <div class="nav-item" onclick="showSection('run-auth')"><span>🚀</span> Run Prior Auth</div>
   <div class="nav-item" onclick="showSection('audit')"><span>🔍</span> Audit Trail</div>
+  <div class="nav-item" onclick="showSection('appeals')"><span>✉</span> ARIA Appeals</div>
   <div class="nav-item" onclick="showSection('smart')"><span>🌐</span> SMART Health IT</div>
   <div class="nav-item" onclick="showSection('fhir')"><span>📦</span> FHIR Store</div>
-  <div class="nav-item" onclick="showSection('appeals')"><span>✉</span> ARIA Appeals</div>
 
   <div class="sidebar-label" style="margin-top:8px">Patients</div>
   <div class="patient-switcher">
@@ -188,6 +200,10 @@ select{background:var(--s2);border:1px solid var(--border2);border-radius:6px;co
     <button class="patient-btn" id="pt-eleanor" onclick="selectPatient('eleanor')">
       <span class="patient-dot" style="background:#f0a500"></span>
       <div><div style="font-weight:500;color:var(--text);font-size:12px">Eleanor Vance</div><div style="font-size:10px;font-family:var(--mono)">T2D+RA · Dual</div></div>
+    </button>
+    <button class="patient-btn" id="pt-imported" onclick="selectPatient('imported')" style="display:none">
+      <span class="patient-dot" style="background:#39d0d8"></span>
+      <div><div style="font-weight:500;color:var(--text);font-size:12px" id="imported-name">SMART Patient</div><div style="font-size:10px;font-family:var(--mono)">SMART import · T2D</div></div>
     </button>
   </div>
 
@@ -210,11 +226,13 @@ select{background:var(--s2);border:1px solid var(--border2);border-radius:6px;co
     <div class="status-row"><span class="status-lbl">HbA1c</span><span class="status-val" id="stat-a1c">—</span></div>
     <div class="status-row"><span class="status-lbl">Bundle</span><span class="status-val" id="stat-bundle">—</span></div>
     <div class="status-row"><span class="status-lbl">Policy</span><span class="status-val" id="stat-policy">standard</span></div>
+    <div class="status-row"><span class="status-lbl">Last Sync</span><span class="status-val" id="stat-sync">—</span></div>
   </div>
 </aside>
 
 <main class="main">
 
+  <!-- ── PIPELINE (step-by-step) ── -->
   <div id="section-pipeline">
     <div class="panel">
       <div class="panel-head">
@@ -241,6 +259,84 @@ select{background:var(--s2);border:1px solid var(--border2);border-radius:6px;co
     </div>
   </div>
 
+  <!-- ── RUN PRIOR AUTH (one-click, any patient) ── -->
+  <div id="section-run-auth" style="display:none">
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title"><span style="color:var(--alice)">🚀</span> Run Prior Authorization</div>
+        <div class="row" style="gap:6px">
+          <select id="run-policy" style="font-size:11px;padding:4px 8px">
+            <option value="standard">standard</option>
+            <option value="strict">strict</option>
+            <option value="denied">denied</option>
+            <option value="insulin-standard">insulin-standard</option>
+            <option value="insulin-strict">insulin-strict</option>
+            <option value="adalimumab-standard">adalimumab-standard</option>
+            <option value="adalimumab-strict">adalimumab-strict</option>
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="runAllPatients()">▶ Run All</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:12px">One-click prior authorization for any patient. Results appear below in real-time.</div>
+
+        <!-- Bernard -->
+        <div class="pat-run-card" id="rc-bernard">
+          <div class="row" style="justify-content:space-between;margin-bottom:8px">
+            <div class="row" style="gap:8px">
+              <span class="patient-dot" style="background:#388bfd;width:9px;height:9px"></span>
+              <span style="font-weight:500">Bernard Rieux</span>
+              <span class="badge badge-blue" style="font-size:10px">T2D · GLP-1</span>
+            </div>
+            <button class="btn btn-green btn-sm" onclick="runQuickAuth('patient-001','bernard')">▶ Run</button>
+          </div>
+          <div id="rc-out-bernard" class="muted" style="font-size:12px">Ready</div>
+        </div>
+
+        <!-- Dorothea -->
+        <div class="pat-run-card" id="rc-dorothea">
+          <div class="row" style="justify-content:space-between;margin-bottom:8px">
+            <div class="row" style="gap:8px">
+              <span class="patient-dot" style="background:#bc8cff;width:9px;height:9px"></span>
+              <span style="font-weight:500">Dorothea Brooke</span>
+              <span class="badge badge-purple" style="font-size:10px">RA · Adalimumab</span>
+            </div>
+            <button class="btn btn-green btn-sm" onclick="runQuickAuth('patient-ra-001','dorothea')">▶ Run</button>
+          </div>
+          <div id="rc-out-dorothea" class="muted" style="font-size:12px">Ready</div>
+        </div>
+
+        <!-- Eleanor -->
+        <div class="pat-run-card" id="rc-eleanor">
+          <div class="row" style="justify-content:space-between;margin-bottom:8px">
+            <div class="row" style="gap:8px">
+              <span class="patient-dot" style="background:#f0a500;width:9px;height:9px"></span>
+              <span style="font-weight:500">Eleanor Vance</span>
+              <span class="badge badge-amber" style="font-size:10px">T2D+RA · Dual</span>
+            </div>
+            <button class="btn btn-green btn-sm" onclick="runQuickAuth('patient-comorbid-001','eleanor')">▶ Run</button>
+          </div>
+          <div id="rc-out-eleanor" class="muted" style="font-size:12px">Ready</div>
+        </div>
+
+        <!-- SMART imported patient (shown when imported) -->
+        <div class="pat-run-card" id="rc-imported" style="display:none">
+          <div class="row" style="justify-content:space-between;margin-bottom:8px">
+            <div class="row" style="gap:8px">
+              <span class="patient-dot" style="background:#39d0d8;width:9px;height:9px"></span>
+              <span style="font-weight:500" id="rc-imported-name">SMART Patient</span>
+              <span class="badge badge-cyan" style="font-size:10px">SMART Import</span>
+            </div>
+            <button class="btn btn-green btn-sm" onclick="runQuickAuth(state.smartImported?.internalPatientId,'imported')">▶ Run</button>
+          </div>
+          <div id="rc-out-imported" class="muted" style="font-size:12px">Ready</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ── AUDIT TRAIL ── -->
   <div id="section-audit" style="display:none">
     <div class="panel">
       <div class="panel-head">
@@ -253,39 +349,14 @@ select{background:var(--s2);border:1px solid var(--border2);border-radius:6px;co
           <button class="btn btn-ghost btn-sm" onclick="loadAudit('patient-001')">Bernard</button>
           <button class="btn btn-ghost btn-sm" onclick="loadAudit('patient-ra-001')">Dorothea</button>
           <button class="btn btn-ghost btn-sm" onclick="loadAudit('patient-comorbid-001')">Eleanor</button>
-          <button class="btn btn-ghost btn-sm" onclick="loadAudit()">↻</button>
+          <button class="btn btn-ghost btn-sm" onclick="loadAudit()">↻ Latest</button>
         </div>
       </div>
-      <div class="panel-body"><div id="audit-out" class="muted center">Run a prior authorization in Prompt Opinion, then click a patient name above.</div></div>
+      <div class="panel-body"><div id="audit-out" class="muted center">Run a prior authorization in Prompt Opinion or click a patient above.</div></div>
     </div>
   </div>
 
-  <div id="section-smart" style="display:none">
-    <div class="panel">
-      <div class="panel-head">
-        <div class="panel-title"><span style="color:var(--cyan)">🌐</span> SMART Health IT — Live Patient Search</div>
-        <span class="badge badge-cyan" style="font-size:10px">r4.smarthealthit.org · synthetic</span>
-      </div>
-      <div class="panel-body">
-        <div class="row" style="margin-bottom:12px">
-          <input type="text" class="flex1" id="smart-query" placeholder="Search by name (e.g. Smith, Johnson, Williams…)" onkeydown="if(event.key==='Enter')onSmartSearch()"/>
-          <button class="btn btn-ghost btn-sm" onclick="onSmartSearch()">Search</button>
-        </div>
-        <div id="smart-out" class="muted" style="font-size:12px">Public FHIR R4 sandbox — synthetic patients only.</div>
-      </div>
-    </div>
-  </div>
-
-  <div id="section-fhir" style="display:none">
-    <div class="panel">
-      <div class="panel-head">
-        <div class="panel-title"><span style="color:var(--cyan)">📦</span> Raw FHIR Store</div>
-        <button class="btn btn-ghost btn-sm" onclick="loadFhir()">Load Dump</button>
-      </div>
-      <div class="panel-body"><div id="fhir-out" class="muted center">Click Load Dump to inspect raw FHIR resources.</div></div>
-    </div>
-  </div>
-
+  <!-- ── ARIA APPEALS ── -->
   <div id="section-appeals" style="display:none">
     <div class="panel">
       <div class="panel-head">
@@ -296,16 +367,12 @@ select{background:var(--s2);border:1px solid var(--border2);border-radius:6px;co
           <button class="btn btn-ghost btn-sm" onclick="loadAppeals('patient-comorbid-001')">Eleanor</button>
         </div>
       </div>
-      <div class="panel-body">
-        <div id="appeals-out" class="muted center">Select a patient to view their appeals history.</div>
-      </div>
+      <div class="panel-body"><div id="appeals-out" class="muted center">Select a patient to view their appeals history.</div></div>
     </div>
-    <div class="panel" style="margin-top:0" id="aria-prompt-panel">
-      <div class="panel-head">
-        <div class="panel-title"><span style="color:var(--aria)">⚡</span> Prompt Opinion Quick-Launch</div>
-      </div>
+    <div class="panel">
+      <div class="panel-head"><div class="panel-title"><span style="color:var(--aria)">⚡</span> Prompt Opinion Quick-Launch</div></div>
       <div class="panel-body">
-        <div style="font-size:12px;color:var(--muted);margin-bottom:12px">Copy a prompt to trigger ARIA directly in Prompt Opinion for any scenario:</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:12px">Copy a prompt → paste into Prompt Opinion → the dashboard auto-updates when ARIA responds (enable Sync above).</div>
         <div class="grid2">
           <div>
             <div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;color:var(--dim);margin-bottom:6px">Round 1 — Initial Appeal</div>
@@ -313,7 +380,7 @@ select{background:var(--s2);border:1px solid var(--border2);border-radius:6px;co
             <button class="btn btn-aria btn-sm" style="margin-top:6px" onclick="copyPrompt('prompt-r1')">Copy Prompt</button>
           </div>
           <div>
-            <div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;color:var(--dim);margin-bottom:6px">Round 2 — Payer Counter-Denial</div>
+            <div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;color:var(--dim);margin-bottom:6px">Round 2 — Counter-Denial Rebuttal</div>
             <div class="prompt-box" id="prompt-r2">Simulate the payer counter-denying the appeal, then have ARIA submit a Round 2 rebuttal citing SUSTAIN-6, ADA 2024 guidelines, and ADA/EASD consensus on GLP-1 therapy.</div>
             <button class="btn btn-aria btn-sm" style="margin-top:6px" onclick="copyPrompt('prompt-r2')">Copy Prompt</button>
           </div>
@@ -332,42 +399,164 @@ select{background:var(--s2);border:1px solid var(--border2);border-radius:6px;co
     </div>
   </div>
 
+  <!-- ── SMART HEALTH IT ── -->
+  <div id="section-smart" style="display:none">
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title"><span style="color:var(--cyan)">🌐</span> SMART Health IT — Live Patient Search</div>
+        <span class="badge badge-cyan" style="font-size:10px">r4.smarthealthit.org · synthetic</span>
+      </div>
+      <div class="panel-body">
+        <div class="row" style="margin-bottom:12px">
+          <input type="text" class="flex1" id="smart-query" placeholder="Search by name (e.g. Smith, Johnson, Williams…)" onkeydown="if(event.key==='Enter')onSmartSearch()"/>
+          <button class="btn btn-ghost btn-sm" onclick="onSmartSearch()">Search</button>
+        </div>
+        <div id="smart-out" class="muted" style="font-size:12px">Public FHIR R4 sandbox — synthetic patients only.</div>
+      </div>
+    </div>
+    <!-- Imported patient pipeline panel — shown after import -->
+    <div id="smart-imported-panel" style="display:none">
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title"><span style="color:var(--cyan)">✓</span> Imported Patient — Ready for Prior Auth</div>
+        </div>
+        <div class="panel-body">
+          <div id="smart-imported-summary" class="muted">No patient imported yet.</div>
+          <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-primary btn-sm" onclick="runImportedAuth()">▶ Run Prior Auth</button>
+            <button class="btn btn-ghost btn-sm" onclick="showSection('run-auth')">View in Run Auth →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── FHIR STORE ── -->
+  <div id="section-fhir" style="display:none">
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title"><span style="color:var(--cyan)">📦</span> Raw FHIR Store</div>
+        <button class="btn btn-ghost btn-sm" onclick="loadFhir()">Load Dump</button>
+      </div>
+      <div class="panel-body"><div id="fhir-out" class="muted center">Click Load Dump to inspect raw FHIR resources.</div></div>
+    </div>
+  </div>
+
 </main>
 </div>
 <script>
-let state={seeded:false,medrec:null,medReq:null,evidence:null,policy:null,packet:null,decision:null,auditTrail:null,auditView:'timeline',smartResults:[],smartImported:null};
+// ── State ──────────────────────────────────────────────────────────────────
+const PATIENT_NAMES = {
+  'patient-001': 'Bernard Rieux',
+  '79f8fd18-5044-452d-b9bd-428b1e35e579': 'Bernard Rieux',
+  'patient-ra-001': 'Dorothea Brooke',
+  '147e21d9-ab4e-449c-aeb4-8f3d6f7b1b4c': 'Dorothea Brooke',
+  'patient-comorbid-001': 'Eleanor Vance',
+  'd6417ffa-1ed8-4bb9-ae4c-d3820c9615f9': 'Eleanor Vance',
+};
 
-function showSection(name){
-  ['pipeline','audit','smart','fhir','appeals'].forEach(s=>{document.getElementById('section-'+s).style.display=s===name?'':'none';});
-  document.querySelectorAll('.nav-item').forEach((el,i)=>{el.classList.toggle('active',['pipeline','audit','smart','fhir','appeals'][i]===name);});
-  if(name==='audit'&&!state.auditTrail)loadAudit();
+let state = {
+  seeded: false, medrec: null, medReq: null, evidence: null,
+  policy: null, packet: null, decision: null,
+  auditTrail: null, auditView: 'timeline',
+  smartResults: [], smartImported: null,
+  autoSync: false, syncInterval: null, lastSyncHash: null,
+  currentPatientId: 'patient-001',
+};
+
+// ── Navigation ─────────────────────────────────────────────────────────────
+const SECTIONS = ['pipeline','run-auth','audit','appeals','smart','fhir'];
+function showSection(name) {
+  SECTIONS.forEach(s => { document.getElementById('section-'+s).style.display = s===name?'':'none'; });
+  document.querySelectorAll('.nav-item').forEach((el,i) => { el.classList.toggle('active', SECTIONS[i]===name); });
+  if (name==='audit' && !state.auditTrail) loadAudit();
 }
-function selectPatient(p){
-  document.querySelectorAll('.patient-btn').forEach(b=>b.classList.remove('active'));
-  document.getElementById('pt-'+p).classList.add('active');
-  const names={bernard:'Bernard Rieux',dorothea:'Dorothea Brooke',eleanor:'Eleanor Vance'};
-  document.getElementById('pipeline-title').innerHTML=`<span style="color:var(--alice)">⚡</span> Prior Auth Pipeline — ${names[p]}`;
+
+function selectPatient(p) {
+  document.querySelectorAll('.patient-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('pt-'+p)?.classList.add('active');
+  const names = {bernard:'Bernard Rieux',dorothea:'Dorothea Brooke',eleanor:'Eleanor Vance',imported:state.smartImported?.patient?.name?.[0]?.text??'SMART Patient'};
+  document.getElementById('pipeline-title').innerHTML = `<span style="color:var(--alice)">⚡</span> Prior Auth Pipeline — ${names[p]}`;
+  const ids = {bernard:'patient-001',dorothea:'patient-ra-001',eleanor:'patient-comorbid-001',imported:state.smartImported?.internalPatientId};
+  state.currentPatientId = ids[p] || 'patient-001';
 }
-async function api(method,path,body){
-  const opts={method,headers:{'Content-Type':'application/json'}};
-  if(body)opts.body=JSON.stringify(body);
-  const r=await fetch(path,opts);
-  if(!r.ok)throw new Error(`${r.status} ${await r.text()}`);
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+async function api(method, path, body) {
+  const opts = {method, headers:{'Content-Type':'application/json'}};
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(path, opts);
+  if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
   return r.json();
 }
-const get=p=>api('GET',p);
-const post=(p,b)=>api('POST',p,b);
-function busy(msg){
-  document.getElementById('busy-banner').style.display=msg?'block':'none';
-  document.getElementById('busy-banner').textContent=msg?`⏳ ${msg}`:'';
-  document.getElementById('btn-demo').disabled=!!msg;
-  document.getElementById('btn-demo').innerHTML=msg?'<span class="spin"></span>':'▶ Run Full Demo';
-}
-function err(msg){const el=document.getElementById('error-banner');el.style.display=msg?'block':'none';el.textContent=msg||'';}
-function setEl(id,html){const el=document.getElementById(id);if(el)el.innerHTML=html;}
-function markStep(n){const el=document.getElementById('ps-'+n);if(el)el.classList.add('done');}
-function policyVariant(){return document.getElementById('policy-variant').value;}
+const get = p => api('GET', p);
+const post = (p, b) => api('POST', p, b);
 
+function busy(msg) {
+  document.getElementById('busy-banner').style.display = msg?'block':'none';
+  document.getElementById('busy-banner').textContent = msg ? `⏳ ${msg}` : '';
+  document.getElementById('btn-demo').disabled = !!msg;
+  document.getElementById('btn-demo').innerHTML = msg ? '<span class="spin"></span>' : '▶ Run Full Demo';
+}
+function err(msg) { const el=document.getElementById('error-banner'); el.style.display=msg?'block':'none'; el.textContent=msg||''; }
+function setEl(id, html) { const el=document.getElementById(id); if(el) el.innerHTML=html; }
+function markStep(n) { const el=document.getElementById('ps-'+n); if(el) el.classList.add('done'); }
+function policyVariant() { return document.getElementById('policy-variant').value; }
+function resolvePatientName(patientId) { return PATIENT_NAMES[patientId] || state.smartImported?.patient?.name?.[0]?.text || patientId?.slice(0,16)+'…'; }
+
+// ── Auto-sync with Prompt Opinion ─────────────────────────────────────────
+function toggleAutoSync() {
+  state.autoSync = !state.autoSync;
+  const pill = document.getElementById('sync-pill');
+  const lbl = document.getElementById('sync-label');
+  const icon = document.getElementById('sync-icon');
+  if (state.autoSync) {
+    pill.classList.add('syncing');
+    lbl.textContent = 'Sync ON';
+    icon.style.animation = 'spin .8s linear infinite';
+    state.syncInterval = setInterval(doSync, 10000);
+    doSync(); // immediate first sync
+  } else {
+    pill.classList.remove('syncing');
+    lbl.textContent = 'Sync OFF';
+    icon.style.animation = '';
+    clearInterval(state.syncInterval);
+  }
+}
+
+async function doSync() {
+  try {
+    // Pull all audit trails and check for changes
+    const allTrails = await get('/api/audit');
+    const allAppeals_b = await get('/api/appeals/patient-001').catch(()=>null);
+    const hash = JSON.stringify({trails: allTrails?.length, appeals: allAppeals_b?.totalRounds});
+
+    if (hash !== state.lastSyncHash) {
+      state.lastSyncHash = hash;
+      setEl('stat-sync', `<span style="color:var(--green)">${new Date().toLocaleTimeString()}</span>`);
+
+      // If audit section is open, refresh it
+      const auditSection = document.getElementById('section-audit');
+      if (auditSection && auditSection.style.display !== 'none') {
+        await loadAudit();
+        // flash the panel
+        auditSection.querySelector('.panel')?.classList.add('sync-flash');
+        setTimeout(() => auditSection.querySelector('.panel')?.classList.remove('sync-flash'), 1000);
+      }
+      // If appeals section is open, refresh it
+      const appealSection = document.getElementById('section-appeals');
+      if (appealSection && appealSection.style.display !== 'none') {
+        await loadAppeals('patient-001');
+      }
+    } else {
+      setEl('stat-sync', new Date().toLocaleTimeString());
+    }
+  } catch(e) {
+    setEl('stat-sync', `<span style="color:var(--red)">Error</span>`);
+  }
+}
+
+// ── Pipeline steps (Bernard, step-by-step) ────────────────────────────────
 async function onSeed(){busy('Seeding FHIR data…');err(null);try{await post('/seed',{scenario:'complete'});state.seeded=true;markStep(1);busy(null);setEl('stat-status','<span style="color:var(--green)">Seeded</span>');}catch(e){err(e.message);busy(null);}}
 async function onMedRec(){busy('Running MedRec…');err(null);try{const out=await post('/run/medrec',{patientId:'patient-001'});state.medrec=out;markStep(2);busy(null);const disc=out.discrepancies??[];setEl('medrec-out',`<div class="row" style="margin-bottom:8px"><span class="badge badge-blue">BPMH: ${out.bpmh?.id?.slice(0,8)??'—'}…</span><span class="badge ${disc.length?'badge-amber':'badge-green'}">${disc.length} discrepancies</span></div>${disc.length?disc.map(d=>`<div class="muted" style="font-size:12px;margin-bottom:3px">⚠ ${d}</div>`).join(''):'<div class="muted" style="font-size:12px">No discrepancies</div>'}`);}catch(e){err(e.message);busy(null);}}
 async function onPrescribe(){busy('Creating MedicationRequest…');err(null);try{const out=await post('/clinician/prescribe',{patientId:'patient-001'});state.medReq=out;markStep(3);busy(null);}catch(e){err(e.message);busy(null);}}
@@ -376,131 +565,230 @@ async function onPolicy(){busy('Checking policy…');err(null);try{const ctx={ha
 async function onCompose(){if(!state.medReq?.medicationRequest?.id){err('Run Prescribe first');return;}if(!state.evidence?.evidenceDoc?.id){err('Run Evidence first');return;}if(!state.medrec?.bpmh?.id){err('Run MedRec first');return;}busy('Composing FHIR Bundle…');err(null);try{const out=await post('/run/compose',{patientId:'patient-001',coverageId:'coverage-001',medicationRequestId:state.medReq.medicationRequest.id,evidenceDocId:state.evidence.evidenceDoc.id,bpmhListId:state.medrec.bpmh.id});state.packet=out;markStep(6);busy(null);setEl('stat-bundle',`<span style="color:var(--cyan)">${(out.bundle?.entry??[]).length} resources</span>`);}catch(e){err(e.message);busy(null);}}
 async function onSubmit(){if(!state.packet?.claim?.id){err('Compose packet first');return;}busy('Submitting to payer…');err(null);try{const ctx={hasT2D:state.evidence?.derived?.hasT2D??true,a1cValue:state.evidence?.derived?.a1cValue??8.4,hasMetforminTrial:true,hasMetforminIntolerance:true,policyVariant:policyVariant(),usedRefs:[]};const out=await post('/run/submit',{requestContext:ctx,claimId:state.packet.claim.id});state.decision=out;markStep(7);const approved=out.policyResult?.missing?.length===0;busy(null);setEl('stat-status',`<span style="color:${approved?'var(--green)':'var(--red)'}">${approved?'APPROVED':'DENIED'}</span>`);setEl('decision-out',`<div class="decision-banner ${approved?'approved':'denied'}"><div class="decision-text" style="color:${approved?'var(--green)':'var(--red)'}">${approved?'✓ APPROVED':'✗ DENIED'}</div><div style="font-size:11px;margin-top:4px;font-family:var(--mono);color:var(--muted)">ClaimResponse: ${out.claimResponse?.id??'—'}</div></div>${(out.policyResult?.missing??[]).map(m=>`<div style="font-size:12px;color:var(--red);margin-bottom:3px;font-family:var(--mono)">✗ ${m}</div>`).join('')}`);}catch(e){err(e.message);busy(null);}}
 
-async function runFullDemo(){err(null);busy('Running full pipeline…');try{await post('/seed',{scenario:'complete'});state.seeded=true;markStep(1);setEl('stat-status','<span style="color:var(--green)">Seeded</span>');const mr=await post('/run/medrec',{patientId:'patient-001'});state.medrec=mr;markStep(2);const disc=mr.discrepancies??[];setEl('medrec-out',`<div class="row" style="margin-bottom:8px"><span class="badge badge-blue">BPMH: ${mr.bpmh?.id?.slice(0,8)??'—'}…</span><span class="badge ${disc.length?'badge-amber':'badge-green'}">${disc.length} discrepancies</span></div>`);const pr=await post('/clinician/prescribe',{patientId:'patient-001'});state.medReq=pr;markStep(3);const ev=await post('/run/evidence',{patientId:'patient-001',bpmhListId:mr.bpmh.id});state.evidence=ev;markStep(4);const d=ev.derived??{};setEl('evidence-out',`<div class="row" style="flex-wrap:wrap"><span class="badge ${d.hasT2D?'badge-green':'badge-red'}">T2D: ${d.hasT2D?'Yes':'No'}</span><span class="badge badge-blue">HbA1c: ${d.a1cValue??'—'}%</span><span class="badge ${d.hasMetforminTrial?'badge-green':'badge-amber'}">Metformin: ${d.hasMetforminTrial?'Yes':'No'}</span></div>`);setEl('stat-a1c',`<span style="color:var(--green)">${d.a1cValue??'—'}%</span>`);const pv=policyVariant();const ctx={hasT2D:d.hasT2D??true,a1cValue:d.a1cValue??8.4,hasMetforminTrial:true,hasMetforminIntolerance:true,policyVariant:pv,usedRefs:[]};const pol=await post('/run/policy-check',{requestContext:ctx});state.policy=pol;markStep(5);const comp=await post('/run/compose',{patientId:'patient-001',coverageId:'coverage-001',medicationRequestId:pr.medicationRequest.id,evidenceDocId:ev.evidenceDoc.id,bpmhListId:mr.bpmh.id});state.packet=comp;markStep(6);setEl('stat-bundle',`<span style="color:var(--cyan)">${(comp.bundle?.entry??[]).length} resources</span>`);setEl('stat-policy',pv);const sub=await post('/run/submit',{requestContext:ctx,claimId:comp.claim.id});state.decision=sub;markStep(7);const approved=!sub.policyResult?.missing?.length;setEl('stat-status',`<span style="color:${approved?'var(--green)':'var(--red)'}">${approved?'APPROVED':'DENIED'}</span>`);setEl('policy-out',`<div class="decision-banner ${approved?'approved':'denied'}"><div class="decision-text" style="color:${approved?'var(--green)':'var(--red)'}">${approved?'✓ APPROVED':'✗ DENIED'}</div></div>`);setEl('decision-out',`<div class="decision-banner ${approved?'approved':'denied'}"><div class="decision-text" style="color:${approved?'var(--green)':'var(--red)'}">${approved?'✓ APPROVED':'✗ DENIED'}</div><div style="font-size:11px;margin-top:4px;font-family:var(--mono);color:var(--muted)">ClaimResponse: ${sub.claimResponse?.id??'—'}</div></div>`);busy(null);showSection('audit');await loadAudit('patient-001');}catch(e){err(e.message);busy(null);}}
+// ── Run Prior Auth (quick, any patient) ───────────────────────────────────
+async function runQuickAuth(patientId, slug) {
+  if (!patientId) { err('No patient ID — import a patient first'); return; }
+  const pv = document.getElementById('run-policy').value;
+  const card = document.getElementById('rc-'+slug);
+  const out = document.getElementById('rc-out-'+slug);
+  card.className = 'pat-run-card running';
+  out.innerHTML = '<span class="spin"></span> Running full pipeline…';
 
-function downloadBundle(){if(!state.packet?.bundle?.id){err('Compose packet first');return;}window.open(`/packet/${state.packet.bundle.id}`,'_blank');}
+  try {
+    await post('/seed', {scenario:'complete'});
+    const mr = await post('/run/medrec', {patientId});
+    const pr = await post('/clinician/prescribe', {patientId});
+    const ev = await post('/run/evidence', {patientId, bpmhListId: mr.bpmh?.id});
+    const d = ev.derived ?? {};
+    const ctx = {hasT2D: d.hasT2D??true, a1cValue: d.a1cValue??8.4, hasMetforminTrial: true, hasMetforminIntolerance: true, policyVariant: pv, usedRefs:[]};
+    await post('/run/policy-check', {requestContext: ctx});
+    const comp = await post('/run/compose', {patientId, coverageId:'coverage-001', medicationRequestId: pr.medicationRequest?.id, evidenceDocId: ev.evidenceDoc?.id, bpmhListId: mr.bpmh?.id});
+    const sub = await post('/run/submit', {requestContext: ctx, claimId: comp.claim?.id});
+    const approved = sub.policyResult?.missing?.length === 0;
 
-async function onSmartSearch(){const q=document.getElementById('smart-query').value.trim();if(!q)return;setEl('smart-out','<div class="muted center"><span class="spin"></span> Searching r4.smarthealthit.org…</div>');try{const res=await post('/api/smart/search',{query:q,maxResults:6});const patients=res.patients??[];if(!patients.length){setEl('smart-out','<div class="muted center">No patients found. Try Smith, Johnson, or Williams.</div>');return;}setEl('smart-out',patients.map(p=>`<div class="pt-card"><div><div class="pt-name">${p.name?.[0]?.text??p.name?.[0]?.family??p.id}</div><div class="pt-meta">DOB: ${p.birthDate??'—'} · ${p.gender??'—'} · ${p.id?.slice(0,18)}…</div></div><button class="btn btn-ghost btn-sm" onclick="onSmartImport('${p.id}')">Import →</button></div>`).join(''));}catch(e){setEl('smart-out',`<div class="alert alert-err">${e.message}</div>`);}}
-async function onSmartImport(patientId){setEl('smart-out','<div class="muted center"><span class="spin"></span> Importing…</div>');try{const res=await post('/api/smart/import',{smartPatientId:patientId});state.smartImported=res;setEl('smart-out',`<div class="alert alert-ok" style="margin-bottom:8px">✓ Imported: ${res.patient?.name?.[0]?.text??patientId}</div><div class="muted" style="font-size:11px;font-family:var(--mono)">Internal ID: ${res.internalPatientId}</div>`);}catch(e){setEl('smart-out',`<div class="alert alert-err">${e.message}</div>`);}}
-
-function setAuditView(v){state.auditView=v;document.getElementById('tab-timeline').className=`tab ${v==='timeline'?'active':''}`;document.getElementById('tab-graph').className=`tab ${v==='graph'?'active':''}`;if(state.auditTrail)renderAudit(state.auditTrail);}
-async function loadAudit(patientId){const candidates=patientId?[patientId]:['patient-001','79f8fd18-5044-452d-b9bd-428b1e35e579','patient-ra-001','147e21d9-ab4e-449c-aeb4-8f3d6f7b1b4c'];setEl('audit-out','<div class="muted center"><span class="spin"></span> Loading audit trail…</div>');for(const id of candidates){try{const trail=await get(`/api/audit/${id}`);if(trail){state.auditTrail=trail;renderAudit(trail);return;}}catch{}}setEl('audit-out','<div class="muted center">No audit trail found. Run a prior authorization first.</div>');}
-
-function renderAudit(trail){
-  const s=trail.summary;const dec=trail.finalDecision;
-  const decColor=dec==='approved'?'var(--green)':dec==='denied'?'var(--red)':dec==='appealed'?'var(--aria)':'var(--muted)';
-  const summaryHtml=`<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:14px">${[['Decision',`<span style="color:${decColor};font-family:var(--mono);font-weight:600">${(dec??'—').toUpperCase()}</span>`],['Events',s.totalEvents],['Agents',s.agentsInvolved?.join(' · ')??'—'],['AI Calls',s.aiDecisionsMade],['Duration',s.durationMs?(s.durationMs/1000).toFixed(1)+'s':'—']].map(([l,v])=>`<div style="background:var(--s1);padding:10px 14px"><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin-bottom:4px">${l}</div><div style="font-family:var(--mono);font-size:13px;font-weight:500">${v}</div></div>`).join('')}</div><div class="row" style="margin-bottom:14px;flex-wrap:wrap">${(s.dataSourcesUsed??[]).map(ds=>`<span class="tl-tag">${ds==='fhir-local'?'📋 Local FHIR':ds==='fhir-smart-health-it'?'🌐 SMART Health IT':ds==='ai-note-extraction'?'🤖 AI Extraction':ds==='ai-policy-check'?'⚖️ Policy Check':ds==='ai-appeal'?'📝 AI Appeal':ds==='payer-system'?'🏦 Payer':ds}</span>`).join('')}</div>`;
-  if(state.auditView==='timeline'){
-    const eventsHtml=(trail.events??[]).map(ev=>{
-      const agentColor=ev.agent==='ALICE'?'var(--alice)':ev.agent==='ARIA'?'var(--aria)':'var(--muted)';
-      const icon=ev.type==='pipeline_start'?'▶':ev.type==='pipeline_complete'?'✓':ev.type==='ai_decision'?'◈':ev.type==='agent_handoff'?'↗':ev.type==='appeal_drafted'?'✉':'·';
-      return `<div class="tl-item"><div class="tl-spine"><div class="tl-node" style="border-color:${agentColor};color:${agentColor}">${icon}</div><div class="tl-line"></div></div><div class="tl-content"><div class="tl-header"><div class="row" style="gap:6px"><span class="tl-agent" style="color:${agentColor}">${ev.agent}</span><span class="tl-action">${ev.action}</span></div><span class="tl-time">${new Date(ev.timestamp).toLocaleTimeString()}</span></div><div class="tl-desc">${ev.description}</div>${ev.aiDecision?`<div class="tl-ai"><div class="row" style="margin-bottom:4px;flex-wrap:wrap"><span style="font-weight:600;font-size:12px;font-family:var(--mono);color:${ev.aiDecision.decision==='APPROVED'?'var(--green)':ev.aiDecision.decision==='DENIED'?'var(--red)':'var(--purple)'}">${ev.aiDecision.decision}</span>${ev.aiDecision.confidence?`<span class="badge ${ev.aiDecision.confidence==='high'?'badge-green':ev.aiDecision.confidence==='medium'?'badge-amber':'badge-red'}" style="font-size:10px">${ev.aiDecision.confidence}</span>`:''}</div><div class="muted" style="font-size:12px">${ev.aiDecision.reasoning}</div></div>`:''} ${(ev.resourcesCreated??[]).length?`<div class="tl-tags">${ev.resourcesCreated.map(r=>`<span class="tl-tag" style="color:var(--cyan)">+${r.resourceType}/${r.id?.slice(0,8)}…</span>`).join('')}</div>`:''}${(ev.dataSources??[]).length?`<div class="tl-tags">${ev.dataSources.map(ds=>`<span class="tl-tag">${ds}</span>`).join('')}</div>`:''}${ev.handoff?`<div class="tl-handoff"><span style="color:var(--aria);font-weight:600;font-family:var(--mono)">↗ Handoff</span><span class="muted" style="margin-left:8px;font-size:12px">${ev.handoff.from} → ${ev.handoff.to}: ${ev.handoff.reason}</span></div>`:''}</div></div>`;
-    }).join('');
-    setEl('audit-out',summaryHtml+`<div class="timeline">${eventsHtml}</div>`);
-  } else {
-    const events=(trail.events??[]).slice(0,8);
-    const svgNodes=events.map((ev,i)=>{const x=60+(i%4)*185;const y=i<4?80:220;const ac=ev.agent==='ALICE'?'#388bfd':ev.agent==='ARIA'?'#f0a500':'#768390';const ni=i+1,nx=60+(ni%4)*185,ny=ni<4?80:220;return `${i<Math.min(events.length-1,7)?`<line x1="${x+28}" y1="${y}" x2="${nx-28}" y2="${ny}" stroke="rgba(56,139,253,0.3)" stroke-width="1.5" marker-end="url(#arr)"/>`:''}<circle cx="${x}" cy="${y}" r="26" fill="${ac}14" stroke="${ac}" stroke-width="1.5"/><text x="${x}" y="${y-5}" text-anchor="middle" font-size="10" fill="${ac}" font-weight="600" font-family="IBM Plex Mono">${ev.agent}</text><text x="${x}" y="${y+7}" text-anchor="middle" font-size="8" fill="rgba(118,131,144,0.8)" font-family="IBM Plex Mono">${(ev.action??'').slice(0,12)}</text>${ev.aiDecision?`<circle cx="${x+22}" cy="${y-22}" r="6" fill="rgba(188,140,255,0.85)"/><text x="${x+22}" y="${y-18}" text-anchor="middle" font-size="7" fill="white">AI</text>`:''}`}).join('');
-    setEl('audit-out',summaryHtml+`<div class="graph-wrap"><svg width="100%" viewBox="0 0 800 320" style="min-width:500px"><defs><marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="rgba(56,139,253,0.5)"/></marker></defs>${svgNodes}<g transform="translate(700,14)"><circle cx="5" cy="5" r="5" fill="rgba(56,139,253,0.2)" stroke="#388bfd" stroke-width="1.5"/><text x="13" y="9" font-size="9" fill="#768390" font-family="IBM Plex Mono">ALICE</text><circle cx="5" cy="21" r="5" fill="rgba(240,165,0,0.2)" stroke="#f0a500" stroke-width="1.5"/><text x="13" y="25" font-size="9" fill="#768390" font-family="IBM Plex Mono">ARIA</text><circle cx="5" cy="37" r="5" fill="rgba(188,140,255,0.85)"/><text x="13" y="41" font-size="9" fill="#768390" font-family="IBM Plex Mono">AI Decision</text></g></svg></div>`);
+    card.className = `pat-run-card ${approved?'done-approved':'done-denied'}`;
+    out.innerHTML = `
+      <div class="row" style="gap:8px;margin-bottom:6px">
+        <span class="badge ${approved?'badge-green':'badge-red'}" style="font-size:12px;padding:3px 12px">${approved?'✓ APPROVED':'✗ DENIED'}</span>
+        <span class="tl-tag">HbA1c: ${d.a1cValue??'—'}%</span>
+        <span class="tl-tag">Policy: ${pv}</span>
+        <span class="tl-tag">Bundle: ${(comp.bundle?.entry??[]).length} resources</span>
+      </div>
+      ${(sub.policyResult?.missing??[]).map(m=>`<div style="font-size:12px;color:var(--red);font-family:var(--mono)">✗ ${m}</div>`).join('')}
+      ${approved ? '' : `<div style="margin-top:8px;font-size:11px;color:var(--muted)">→ Use ARIA Appeals panel to draft a clinical appeal</div>`}
+    `;
+    setEl('stat-status', `<span style="color:${approved?'var(--green)':'var(--red)'}">${approved?'APPROVED':'DENIED'}</span>`);
+    setEl('stat-a1c', `<span style="color:${d.a1cValue>=8?'var(--green)':'var(--amber)'}">${d.a1cValue??'—'}%</span>`);
+    setEl('stat-bundle', `<span style="color:var(--cyan)">${(comp.bundle?.entry??[]).length}</span>`);
+  } catch(e) {
+    card.className = 'pat-run-card';
+    out.innerHTML = `<span style="color:var(--red);font-size:12px">Error: ${e.message}</span>`;
   }
 }
 
-async function loadFhir(){setEl('fhir-out','<div class="muted center"><span class="spin"></span></div>');try{const d=await get('/fhir-dump');const types=Object.keys(d);setEl('fhir-out',`<div class="row" style="margin-bottom:10px;flex-wrap:wrap">${types.map(t=>`<span class="badge badge-blue">${t}: ${Array.isArray(d[t])?d[t].length:Object.keys(d[t]??{}).length}</span>`).join('')}</div><pre>${JSON.stringify(d,null,2)}</pre>`);}catch(e){setEl('fhir-out',`<div class="alert alert-err">${e.message}</div>`);}}
+async function runAllPatients() {
+  const slugs = [
+    {id:'patient-001', slug:'bernard'},
+    {id:'patient-ra-001', slug:'dorothea'},
+    {id:'patient-comorbid-001', slug:'eleanor'},
+  ];
+  if (state.smartImported?.internalPatientId) slugs.push({id:state.smartImported.internalPatientId, slug:'imported'});
+  for (const {id, slug} of slugs) runQuickAuth(id, slug);
+}
+
+async function runImportedAuth() {
+  if (!state.smartImported?.internalPatientId) { err('No imported patient'); return; }
+  showSection('run-auth');
+  runQuickAuth(state.smartImported.internalPatientId, 'imported');
+}
+
+// ── Full demo (Bernard, all steps) ────────────────────────────────────────
+async function runFullDemo(){err(null);busy('Running full pipeline…');try{await post('/seed',{scenario:'complete'});state.seeded=true;markStep(1);setEl('stat-status','<span style="color:var(--green)">Seeded</span>');const mr=await post('/run/medrec',{patientId:'patient-001'});state.medrec=mr;markStep(2);const disc=mr.discrepancies??[];setEl('medrec-out',`<div class="row" style="margin-bottom:8px"><span class="badge badge-blue">BPMH: ${mr.bpmh?.id?.slice(0,8)??'—'}…</span><span class="badge ${disc.length?'badge-amber':'badge-green'}">${disc.length} discrepancies</span></div>`);const pr=await post('/clinician/prescribe',{patientId:'patient-001'});state.medReq=pr;markStep(3);const ev=await post('/run/evidence',{patientId:'patient-001',bpmhListId:mr.bpmh.id});state.evidence=ev;markStep(4);const d=ev.derived??{};setEl('evidence-out',`<div class="row" style="flex-wrap:wrap"><span class="badge ${d.hasT2D?'badge-green':'badge-red'}">T2D: ${d.hasT2D?'Yes':'No'}</span><span class="badge badge-blue">HbA1c: ${d.a1cValue??'—'}%</span><span class="badge ${d.hasMetforminTrial?'badge-green':'badge-amber'}">Metformin: ${d.hasMetforminTrial?'Yes':'No'}</span></div>`);setEl('stat-a1c',`<span style="color:var(--green)">${d.a1cValue??'—'}%</span>`);const pv=policyVariant();const ctx={hasT2D:d.hasT2D??true,a1cValue:d.a1cValue??8.4,hasMetforminTrial:true,hasMetforminIntolerance:true,policyVariant:pv,usedRefs:[]};const pol=await post('/run/policy-check',{requestContext:ctx});state.policy=pol;markStep(5);const comp=await post('/run/compose',{patientId:'patient-001',coverageId:'coverage-001',medicationRequestId:pr.medicationRequest.id,evidenceDocId:ev.evidenceDoc.id,bpmhListId:mr.bpmh.id});state.packet=comp;markStep(6);setEl('stat-bundle',`<span style="color:var(--cyan)">${(comp.bundle?.entry??[]).length} resources</span>`);setEl('stat-policy',pv);const sub=await post('/run/submit',{requestContext:ctx,claimId:comp.claim.id});state.decision=sub;markStep(7);const approved=!sub.policyResult?.missing?.length;setEl('stat-status',`<span style="color:${approved?'var(--green)':'var(--red)'}">${approved?'APPROVED':'DENIED'}</span>`);setEl('policy-out',`<div class="decision-banner ${approved?'approved':'denied'}"><div class="decision-text" style="color:${approved?'var(--green)':'var(--red)'}">${approved?'✓ APPROVED':'✗ DENIED'}</div></div>`);setEl('decision-out',`<div class="decision-banner ${approved?'approved':'denied'}"><div class="decision-text" style="color:${approved?'var(--green)':'var(--red)'}">${approved?'✓ APPROVED':'✗ DENIED'}</div><div style="font-size:11px;margin-top:4px;font-family:var(--mono);color:var(--muted)">ClaimResponse: ${sub.claimResponse?.id??'—'}</div></div>`);busy(null);showSection('audit');await loadAudit('patient-001');}catch(e){err(e.message);busy(null);}}
+function downloadBundle(){if(!state.packet?.bundle?.id){err('Compose packet first');return;}window.open(`/packet/${state.packet.bundle.id}`,'_blank');}
+
+// ── SMART Health IT ───────────────────────────────────────────────────────
+async function onSmartSearch(){
+  const q=document.getElementById('smart-query').value.trim();
+  if(!q)return;
+  setEl('smart-out','<div class="muted center"><span class="spin"></span> Searching r4.smarthealthit.org…</div>');
+  try{
+    const res=await post('/api/smart/search',{query:q,maxResults:6});
+    const patients=res.patients??[];
+    if(!patients.length){setEl('smart-out','<div class="muted center">No patients found. Try Smith, Johnson, or Williams.</div>');return;}
+    setEl('smart-out',patients.map(p=>`
+      <div class="pt-card">
+        <div>
+          <div class="pt-name">${p.name?.[0]?.text??p.name?.[0]?.family??p.id}</div>
+          <div class="pt-meta">DOB: ${p.birthDate??'—'} · ${p.gender??'—'} · ${p.id?.slice(0,18)}…</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="onSmartImport('${p.id}','${(p.name?.[0]?.text??p.name?.[0]?.family??'Patient').replace(/'/g,'')}')">Import →</button>
+      </div>
+    `).join(''));
+  }catch(e){setEl('smart-out',`<div class="alert alert-err">${e.message}</div>`);}
+}
+
+async function onSmartImport(patientId, patientName) {
+  setEl('smart-out','<div class="muted center"><span class="spin"></span> Importing…</div>');
+  try {
+    const res = await post('/api/smart/import',{smartPatientId:patientId});
+    state.smartImported = res;
+    const name = res.patient?.name?.[0]?.text ?? patientName ?? patientId;
+    const dob = res.patient?.birthDate ?? '—';
+    const gender = res.patient?.gender ?? '—';
+
+    // Update sidebar patient button
+    document.getElementById('pt-imported').style.display = '';
+    setEl('imported-name', name);
+
+    // Show imported panel
+    document.getElementById('smart-imported-panel').style.display = '';
+    setEl('smart-imported-summary', `
+      <div class="row" style="gap:8px;margin-bottom:8px">
+        <span style="font-weight:500;font-size:13px">${name}</span>
+        <span class="badge badge-cyan" style="font-size:10px">SMART Import</span>
+      </div>
+      <div class="row" style="gap:6px">
+        <span class="tl-tag">DOB: ${dob}</span>
+        <span class="tl-tag">${gender}</span>
+        <span class="tl-tag">Internal ID: ${res.internalPatientId?.slice(0,16)}…</span>
+      </div>
+      ${res.assessment ? `<div style="margin-top:8px;font-size:12px;color:var(--muted)">${res.assessment}</div>` : ''}
+    `);
+
+    // Also show in Run Prior Auth section
+    document.getElementById('rc-imported').style.display = '';
+    setEl('rc-imported-name', name);
+    document.getElementById('rc-out-imported').textContent = 'Ready — click Run to start prior auth';
+
+    setEl('smart-out', `<div class="alert alert-ok">✓ Imported: ${name} — ready for prior auth below</div>`);
+  } catch(e) {
+    setEl('smart-out',`<div class="alert alert-err">${e.message}</div>`);
+  }
+}
+
+// ── Audit Trail ───────────────────────────────────────────────────────────
+function setAuditView(v){state.auditView=v;document.getElementById('tab-timeline').className=`tab ${v==='timeline'?'active':''}`;document.getElementById('tab-graph').className=`tab ${v==='graph'?'active':''}`;if(state.auditTrail)renderAudit(state.auditTrail);}
+
+async function loadAudit(patientId) {
+  const candidates = patientId
+    ? [patientId]
+    : ['patient-001','79f8fd18-5044-452d-b9bd-428b1e35e579','patient-ra-001','147e21d9-ab4e-449c-aeb4-8f3d6f7b1b4c','patient-comorbid-001'];
+  setEl('audit-out','<div class="muted center"><span class="spin"></span> Loading audit trail…</div>');
+  for (const id of candidates) {
+    try {
+      const trail = await get(`/api/audit/${id}`);
+      if (trail && trail.events) { state.auditTrail = trail; renderAudit(trail); return; }
+    } catch {}
+  }
+  setEl('audit-out','<div class="muted center">No audit trail found. Run a prior authorization first.</div>');
+}
+
+function renderAudit(trail) {
+  const s = trail.summary; const dec = trail.finalDecision;
+  const decColor = dec==='approved'?'var(--green)':dec==='denied'?'var(--red)':dec==='appealed'?'var(--aria)':'var(--muted)';
+  const summaryHtml = `
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:14px">
+      ${[['Decision',`<span style="color:${decColor};font-family:var(--mono);font-weight:600">${(dec??'—').toUpperCase()}</span>`],['Events',s.totalEvents],['Agents',s.agentsInvolved?.join(' · ')??'—'],['AI Calls',s.aiDecisionsMade],['Duration',s.durationMs?(s.durationMs/1000).toFixed(1)+'s':'—']].map(([l,v])=>`<div style="background:var(--s1);padding:10px 14px"><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin-bottom:4px">${l}</div><div style="font-family:var(--mono);font-size:13px;font-weight:500">${v}</div></div>`).join('')}
+    </div>
+    <div class="row" style="margin-bottom:14px;flex-wrap:wrap">
+      ${(s.dataSourcesUsed??[]).map(ds=>`<span class="tl-tag">${ds==='fhir-local'?'📋 Local FHIR':ds==='fhir-smart-health-it'?'🌐 SMART Health IT':ds==='ai-note-extraction'?'🤖 AI Extraction':ds==='ai-policy-check'?'⚖️ Policy Check':ds==='ai-appeal'?'📝 AI Appeal':ds==='payer-system'?'🏦 Payer':ds}</span>`).join('')}
+    </div>`;
+
+  if (state.auditView === 'timeline') {
+    const eventsHtml = (trail.events??[]).map(ev => {
+      const agentColor = ev.agent==='ALICE'?'var(--alice)':ev.agent==='ARIA'?'var(--aria)':'var(--muted)';
+      const icon = ev.type==='pipeline_start'?'▶':ev.type==='pipeline_complete'?'✓':ev.type==='ai_decision'?'◈':ev.type==='agent_handoff'?'↗':ev.type==='appeal_drafted'?'✉':'·';
+      // Resolve patient name from patientId field on event or from trail
+      const ptId = ev.patientId ?? trail.patientId ?? trail.trail?.patientId;
+      const ptName = ptId ? resolvePatientName(ptId) : null;
+      return `
+        <div class="tl-item">
+          <div class="tl-spine">
+            <div class="tl-node" style="border-color:${agentColor};color:${agentColor}">${icon}</div>
+            <div class="tl-line"></div>
+          </div>
+          <div class="tl-content">
+            <div class="tl-header">
+              <div class="row" style="gap:6px">
+                <span class="tl-agent" style="color:${agentColor}">${ev.agent}</span>
+                <span class="tl-action">${ev.action}</span>
+                ${ptName ? `<span class="tl-patient-tag">👤 ${ptName}</span>` : ''}
+              </div>
+              <span class="tl-time">${new Date(ev.timestamp).toLocaleTimeString()}</span>
+            </div>
+            <div class="tl-desc">${ev.description}</div>
+            ${ev.aiDecision ? `
+              <div class="tl-ai">
+                <div class="row" style="margin-bottom:4px;flex-wrap:wrap">
+                  <span style="font-weight:600;font-size:12px;font-family:var(--mono);color:${ev.aiDecision.decision==='APPROVED'?'var(--green)':ev.aiDecision.decision==='DENIED'?'var(--red)':'var(--purple)'}">${ev.aiDecision.decision}</span>
+                  ${ev.aiDecision.confidence?`<span class="badge ${ev.aiDecision.confidence==='high'?'badge-green':ev.aiDecision.confidence==='medium'?'badge-amber':'badge-red'}" style="font-size:10px">${ev.aiDecision.confidence}</span>`:''}
+                  ${ev.aiDecision.model?`<span class="muted" style="font-size:10px;font-family:var(--mono)">${ev.aiDecision.model}</span>`:''}
+                </div>
+                <div class="muted" style="font-size:12px">${ev.aiDecision.reasoning}</div>
+              </div>` : ''}
+            ${(ev.resourcesCreated??[]).length?`<div class="tl-tags">${ev.resourcesCreated.map(r=>`<span class="tl-tag" style="color:var(--cyan)">+${r.resourceType}/${r.id?.slice(0,8)}…</span>`).join('')}</div>`:''}
+            ${(ev.dataSources??[]).length?`<div class="tl-tags">${ev.dataSources.map(ds=>`<span class="tl-tag">${ds}</span>`).join('')}</div>`:''}
+            ${ev.handoff?`<div class="tl-handoff"><span style="color:var(--aria);font-weight:600;font-family:var(--mono)">↗ Handoff</span><span class="muted" style="margin-left:8px;font-size:12px">${ev.handoff.from} → ${ev.handoff.to}: ${ev.handoff.reason}</span></div>`:''}
+          </div>
+        </div>`;
+    }).join('');
+    setEl('audit-out', summaryHtml + `<div class="timeline">${eventsHtml}</div>`);
+  } else {
+    const events = (trail.events??[]).slice(0,8);
+    const svgNodes = events.map((ev,i) => {
+      const x=60+(i%4)*185; const y=i<4?80:220;
+      const ac=ev.agent==='ALICE'?'#388bfd':ev.agent==='ARIA'?'#f0a500':'#768390';
+      const ni=i+1,nx=60+(ni%4)*185,ny=ni<4?80:220;
+      return `${i<Math.min(events.length-1,7)?`<line x1="${x+28}" y1="${y}" x2="${nx-28}" y2="${ny}" stroke="rgba(56,139,253,0.3)" stroke-width="1.5" marker-end="url(#arr)"/>`:''}<circle cx="${x}" cy="${y}" r="26" fill="${ac}14" stroke="${ac}" stroke-width="1.5"/><text x="${x}" y="${y-5}" text-anchor="middle" font-size="10" fill="${ac}" font-weight="600" font-family="IBM Plex Mono">${ev.agent}</text><text x="${x}" y="${y+7}" text-anchor="middle" font-size="8" fill="rgba(118,131,144,0.8)" font-family="IBM Plex Mono">${(ev.action??'').slice(0,12)}</text>${ev.aiDecision?`<circle cx="${x+22}" cy="${y-22}" r="6" fill="rgba(188,140,255,0.85)"/><text x="${x+22}" y="${y-18}" text-anchor="middle" font-size="7" fill="white">AI</text>`:''}`;
+    }).join('');
+    setEl('audit-out', summaryHtml + `<div class="graph-wrap"><svg width="100%" viewBox="0 0 800 320" style="min-width:500px"><defs><marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="rgba(56,139,253,0.5)"/></marker></defs>${svgNodes}<g transform="translate(700,14)"><circle cx="5" cy="5" r="5" fill="rgba(56,139,253,0.2)" stroke="#388bfd" stroke-width="1.5"/><text x="13" y="9" font-size="9" fill="#768390" font-family="IBM Plex Mono">ALICE</text><circle cx="5" cy="21" r="5" fill="rgba(240,165,0,0.2)" stroke="#f0a500" stroke-width="1.5"/><text x="13" y="25" font-size="9" fill="#768390" font-family="IBM Plex Mono">ARIA</text><circle cx="5" cy="37" r="5" fill="rgba(188,140,255,0.85)"/><text x="13" y="41" font-size="9" fill="#768390" font-family="IBM Plex Mono">AI Decision</text></g></svg></div>`);
+  }
+}
 
 // ── Appeals ────────────────────────────────────────────────────────────────
 async function loadAppeals(patientId) {
   showSection('appeals');
-  setEl('appeals-out', '<div class="muted center"><span class="spin"></span> Loading appeals…</div>');
+  setEl('appeals-out','<div class="muted center"><span class="spin"></span> Loading appeals…</div>');
   try {
     const data = await get(`/api/appeals/${patientId}`);
-    renderAppeals(data, patientId);
-  } catch(e) {
-    setEl('appeals-out', `<div class="alert alert-err">${e.message}</div>`);
-  }
+    renderAppeals(data);
+  } catch(e) { setEl('appeals-out',`<div class="alert alert-err">${e.message}</div>`); }
 }
 
-function renderAppeals(data, patientId) {
-  if (data.rounds.length === 0) {
-    setEl('appeals-out', `
-      <div class="muted center" style="padding:30px 0">
-        <div style="font-size:14px;margin-bottom:8px">No appeals on file</div>
-        <div style="font-size:12px">Run a prior authorization with the <span style="color:var(--red);font-family:var(--mono)">denied</span> policy variant in Prompt Opinion, then ARIA will draft an appeal.</div>
-      </div>
-    `);
+function renderAppeals(data) {
+  if (!data.rounds?.length) {
+    setEl('appeals-out',`<div class="muted center" style="padding:30px 0"><div style="font-size:14px;margin-bottom:8px">No appeals on file</div><div style="font-size:12px">Run a prior authorization with the <span style="color:var(--red);font-family:var(--mono)">denied</span> policy variant in Prompt Opinion, then ARIA will draft an appeal.</div></div>`);
     return;
   }
-
-  const statusColors = { no_appeal:'var(--dim)', counter_denied:'var(--red)', round_1_pending:'var(--aria)', round_2_pending:'var(--amber)' };
-  const statusColor = statusColors[data.status] ?? 'var(--aria)';
-
-  // Escalation bar
-  const escSteps = ['Round 1 Appeal', 'Counter-Denial', 'Round 2 Rebuttal', 'IRO / Commissioner'];
-  const activeStep = data.totalCounterDenials > 0 && data.totalRounds >= 2 ? 2 : data.totalCounterDenials > 0 ? 1 : data.totalRounds > 0 ? 0 : -1;
-  const escBar = `
-    <div class="escalation-bar">
-      ${escSteps.map((s, i) => `
-        <div class="esc-step ${i < activeStep ? 'done' : i === activeStep ? 'active' : ''}">
-          <div style="font-size:9px;margin-bottom:2px">${String(i+1).padStart(2,'0')}</div>
-          ${s}
-        </div>
-      `).join('')}
-    </div>
-  `;
-
-  // Status summary
-  const summary = `
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:14px">
-      ${[
-        ['Status', `<span style="color:${statusColor};font-family:var(--mono);font-weight:600">${data.status.replace(/_/g,' ').toUpperCase()}</span>`],
-        ['Rounds', data.totalRounds],
-        ['Counter-Denials', data.totalCounterDenials],
-        ['Escalation', data.escalationPath[0] ?? '—'],
-      ].map(([l,v]) => `
-        <div style="background:var(--s1);padding:10px 14px">
-          <div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin-bottom:4px">${l}</div>
-          <div style="font-size:12px">${v}</div>
-        </div>
-      `).join('')}
-    </div>
-  `;
-
-  // Round cards
-  const rounds = data.rounds.map(r => {
-    const urgencyColor = r.urgencyLevel === 'urgent' ? 'var(--red)' : r.urgencyLevel === 'expedited' ? 'var(--amber)' : 'var(--muted)';
-    return `
-      <div class="round-card">
-        <div class="round-head">
-          <div class="row" style="gap:8px">
-            <span style="font-family:var(--mono);font-weight:600;color:var(--aria)">Round ${r.round}</span>
-            <span class="badge badge-amber" style="font-size:10px">Appeal Letter</span>
-            <span style="font-family:var(--mono);font-size:10px;color:${urgencyColor}">${r.urgencyLevel}</span>
-          </div>
-          <span style="font-family:var(--mono);font-size:10px;color:var(--dim)">${r.date ? new Date(r.date).toLocaleDateString() : '—'}</span>
-        </div>
-        <div class="round-body">
-          <div style="font-size:12px;color:var(--text);margin-bottom:6px">${r.description ?? '—'}</div>
-          <div class="row" style="gap:6px">
-            <span class="tl-tag">ID: ${r.appealId?.slice(0,12)}…</span>
-            <span class="badge badge-blue" style="font-size:10px">FHIR DocumentReference</span>
-          </div>
-          ${r.counterDenial ? `
-            <div class="counter-card">
-              <div class="row" style="gap:8px;margin-bottom:4px">
-                <span style="font-family:var(--mono);font-weight:600;color:var(--red);font-size:12px">✗ Payer Counter-Denial</span>
-                <span style="font-family:var(--mono);font-size:10px;color:var(--dim)">${r.counterDenial.date ? new Date(r.counterDenial.date).toLocaleDateString() : ''}</span>
-              </div>
-              <div style="font-size:12px;color:var(--muted)">${r.counterDenial.description ?? '—'}</div>
-              <div class="tl-tags" style="margin-top:6px"><span class="tl-tag">ID: ${r.counterDenial.id?.slice(0,12)}…</span></div>
-            </div>
-          ` : `
-            <div style="margin-top:8px;padding:7px 10px;background:rgba(63,185,80,0.05);border:1px solid rgba(63,185,80,0.15);border-radius:6px;font-size:12px;color:var(--green)">
-              ⏳ Awaiting payer response
-            </div>
-          `}
-        </div>
-      </div>
-    `;
+  const statusColor = data.status==='counter_denied'?'var(--red)':data.status.includes('pending')?'var(--aria)':'var(--muted)';
+  const escSteps = ['Round 1 Appeal','Counter-Denial','Round 2 Rebuttal','IRO / Commissioner'];
+  const activeStep = data.totalCounterDenials>0&&data.totalRounds>=2?2:data.totalCounterDenials>0?1:data.totalRounds>0?0:-1;
+  const escBar = `<div class="escalation-bar">${escSteps.map((s,i)=>`<div class="esc-step ${i<activeStep?'done':i===activeStep?'active':''}"><div style="font-size:9px;margin-bottom:2px">${String(i+1).padStart(2,'0')}</div>${s}</div>`).join('')}</div>`;
+  const summary = `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:14px">${[['Status',`<span style="color:${statusColor};font-family:var(--mono);font-weight:600">${data.status.replace(/_/g,' ').toUpperCase()}</span>`],['Rounds',data.totalRounds],['Counter-Denials',data.totalCounterDenials],['Next Step',data.escalationPath?.[0]??'—']].map(([l,v])=>`<div style="background:var(--s1);padding:10px 14px"><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin-bottom:4px">${l}</div><div style="font-size:12px">${v}</div></div>`).join('')}</div>`;
+  const rounds = data.rounds.map(r=>{
+    const uc=r.urgencyLevel==='urgent'?'var(--red)':r.urgencyLevel==='expedited'?'var(--amber)':'var(--muted)';
+    return `<div class="round-card"><div class="round-head"><div class="row" style="gap:8px"><span style="font-family:var(--mono);font-weight:600;color:var(--aria)">Round ${r.round}</span><span class="badge badge-amber" style="font-size:10px">Appeal Letter</span><span style="font-family:var(--mono);font-size:10px;color:${uc}">${r.urgencyLevel}</span></div><span style="font-family:var(--mono);font-size:10px;color:var(--dim)">${r.date?new Date(r.date).toLocaleDateString():'—'}</span></div><div class="round-body"><div style="font-size:12px;margin-bottom:6px">${r.description??'—'}</div><div class="row" style="gap:6px"><span class="tl-tag">ID: ${r.appealId?.slice(0,12)}…</span><span class="badge badge-blue" style="font-size:10px">FHIR DocumentReference</span></div>${r.counterDenial?`<div class="counter-card"><div class="row" style="gap:8px;margin-bottom:4px"><span style="font-family:var(--mono);font-weight:600;color:var(--red);font-size:12px">✗ Payer Counter-Denial</span><span style="font-family:var(--mono);font-size:10px;color:var(--dim)">${r.counterDenial.date?new Date(r.counterDenial.date).toLocaleDateString():''}</span></div><div style="font-size:12px;color:var(--muted)">${r.counterDenial.description??'—'}</div></div>`:`<div style="margin-top:8px;padding:7px 10px;background:rgba(63,185,80,0.05);border:1px solid rgba(63,185,80,0.15);border-radius:6px;font-size:12px;color:var(--green)">⏳ Awaiting payer response</div>`}</div></div>`;
   }).join('');
-
   setEl('appeals-out', summary + escBar + rounds);
 }
 
@@ -508,11 +796,12 @@ function copyPrompt(id) {
   const el = document.getElementById(id);
   if (!el) return;
   navigator.clipboard.writeText(el.textContent.trim()).then(() => {
-    const btns = document.querySelectorAll(`[onclick="copyPrompt('${id}')"]`);
-    btns.forEach(b => { b.textContent = '✓ Copied!'; setTimeout(() => b.textContent = 'Copy Prompt', 1500); });
+    document.querySelectorAll(`[onclick="copyPrompt('${id}')"]`).forEach(b => { b.textContent='✓ Copied!'; setTimeout(()=>b.textContent='Copy Prompt',1500); });
   });
 }
 
+// ── FHIR dump ─────────────────────────────────────────────────────────────
+async function loadFhir(){setEl('fhir-out','<div class="muted center"><span class="spin"></span></div>');try{const d=await get('/fhir-dump');const types=Object.keys(d);setEl('fhir-out',`<div class="row" style="margin-bottom:10px;flex-wrap:wrap">${types.map(t=>`<span class="badge badge-blue">${t}: ${Array.isArray(d[t])?d[t].length:Object.keys(d[t]??{}).length}</span>`).join('')}</div><pre>${JSON.stringify(d,null,2)}</pre>`);}catch(e){setEl('fhir-out',`<div class="alert alert-err">${e.message}</div>`);}}
 </script>
 </body>
 </html>
