@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Patient Directory - Medical Insurance Compiler</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#9fb18b",
+                        "background-light": "#f7f7f7",
+                        "background-dark": "#191b17",
+                    },
+                    fontFamily: {
+                        "display": ["Lexend"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Lexend', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100">
+<div class="relative flex min-h-screen w-full flex-row overflow-x-hidden">
+<!-- Side Navigation -->
+<aside class="w-72 flex-col border-r border-primary/20 bg-background-light dark:bg-background-dark hidden md:flex">
+<div class="flex flex-col h-full p-6 gap-8">
+<div class="flex items-center gap-3">
+<div class="aspect-square rounded-full size-12 bg-primary/30 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-3xl">medical_services</span>
+</div>
+<div class="flex flex-col">
+<h1 class="text-slate-900 dark:text-slate-100 text-lg font-bold leading-tight">MedComp</h1>
+<p class="text-slate-500 dark:text-slate-400 text-xs font-normal">Insurance Compiler</p>
+</div>
+</div>
+<nav class="flex flex-col gap-2">
+<a class="flex items-center gap-3 px-4 py-3 rounded-full hover:bg-primary/10 transition-colors" href="#">
+<span class="material-symbols-outlined text-slate-600 dark:text-slate-400">dashboard</span>
+<span class="text-sm font-medium">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-full bg-primary text-slate-900 font-semibold shadow-sm" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="text-sm">Patients</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-full hover:bg-primary/10 transition-colors" href="#">
+<span class="material-symbols-outlined text-slate-600 dark:text-slate-400">description</span>
+<span class="text-sm font-medium">Claims</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-full hover:bg-primary/10 transition-colors" href="#">
+<span class="material-symbols-outlined text-slate-600 dark:text-slate-400">bar_chart</span>
+<span class="text-sm font-medium">Reports</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-full hover:bg-primary/10 transition-colors" href="#">
+<span class="material-symbols-outlined text-slate-600 dark:text-slate-400">settings</span>
+<span class="text-sm font-medium">Settings</span>
+</a>
+</nav>
+<div class="mt-auto">
+<button class="w-full flex items-center justify-center gap-2 rounded-full py-3 bg-primary/20 text-slate-900 dark:text-slate-100 font-bold hover:bg-primary/30 transition-colors">
+<span class="material-symbols-outlined text-sm">support_agent</span>
+<span>Support</span>
+</button>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 flex flex-col min-w-0">
+<!-- Header -->
+<header class="flex items-center justify-between px-8 py-4 border-b border-primary/10 bg-white/50 dark:bg-background-dark/50 backdrop-blur-md sticky top-0 z-10">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary text-3xl">badge</span>
+<h2 class="text-xl font-bold tracking-tight">Patient Directory</h2>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-primary/20 transition-all">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="flex items-center gap-2 p-1 pr-4 rounded-full bg-slate-200 dark:bg-slate-800 hover:bg-primary/20 transition-all">
+<div class="size-8 rounded-full bg-primary/40 flex items-center justify-center overflow-hidden">
+<img alt="User Avatar" class="w-full h-full object-cover" data-alt="Close up portrait of a medical professional" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAKW-ZIMFo8rfWxcCK1vT_YanYgr8tRi4jMfdE8Jkg_E6ACmwkbxOBuxxHofPCudBoLl1bpsuNjbFhgMIAQr4hJyl6ZrvdRjBApKv1AcT2JQDqOWeksAkGXq-j35rrIPx1SVV6Jm0FzVbddosrf_AvvTiHvaBvoAa8TPv4MTqFp8MG98DX8z5zq3AIv6x6sNyCo_FUIbqtYNI8-G3I7Ry_hSUW25OAx_Y_5olDspXrtxotEDbJu_xr6cHNI-rhy1Ni3HWRft6uMIeE"/>
+</div>
+<span class="text-sm font-semibold">Dr. Smith</span>
+</button>
+</div>
+</header>
+<div class="p-8 flex flex-col gap-8 max-w-7xl mx-auto w-full">
+<!-- Page Title & CTA -->
+<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+<div class="flex flex-col gap-1">
+<h1 class="text-4xl font-black tracking-tight text-slate-900 dark:text-slate-100">Patients</h1>
+<p class="text-slate-500 dark:text-slate-400">Review, manage, and verify patient insurance coverage status.</p>
+</div>
+<button class="flex items-center gap-2 bg-primary px-6 py-3 rounded-full font-bold text-slate-900 shadow-lg hover:shadow-primary/20 transition-all active:scale-95">
+<span class="material-symbols-outlined">person_add</span>
+<span>New Patient</span>
+</button>
+</div>
+<!-- Search and Filter -->
+<div class="flex flex-col gap-6">
+<div class="flex w-full group">
+<div class="relative flex-1">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary">search</span>
+<input class="w-full pl-12 pr-4 py-4 rounded-xl border-none bg-slate-200/50 dark:bg-slate-800/50 focus:ring-2 focus:ring-primary focus:bg-white dark:focus:bg-slate-900 transition-all placeholder:text-slate-400" placeholder="Search by name, patient ID, or insurance provider..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-hide">
+<button class="flex items-center gap-2 px-6 py-2 rounded-full bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-medium whitespace-nowrap">
+                        All Patients
+                    </button>
+<button class="flex items-center gap-2 px-6 py-2 rounded-full bg-slate-200 dark:bg-slate-800 hover:bg-primary/20 transition-colors whitespace-nowrap">
+<span class="size-2 rounded-full bg-amber-500"></span>
+                        Pending
+                    </button>
+<button class="flex items-center gap-2 px-6 py-2 rounded-full bg-slate-200 dark:bg-slate-800 hover:bg-primary/20 transition-colors whitespace-nowrap">
+<span class="size-2 rounded-full bg-emerald-500"></span>
+                        Approved
+                    </button>
+<button class="flex items-center gap-2 px-6 py-2 rounded-full bg-slate-200 dark:bg-slate-800 hover:bg-primary/20 transition-colors whitespace-nowrap">
+<span class="size-2 rounded-full bg-rose-500"></span>
+                        Denied
+                    </button>
+<div class="h-6 w-px bg-slate-300 dark:bg-slate-700 mx-2"></div>
+<button class="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-200 dark:bg-slate-800 hover:bg-primary/20 transition-colors">
+<span class="material-symbols-outlined text-sm">filter_list</span>
+<span>More Filters</span>
+</button>
+</div>
+</div>
+<!-- Patient Table/List -->
+<div class="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead>
+<tr class="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
+<th class="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Patient</th>
+<th class="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">ID</th>
+<th class="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Insurance Plan</th>
+<th class="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Status</th>
+<th class="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Last Visit</th>
+<th class="px-6 py-4"></th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-200 dark:divide-slate-800">
+<!-- Patient 1 -->
+<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+<td class="px-6 py-4 whitespace-nowrap">
+<div class="flex items-center gap-3">
+<div class="size-10 rounded-full bg-primary/20 flex items-center justify-center font-bold text-primary">EJ</div>
+<div>
+<div class="font-bold">Emily Johnson</div>
+<div class="text-xs text-slate-500">emily.j@example.com</div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">#PAT-8821</td>
+<td class="px-6 py-4 text-sm font-medium">BlueCross PPO Plus</td>
+<td class="px-6 py-4 whitespace-nowrap">
+<span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+<span class="size-1.5 rounded-full bg-emerald-500"></span>
+                                        Approved
+                                    </span>
+</td>
+<td class="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">Oct 24, 2023</td>
+<td class="px-6 py-4 text-right">
+<button class="text-slate-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Patient 2 -->
+<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+<td class="px-6 py-4 whitespace-nowrap">
+<div class="flex items-center gap-3">
+<div class="size-10 rounded-full bg-primary/20 flex items-center justify-center font-bold text-primary">MR</div>
+<div>
+<div class="font-bold">Marcus Rodriguez</div>
+<div class="text-xs text-slate-500">m.rod@provider.net</div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">#PAT-4412</td>
+<td class="px-6 py-4 text-sm font-medium">Aetna Signature Admin</td>
+<td class="px-6 py-4 whitespace-nowrap">
+<span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+<span class="size-1.5 rounded-full bg-amber-500"></span>
+                                        Pending
+                                    </span>
+</td>
+<td class="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">Nov 02, 2023</td>
+<td class="px-6 py-4 text-right">
+<button class="text-slate-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Patient 3 -->
+<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+<td class="px-6 py-4 whitespace-nowrap">
+<div class="flex items-center gap-3">
+<div class="size-10 rounded-full bg-primary/20 flex items-center justify-center font-bold text-primary">SC</div>
+<div>
+<div class="font-bold">Sarah Chen</div>
+<div class="text-xs text-slate-500">sarah.chen@web.com</div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">#PAT-9003</td>
+<td class="px-6 py-4 text-sm font-medium">Cigna Connect 3000</td>
+<td class="px-6 py-4 whitespace-nowrap">
+<span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400">
+<span class="size-1.5 rounded-full bg-rose-500"></span>
+                                        Denied
+                                    </span>
+</td>
+<td class="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">Oct 18, 2023</td>
+<td class="px-6 py-4 text-right">
+<button class="text-slate-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Patient 4 -->
+<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+<td class="px-6 py-4 whitespace-nowrap">
+<div class="flex items-center gap-3">
+<div class="size-10 rounded-full bg-primary/20 flex items-center justify-center font-bold text-primary">DB</div>
+<div>
+<div class="font-bold">David Brooks</div>
+<div class="text-xs text-slate-500">d.brooks@mail.org</div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">#PAT-1156</td>
+<td class="px-6 py-4 text-sm font-medium">UnitedHealthcare Choice</td>
+<td class="px-6 py-4 whitespace-nowrap">
+<span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+<span class="size-1.5 rounded-full bg-emerald-500"></span>
+                                        Approved
+                                    </span>
+</td>
+<td class="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">Nov 12, 2023</td>
+<td class="px-6 py-4 text-right">
+<button class="text-slate-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination -->
+<div class="px-6 py-4 flex items-center justify-between border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
+<p class="text-sm text-slate-500 dark:text-slate-400">Showing 1-4 of 128 patients</p>
+<div class="flex items-center gap-2">
+<button class="p-2 rounded-full border border-slate-200 dark:border-slate-700 text-slate-400 hover:bg-white dark:hover:bg-slate-800 transition-all">
+<span class="material-symbols-outlined text-sm">chevron_left</span>
+</button>
+<button class="px-4 py-1.5 rounded-full bg-primary text-slate-900 font-bold text-sm">1</button>
+<button class="px-4 py-1.5 rounded-full border border-slate-200 dark:border-slate-700 text-sm font-medium hover:bg-white dark:hover:bg-slate-800">2</button>
+<button class="px-4 py-1.5 rounded-full border border-slate-200 dark:border-slate-700 text-sm font-medium hover:bg-white dark:hover:bg-slate-800">3</button>
+<button class="p-2 rounded-full border border-slate-200 dark:border-slate-700 text-slate-400 hover:bg-white dark:hover:bg-slate-800 transition-all">
+<span class="material-symbols-outlined text-sm">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Stats Overview Cards -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<div class="bg-primary/10 p-6 rounded-xl border border-primary/20">
+<div class="flex justify-between items-start mb-4">
+<span class="material-symbols-outlined text-primary p-2 bg-white dark:bg-slate-900 rounded-lg">history</span>
+<span class="text-xs font-bold text-emerald-600">+12%</span>
+</div>
+<div class="text-3xl font-black mb-1">42</div>
+<div class="text-sm text-slate-500 dark:text-slate-400 font-medium">Patients Added This Month</div>
+</div>
+<div class="bg-primary/10 p-6 rounded-xl border border-primary/20">
+<div class="flex justify-between items-start mb-4">
+<span class="material-symbols-outlined text-primary p-2 bg-white dark:bg-slate-900 rounded-lg">verified</span>
+<span class="text-xs font-bold text-emerald-600">92%</span>
+</div>
+<div class="text-3xl font-black mb-1">893</div>
+<div class="text-sm text-slate-500 dark:text-slate-400 font-medium">Total Approved Claims</div>
+</div>
+<div class="bg-primary/10 p-6 rounded-xl border border-primary/20">
+<div class="flex justify-between items-start mb-4">
+<span class="material-symbols-outlined text-primary p-2 bg-white dark:bg-slate-900 rounded-lg">priority_high</span>
+<span class="text-xs font-bold text-rose-600">8 High</span>
+</div>
+<div class="text-3xl font-black mb-1">15</div>
+<div class="text-sm text-slate-500 dark:text-slate-400 font-medium">Pending Verifications</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>
