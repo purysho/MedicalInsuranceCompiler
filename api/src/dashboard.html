@@ -612,7 +612,7 @@ body { font-family: 'Lexend', sans-serif; }
         </div>
 
         <!-- ── Comparison table ── -->
-        <div class="bg-white dark:bg-zinc-900 rounded-xl border border-primary/10 shadow-sm overflow-hidden">
+        <div class="bg-white dark:bg-zinc-900 rounded-xl border border-primary/10 shadow-sm overflow-hidden mb-6">
           <div class="px-5 py-3.5 border-b border-primary/10 bg-cream/30 dark:bg-zinc-800/30 flex items-center justify-between">
             <span class="font-bold text-deep-brown dark:text-cream text-sm">Policy Threshold Comparison</span>
             <span class="text-xs text-deep-brown/40 dark:text-cream/40">Live from /policy-data</span>
@@ -631,6 +631,49 @@ body { font-family: 'Lexend', sans-serif; }
               </thead>
               <tbody id="policy-table-body" class="divide-y divide-primary/5"></tbody>
             </table>
+          </div>
+        </div>
+
+        <!-- ── Policy Diff Viewer ── -->
+        <div class="bg-white dark:bg-zinc-900 rounded-xl border border-primary/10 shadow-sm overflow-hidden">
+          <div class="px-5 py-4 border-b border-primary/10 bg-cream/30 dark:bg-zinc-800/30 flex items-center justify-between flex-wrap gap-3">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-primary" style="font-size:18px">compare_arrows</span>
+              <span class="font-bold text-deep-brown dark:text-cream">Policy Diff Viewer</span>
+              <span class="text-xs text-deep-brown/40 dark:text-cream/40 hidden sm:inline">— see exactly what changes between policy versions</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="flex items-center gap-2">
+                <label class="text-xs font-semibold text-deep-brown/40 dark:text-cream/40 uppercase tracking-wider">From</label>
+                <select id="diff-from" onchange="runPolicyDiff()"
+                  class="bg-cream dark:bg-zinc-800 border border-primary/20 rounded-lg text-sm px-3 py-1.5 text-deep-brown dark:text-cream focus:outline-none focus:ring-2 focus:ring-primary/40">
+                  <option value="standard">standard</option>
+                  <option value="strict">strict</option>
+                  <option value="denied">denied</option>
+                  <option value="insulin-standard">insulin-standard</option>
+                  <option value="insulin-strict">insulin-strict</option>
+                  <option value="adalimumab-standard">adalimumab-standard</option>
+                  <option value="adalimumab-strict">adalimumab-strict</option>
+                </select>
+              </div>
+              <span class="material-symbols-outlined text-deep-brown/30" style="font-size:18px">arrow_forward</span>
+              <div class="flex items-center gap-2">
+                <label class="text-xs font-semibold text-deep-brown/40 dark:text-cream/40 uppercase tracking-wider">To</label>
+                <select id="diff-to" onchange="runPolicyDiff()"
+                  class="bg-cream dark:bg-zinc-800 border border-primary/20 rounded-lg text-sm px-3 py-1.5 text-deep-brown dark:text-cream focus:outline-none focus:ring-2 focus:ring-primary/40">
+                  <option value="standard">standard</option>
+                  <option value="strict" selected>strict</option>
+                  <option value="denied">denied</option>
+                  <option value="insulin-standard">insulin-standard</option>
+                  <option value="insulin-strict">insulin-strict</option>
+                  <option value="adalimumab-standard">adalimumab-standard</option>
+                  <option value="adalimumab-strict">adalimumab-strict</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div id="diff-output" class="p-5">
+            <div class="text-xs text-deep-brown/30 dark:text-cream/30 text-center py-4">Select two policies above to compare</div>
           </div>
         </div>
       </div>
@@ -750,7 +793,7 @@ function showSection(name) {
   SECTIONS.forEach(s => { const el=document.getElementById('section-'+s); if(el){el.classList.toggle('hidden', s!==name);} });
   // Lazy-load section data
   if(name==='patients' && !allPatients.length) loadPatientDirectory();
-  if(name==='payers') loadPolicyPayers();
+  if(name==='payers') loadPolicyPayers().then(()=>runPolicyDiff());
   if(name==='auditlogs' && !allAuditEvents.length) loadAllAuditLogs();
   document.querySelectorAll('#main-nav .nav-item').forEach((el,i) => { if(i<SECTIONS.length){el.classList.toggle('active', SECTIONS[i]===name);} });
   if (name==='audit' && !state.auditTrail) loadAudit();
@@ -1746,6 +1789,168 @@ function showSubmissionResult(data) {
 
 // Hook into existing submit functions to show submission result
 const _origOnSubmit = window.onSubmit;
+
+
+// ── Policy Diff Viewer ─────────────────────────────────────────────────────
+async function runPolicyDiff() {
+  const fromV = document.getElementById('diff-from').value;
+  const toV   = document.getElementById('diff-to').value;
+  const out   = document.getElementById('diff-output');
+
+  if (fromV === toV) {
+    out.innerHTML = '<div class="text-xs text-deep-brown/40 dark:text-cream/40 text-center py-4">Select two different policies to compare</div>';
+    return;
+  }
+
+  out.innerHTML = '<div class="text-xs text-deep-brown/40 dark:text-cream/40 text-center py-4"><span class="spin"></span> Computing diff…</div>';
+
+  try {
+    const data = await get(`/policy-data?variant=${fromV}`);
+    const lib  = data.library ?? livePolicyLibrary;
+    const fromDef = lib[fromV];
+    const toDef   = lib[toV];
+
+    if (!fromDef || !toDef) {
+      out.innerHTML = '<div class="text-rose-500 text-xs text-center py-4">Policy definitions not found</div>';
+      return;
+    }
+
+    // Compute diff client-side (same logic as backend diffPolicies)
+    const maxLen = Math.max(fromDef.rules.length, toDef.rules.length);
+    const rows = [];
+    for (let i = 0; i < maxLen; i++) {
+      const f = fromDef.rules[i] ?? null;
+      const t = toDef.rules[i]   ?? null;
+      const changed = !f || !t ||
+        f.label     !== t.label     ||
+        f.threshold !== t.threshold ||
+        f.operator  !== t.operator;
+      rows.push({ from: f, to: t, changed, idx: i });
+    }
+
+    const changedCount = rows.filter(r => r.changed).length;
+    const fromMeta = POLICY_META[fromV] ?? {};
+    const toMeta   = POLICY_META[toV]   ?? {};
+
+    // Header summary
+    const header = `
+      <div class="grid grid-cols-2 gap-4 mb-5">
+        <div class="bg-cream/50 dark:bg-zinc-800/50 rounded-xl p-4 border border-primary/10">
+          <p class="text-xs font-bold uppercase tracking-wider text-deep-brown/40 dark:text-cream/40 mb-1">From</p>
+          <p class="font-bold text-deep-brown dark:text-cream font-mono">${fromV}</p>
+          <p class="text-xs text-deep-brown/50 dark:text-cream/50 mt-1">${fromDef.name}</p>
+          <p class="text-xs font-mono text-deep-brown/30 dark:text-cream/30 mt-0.5">v${fromDef.version}</p>
+        </div>
+        <div class="bg-cream/50 dark:bg-zinc-800/50 rounded-xl p-4 border border-primary/10">
+          <p class="text-xs font-bold uppercase tracking-wider text-deep-brown/40 dark:text-cream/40 mb-1">To</p>
+          <p class="font-bold text-deep-brown dark:text-cream font-mono">${toV}</p>
+          <p class="text-xs text-deep-brown/50 dark:text-cream/50 mt-1">${toDef.name}</p>
+          <p class="text-xs font-mono text-deep-brown/30 dark:text-cream/30 mt-0.5">v${toDef.version}</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3 mb-5">
+        <span class="text-xs font-bold px-3 py-1.5 rounded-full ${changedCount > 0 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-emerald-100 text-emerald-700'}">
+          ${changedCount} rule${changedCount !== 1 ? 's' : ''} changed
+        </span>
+        ${changedCount === 0 ? '<span class="text-xs text-emerald-600 font-medium">Policies are identical</span>' : ''}
+        ${fromMeta.medication !== toMeta.medication && toMeta.medication
+          ? `<span class="text-xs text-deep-brown/40 dark:text-cream/40">Medication change: ${fromMeta.medication} → ${toMeta.medication}</span>`
+          : ''}
+      </div>`;
+
+    // Side-by-side rule diff
+    const diffRows = rows.map(r => {
+      const fromLabel     = r.from?.label     ?? '(no rule)';
+      const toLabel       = r.to?.label       ?? '(removed)';
+      const fromThreshold = r.from?.threshold ?? null;
+      const toThreshold   = r.to?.threshold   ?? null;
+      const thresholdChanged = fromThreshold !== toThreshold;
+      const labelChanged     = fromLabel !== toLabel;
+      const isAdded   = !r.from && r.to;
+      const isRemoved = r.from  && !r.to;
+
+      const rowBg = r.changed
+        ? 'bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800/40'
+        : 'bg-white dark:bg-zinc-900/50 border-primary/5';
+
+      return `
+        <div class="rounded-xl border p-4 ${rowBg} mb-3">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-xs font-mono font-bold text-deep-brown/40 dark:text-cream/40 bg-cream dark:bg-zinc-800 px-2 py-0.5 rounded">Rule ${r.idx + 1}</span>
+            ${r.changed
+              ? `<span class="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                   <span class="material-symbols-outlined" style="font-size:12px">edit</span>
+                   Changed
+                 </span>`
+              : `<span class="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                   <span class="material-symbols-outlined" style="font-size:12px">check</span>
+                   Unchanged
+                 </span>`}
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="rounded-lg p-3 ${isRemoved ? 'bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800/40' : 'bg-cream/60 dark:bg-zinc-800/60'}">
+              <p class="text-xs font-semibold uppercase tracking-wider text-deep-brown/30 dark:text-cream/30 mb-1.5">Before</p>
+              ${r.from ? `
+                <p class="text-sm text-deep-brown dark:text-cream leading-snug ${labelChanged ? 'line-through opacity-50' : ''}">${fromLabel}</p>
+                ${fromThreshold !== null ? `
+                  <p class="text-xs font-mono mt-1.5 ${thresholdChanged
+                    ? 'text-rose-600 dark:text-rose-400 font-bold'
+                    : 'text-deep-brown/50 dark:text-cream/50'}">
+                    threshold: ${fromThreshold}
+                  </p>` : ''}
+              ` : '<p class="text-xs text-deep-brown/30 italic">No rule</p>'}
+            </div>
+            <div class="rounded-lg p-3 ${isAdded ? 'bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40' : r.changed ? 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40' : 'bg-cream/60 dark:bg-zinc-800/60'}">
+              <p class="text-xs font-semibold uppercase tracking-wider text-deep-brown/30 dark:text-cream/30 mb-1.5">After</p>
+              ${r.to ? `
+                <p class="text-sm text-deep-brown dark:text-cream leading-snug font-medium">${toLabel}</p>
+                ${toThreshold !== null ? `
+                  <p class="text-xs font-mono mt-1.5 ${thresholdChanged
+                    ? 'text-amber-700 dark:text-amber-400 font-bold'
+                    : 'text-deep-brown/50 dark:text-cream/50'}">
+                    threshold: ${toThreshold}
+                  </p>` : ''}
+              ` : '<p class="text-xs text-deep-brown/30 italic">Rule removed</p>'}
+            </div>
+          </div>
+          ${thresholdChanged && fromThreshold !== null && toThreshold !== null ? `
+            <div class="mt-3 flex items-center gap-2 text-xs">
+              <span class="material-symbols-outlined text-amber-500" style="font-size:14px">warning</span>
+              <span class="text-amber-700 dark:text-amber-400 font-medium">
+                Threshold tightened from ${fromThreshold} → ${toThreshold}
+                — patients with values between ${Math.min(fromThreshold,toThreshold)} and ${Math.max(fromThreshold,toThreshold)} will be affected
+              </span>
+            </div>` : ''}
+        </div>`;
+    }).join('');
+
+    // Clinical impact callout
+    const impacts = rows.filter(r => r.changed && r.from?.threshold !== r.to?.threshold && r.from?.threshold !== null && r.to?.threshold !== null);
+    const impactBox = impacts.length ? `
+      <div class="mt-4 p-4 bg-amber-50 dark:bg-amber-900/15 border border-amber-200 dark:border-amber-700/40 rounded-xl">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="material-symbols-outlined text-amber-600" style="font-size:16px">clinical_notes</span>
+          <span class="font-bold text-amber-800 dark:text-amber-400 text-sm">Clinical Impact</span>
+        </div>
+        ${impacts.map(r => {
+          const lo = Math.min(r.from.threshold, r.to.threshold);
+          const hi = Math.max(r.from.threshold, r.to.threshold);
+          const tightened = r.to.threshold > r.from.threshold;
+          const key = r.to.key === 'a1c' ? 'HbA1c' : r.to.key === 'das28' ? 'DAS28' : r.to.key;
+          return `<p class="text-xs text-amber-700 dark:text-amber-300 leading-relaxed">
+            ${key} threshold ${tightened ? 'raised' : 'lowered'} from ${r.from.threshold} to ${r.to.threshold}.
+            Patients with ${key} between ${lo} and ${hi} will be
+            ${tightened ? '<strong>denied</strong> under the new policy but were previously approved.' : '<strong>approved</strong> under the new policy but were previously denied.'}
+          </p>`;
+        }).join('')}
+      </div>` : '';
+
+    out.innerHTML = header + diffRows + impactBox;
+
+  } catch(e) {
+    out.innerHTML = `<div class="text-rose-500 text-xs text-center py-4">Error: ${e.message}</div>`;
+  }
+}
 
 function toggleTheme() {
   const isDark = document.documentElement.classList.contains('dark');
