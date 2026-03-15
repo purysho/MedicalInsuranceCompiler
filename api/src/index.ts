@@ -465,7 +465,8 @@ app.post("/run/full-prior-auth", async (req, res) => {
     const isRA = patientId === "patient-ra-001" || patientId === "147e21d9-ab4e-449c-aeb4-8f3d6f7b1b4c";
     const isComorbid = patientId === "patient-comorbid-001" || patientId === "d6417ffa-1ed8-4bb9-ae4c-d3820c9615f9";
 
-    // Seed the correct patient data
+    // Clear store and seed the correct patient data fresh
+    store.clear();
     if (isComorbid) { seedComorbid(store); }
     else if (isRA)  { seedRA(store); }
     else            { seedSynthetic(store, { scenario: "complete" }); }
@@ -528,19 +529,30 @@ app.post("/run/full-prior-auth", async (req, res) => {
   }
 });
 
-// ── Run denied + register appeal context (for demo flow) ─────────────────────
 app.post("/run/demo-denied-appeal", async (req, res) => {
   try {
     const { patientId = "patient-001" } = req.body ?? {};
-    const denied = await executeTool(store, "alice_run_full_prior_auth", { patientId, policyVariant: "denied" });
-    const denialReasons = denied.policy?.missing ?? ["Step therapy criteria not met"];
-    const appeal = await executeTool(store, "aria_draft_appeal", {
-      patientId,
-      denialReasons,
-      claimId: denied.packet?.claim?.id,
-      policyVariant: "denied",
-    });
-    res.json({ denied, appeal, denialReasons });
+    // Use the same clean pipeline as full-prior-auth but with denied variant
+    store.clear();
+    seedSynthetic(store, { scenario: "complete" });
+    const resolvedId = LEGACY_PATIENT_ID;
+    const medrecResult = await runMedRec(store, resolvedId);
+    let medReq = store.search("MedicationRequest", { subject: resolvedId })[0];
+    if (!medReq) medReq = store.create({ resourceType: "MedicationRequest", status: "active", intent: "order", subject: { reference: `Patient/${resolvedId}` }, medicationCodeableConcept: { text: "Semaglutide (GLP-1)" }, authoredOn: new Date().toISOString() });
+    const evidenceResult = await runEvidence(store, resolvedId, medrecResult.bpmh.id);
+    const conditions = store.search("Condition", { subject: resolvedId });
+    const observations = store.search("Observation", { subject: resolvedId });
+    const statements = store.search("MedicationStatement", { subject: resolvedId });
+    const hasT2D = conditions.some((c: any) => JSON.stringify(c).toLowerCase().includes("type 2"));
+    const a1cObs = observations.find((o: any) => JSON.stringify(o).toLowerCase().includes("a1c"));
+    const a1cValue = (a1cObs as any)?.valueQuantity?.value ?? null;
+    const hasMetforminTrial = statements.some((s: any) => (s.medicationCodeableConcept?.text ?? "").toLowerCase().includes("metformin"));
+    const hasMetforminIntolerance = statements.some((s: any) => (s.note?.[0]?.text ?? "").toLowerCase().includes("intoler"));
+    const policyResult = checkPolicy({ hasT2D, a1cValue, hasMetforminTrial, hasMetforminIntolerance, policyVariant: "denied" } as any);
+    const packetResult = await runComposePacket(store, { patientId: resolvedId, coverageId: "coverage-001", medicationRequestId: medReq.id!, evidenceDocId: evidenceResult.evidenceDoc.id, bpmhListId: medrecResult.bpmh.id });
+    const denialReasons = policyResult.missing.length ? policyResult.missing : ["Step therapy criteria not met under strict policy"];
+    const appeal = await executeTool(store, "aria_draft_appeal", { patientId: resolvedId, denialReasons, claimId: packetResult.claim?.id, policyVariant: "denied" });
+    res.json({ denied: { summary: { approved: false, policyResult }, policy: policyResult, packet: packetResult, evidence: { derived: { hasT2D, a1cValue } }, medrec: medrecResult }, appeal, denialReasons });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
