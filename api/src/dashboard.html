@@ -897,10 +897,11 @@ function selectPatient(p) {
   const tagEl = document.querySelector('#section-pipeline .bg-primary\/10.text-primary');
   if (tagEl) tagEl.textContent = tags[p] || '';
 
-  // Sync policy dropdowns
-  const pv = document.getElementById('policy-variant')?.value;
-  const pp = document.getElementById('pipeline-policy');
-  if(pp && pv) pp.value = pv;
+  // Reset both policy dropdowns to standard on patient switch
+  const pvEl = document.getElementById('policy-variant');
+  const ppEl = document.getElementById('pipeline-policy');
+  if(pvEl) pvEl.value = 'standard';
+  if(ppEl) ppEl.value = 'standard';
 
   // Reset pipeline steps and result boxes for the new patient
   [1,2,3,4,5,6,7].forEach(n => {
@@ -1692,8 +1693,11 @@ function runFullPipelineForCurrentPatient() {
   const pid = state.currentPatientId || 'patient-001';
   const slugMap = {'patient-001':'bernard','patient-ra-001':'dorothea','patient-comorbid-001':'eleanor'};
   const slug = slugMap[pid] || 'bernard';
-  // Use the full-prior-auth endpoint for cleanliness
-  const pv = policyVariant();
+  // Read pipeline header dropdown (most recently changed)
+  const ppEl2 = document.getElementById('pipeline-policy');
+  const pvEl2 = document.getElementById('policy-variant');
+  const pv = ppEl2?.value || pvEl2?.value || 'standard';
+  if(pvEl2) pvEl2.value = pv; // keep in sync
   const btn = document.getElementById('btn-demo');
   const setBusy = (msg) => {
     btn.disabled = !!msg;
