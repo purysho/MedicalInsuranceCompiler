@@ -197,6 +197,39 @@ app.get("/api/appeal-letter/:docId", (req, res) => {
   });
 });
 
+
+// ── ARIA Chat endpoint ────────────────────────────────────────────────────────
+app.post("/api/aria-chat", async (req, res) => {
+  try {
+    const key = process.env.ANTHROPIC_API_KEY;
+    if (!key) return res.status(500).json({ error: "ANTHROPIC_API_KEY not set" });
+    const { messages, system } = req.body;
+    if (!messages?.length) return res.status(400).json({ error: "messages required" });
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": key,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 2048,
+        system: system ?? "You are ARIA, the Appeal & Rebuttal Intelligence Agent.",
+        messages,
+      }),
+    });
+    if (!response.ok) {
+      const err = await response.text();
+      return res.status(response.status).json({ error: err });
+    }
+    const data = await response.json();
+    res.json(data);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── Appeals route ─────────────────────────────────────────────────────────────
 app.get("/api/appeals/:patientId", (req, res) => {
   const pid = req.params.patientId;
