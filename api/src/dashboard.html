@@ -1023,7 +1023,9 @@ async function runQuickAuth(patientId, slug) {
   try {
     const result = await post('/run/full-prior-auth', {patientId, policyVariant: pv});
     const approved = result.summary?.approved ?? result.policy?.missing?.length === 0;
-    const a1c = result.summary?.policy?.a1cValue ?? result.evidence?.derived?.a1cValue ?? '—';
+    const isRA2 = patientId === 'patient-ra-001' || patientId === '147e21d9-ab4e-449c-aeb4-8f3d6f7b1b4c';
+    const a1c = result.summary?.policy?.a1cValue ?? result.evidence?.derived?.a1cValue ?? result.evidence?.derived?.das28Value ?? '—';
+    const a1cLabel = isRA2 ? 'DAS28' : 'HbA1c';
     const missing = result.policy?.missing ?? result.summary?.policyResult?.missing ?? [];
     const entries = result.packet?.bundle?.entry?.length ?? '—';
 
@@ -1031,7 +1033,7 @@ async function runQuickAuth(patientId, slug) {
     out.innerHTML = `
       <div class="row" style="gap:8px;margin-bottom:6px">
         <span class="badge ${approved?'badge-green':'badge-red'}" style="font-size:12px;padding:3px 12px">${approved?'✓ APPROVED':'✗ DENIED'}</span>
-        <span class="tl-tag">HbA1c: ${a1c}%</span>
+        <span class="tl-tag">${a1cLabel}: ${a1c}${isRA2?"":"%"}</span>
         <span class="tl-tag">Policy: ${pv}</span>
         <span class="tl-tag">Bundle: ${entries} resources</span>
       </div>
@@ -1707,7 +1709,12 @@ function runFullPipelineForCurrentPatient() {
     const missing = r.policy?.missing ?? r.summary?.policyResult?.missing ?? [];
     [1,2,3,4,5,6,7].forEach(n=>markStep(n));
     setEl('medrec-out',`<div class='flex gap-2 flex-wrap mb-2'><span class='text-xs bg-primary/10 text-primary px-2.5 py-0.5 rounded-full font-bold'>BPMH: ${r.medrec?.bpmh?.id?.slice(0,8)??'—'}…</span><span class='text-xs bg-emerald-100 text-emerald-700 px-2.5 py-0.5 rounded-full font-bold'>${r.medrec?.discrepancies?.length??0} discrepancies</span></div>`);
-    setEl('evidence-out',`<div class='flex gap-2 flex-wrap'><span class='text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700'>T2D: Yes</span><span class='text-xs font-bold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full'>HbA1c: ${a1c}%</span><span class='text-xs font-bold bg-emerald-100 text-emerald-700 px-2.5 py-0.5 rounded-full'>Metformin: Yes</span></div>`);
+    const isRA = pid === 'patient-ra-001' || pid === '147e21d9-ab4e-449c-aeb4-8f3d6f7b1b4c';
+    const das28 = r.evidence?.derived?.das28Value ?? null;
+    setEl('evidence-out',`<div class='flex gap-2 flex-wrap'>${isRA
+      ? `<span class='text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700'>RA: Yes</span><span class='text-xs font-bold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full'>DAS28: ${das28??'—'}</span><span class='text-xs font-bold bg-emerald-100 text-emerald-700 px-2.5 py-0.5 rounded-full'>DMARD: Yes</span>`
+      : `<span class='text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700'>T2D: Yes</span><span class='text-xs font-bold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full'>HbA1c: ${a1c}%</span><span class='text-xs font-bold bg-emerald-100 text-emerald-700 px-2.5 py-0.5 rounded-full'>Metformin: Yes</span>`
+    }</div>`);
     setEl('policy-out',`<div class='text-center py-3 rounded-xl ${approved?'bg-emerald-50 border border-emerald-200':'bg-rose-50 border border-rose-200'}'><span class='text-xl font-black ${approved?'text-emerald-700':'text-rose-600'}'>${approved?'✓ APPROVED':'✗ DENIED'}</span></div>${missing.map(m=>`<div class='text-xs text-rose-600 font-mono mt-1'>✗ ${m}</div>`).join('')}`);
     setEl('decision-out',`<div class='text-center py-3 rounded-xl ${approved?'bg-emerald-50 border border-emerald-200':'bg-rose-50 border border-rose-200'}'><span class='text-xl font-black ${approved?'text-emerald-700':'text-rose-600'}'>${approved?'✓ APPROVED':'✗ DENIED'}</span></div>`);
     setEl('stat-a1c',`<span class='font-mono font-bold text-primary'>${a1c}%</span>`);

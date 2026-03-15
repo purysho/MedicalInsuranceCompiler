@@ -446,10 +446,23 @@ app.post("/run/submit", async (req, res) => {
 
 
 // ── Full prior auth (single endpoint — calls the same logic as MCP tool) ────
+// Route to correct MCP tool based on patient ID
+function getAuthTool(patientId: string, policyVariant: string): { tool: string; args: Record<string,any> } {
+  const isRA = patientId === "patient-ra-001" || patientId === "147e21d9-ab4e-449c-aeb4-8f3d6f7b1b4c";
+  const isComorbid = patientId === "patient-comorbid-001" || patientId === "d6417ffa-1ed8-4bb9-ae4c-d3820c9615f9";
+  const isInsulin = policyVariant === "insulin-standard" || policyVariant === "insulin-strict";
+
+  if (isComorbid) return { tool: "alice_run_prior_auth_comorbid", args: { patientId, glp1PolicyVariant: policyVariant.startsWith("adalimumab") ? "standard" : policyVariant, adalimumabPolicyVariant: policyVariant.startsWith("adalimumab") ? policyVariant : "adalimumab-strict" } };
+  if (isRA)       return { tool: "alice_run_prior_auth_adalimumab", args: { patientId, policyVariant: policyVariant.startsWith("adalimumab") ? policyVariant : "adalimumab-standard" } };
+  if (isInsulin)  return { tool: "alice_run_prior_auth_insulin", args: { patientId, policyVariant } };
+  return           { tool: "alice_run_full_prior_auth", args: { patientId, policyVariant } };
+}
+
 app.post("/run/full-prior-auth", async (req, res) => {
   try {
     const { patientId = "patient-001", policyVariant = "standard" } = req.body ?? {};
-    const result = await executeTool(store, "alice_run_full_prior_auth", { patientId, policyVariant });
+    const { tool, args } = getAuthTool(patientId, policyVariant);
+    const result = await executeTool(store, tool, args);
     res.json(result);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
@@ -460,10 +473,8 @@ app.post("/run/full-prior-auth", async (req, res) => {
 app.post("/run/demo-denied-appeal", async (req, res) => {
   try {
     const { patientId = "patient-001" } = req.body ?? {};
-    // Run with denied policy
     const denied = await executeTool(store, "alice_run_full_prior_auth", { patientId, policyVariant: "denied" });
     const denialReasons = denied.policy?.missing ?? ["Step therapy criteria not met"];
-    // Register the appeal context (creates DocumentReference in FHIR store + audit event)
     const appeal = await executeTool(store, "aria_draft_appeal", {
       patientId,
       denialReasons,
