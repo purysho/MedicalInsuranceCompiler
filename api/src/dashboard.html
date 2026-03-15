@@ -2141,12 +2141,7 @@ function appendAriaMessage(role, text) {
 
   // Format text — convert line breaks and preserve letter formatting
   const formatted = text
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    .replace(/
-
-/g,'</p><p class="mt-2">')
-    .replace(/
-/g,'<br/>');
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n\n/g,'</p><p class="mt-2">').replace(/\n/g,'<br/>');
 
   const div = document.createElement('div');
   div.className = `flex gap-3 ${isUser ? 'flex-row-reverse' : ''}`;
