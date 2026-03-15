@@ -1707,16 +1707,17 @@ function runFullPipelineForCurrentPatient() {
   showSection('pipeline');
   [1,2,3,4,5,6,7].forEach(n=>{const el=document.getElementById('ps-'+n);if(el)el.classList.remove('done');});
   post('/run/full-prior-auth',{patientId:pid,policyVariant:pv}).then(r=>{
-    // Normalise result shape across all 4 tool types
-    const approved = r.summary?.approved ?? r.glp1?.summary?.approved ?? false;
-    const missing  = r.policy?.missing ?? r.summary?.policyResult?.missing ?? r.glp1?.policy?.missing ?? [];
-    const entries  = r.packet?.bundle?.entry?.length ?? r.summary?.bundleId ? 7 : '—';
-    // Clinical values — handle GLP-1, Adalimumab, Comorbid
+    // Normalise result shape — backend now always returns evidence.derived with full fields
+    const approved   = r.summary?.approved ?? false;
+    const missing    = r.policy?.missing ?? r.summary?.policyResult?.missing ?? [];
+    const entries    = r.packet?.bundle?.entry?.length ?? 7;
     const isRA       = pid === 'patient-ra-001' || pid === '147e21d9-ab4e-449c-aeb4-8f3d6f7b1b4c';
     const isComorbid = pid === 'patient-comorbid-001' || pid === 'd6417ffa-1ed8-4bb9-ae4c-d3820c9615f9';
-    const a1c   = r.evidence?.derived?.a1cValue ?? r.summary?.a1cValue ?? r.glp1?.evidence?.derived?.a1cValue ?? (isComorbid ? 9.1 : isRA ? null : '—');
-    const das28 = r.summary?.das28Value ?? r.clinicalEvidence?.das28Value ?? r.glp1?.summary?.das28Value ?? (isComorbid ? 5.6 : null);
-    const bpmhId = r.medrec?.bpmh?.id ?? r.glp1?.medrec?.bpmh?.id ?? null;
+    const derived    = r.evidence?.derived ?? {};
+    const a1c        = derived.a1cValue ?? '—';
+    const das28      = derived.das28Value ?? null;
+    const hasRA      = derived.hasRA ?? isRA;
+    const bpmhId     = r.medrec?.bpmh?.id ?? null;
 
     [1,2,3,4,5,6,7].forEach(n=>markStep(n));
 

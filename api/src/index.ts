@@ -488,20 +488,28 @@ app.post("/run/full-prior-auth", async (req, res) => {
 
     const evidenceResult = await runEvidence(store, resolvedId, bpmhListId);
 
-    // Build policy context from FHIR data
+    // Build policy context from FHIR data — runEvidence only handles GLP-1 fields,
+    // so we extract RA/DAS28 fields directly here for all patient types
     const conditions = store.search("Condition", { subject: resolvedId });
     const observations = store.search("Observation", { subject: resolvedId });
     const statements = store.search("MedicationStatement", { subject: resolvedId });
 
     const hasT2D = conditions.some((c: any) => JSON.stringify(c).toLowerCase().includes("type 2"));
     const hasRA  = conditions.some((c: any) => JSON.stringify(c).toLowerCase().includes("rheumatoid") || JSON.stringify(c).toLowerCase().includes("arthritis"));
-    const a1cObs = observations.find((o: any) => JSON.stringify(o).toLowerCase().includes("a1c"));
+    const a1cObs   = observations.find((o: any) => JSON.stringify(o).toLowerCase().includes("a1c"));
     const das28Obs = observations.find((o: any) => JSON.stringify(o).toLowerCase().includes("das28"));
-    const a1cValue = (a1cObs as any)?.valueQuantity?.value ?? null;
+    const a1cValue   = (a1cObs as any)?.valueQuantity?.value ?? null;
     const das28Value = (das28Obs as any)?.valueQuantity?.value ?? null;
-    const hasMetforminTrial = statements.some((s: any) => (s.medicationCodeableConcept?.text ?? "").toLowerCase().includes("metformin"));
+    const hasMetforminTrial       = statements.some((s: any) => (s.medicationCodeableConcept?.text ?? "").toLowerCase().includes("metformin"));
     const hasMetforminIntolerance = statements.some((s: any) => (s.note?.[0]?.text ?? "").toLowerCase().includes("intoler"));
     const hasMtxTrial = statements.some((s: any) => JSON.stringify(s).toLowerCase().includes("methotrexate"));
+
+    // Augment evidenceResult.derived with RA fields so the dashboard gets the full picture
+    (evidenceResult as any).derived = {
+      ...evidenceResult.derived,
+      hasT2D, hasRA, a1cValue, das28Value,
+      hasMetforminTrial, hasMetforminIntolerance, hasMtxTrial,
+    };
 
     const policyResult = checkPolicy({
       hasT2D, hasRA, a1cValue, das28Value,
@@ -519,7 +527,7 @@ app.post("/run/full-prior-auth", async (req, res) => {
     res.json({
       summary: { patientId: resolvedId, policyVariant, approved, policyResult, bundleId: packetResult.bundle.id },
       medrec: medrecResult,
-      evidence: { ...evidenceResult, derived: { hasT2D, a1cValue, das28Value, hasMetforminTrial, hasMetforminIntolerance } },
+      evidence: evidenceResult,
       policy: policyResult,
       packet: packetResult,
       clinicalEvidence: { hasT2D, hasRA, a1cValue, das28Value, hasMtxTrial },
