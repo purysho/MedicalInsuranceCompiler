@@ -1,81 +1,85 @@
 /**
  * appealAgent.ts
  *
- * ARIA — Appeal & Rebuttal Intelligence Agent
- *
- * When ALICE's prior authorization is denied, ARIA takes over.
- * She reads the denial reason, retrieves the clinical evidence from FHIR,
- * and uses Claude to draft a formal clinical appeal letter that:
- *   - Directly addresses each denial reason
- *   - Cites specific FHIR resources as evidence
- *   - References clinical guidelines (ADA Standards of Care)
- *   - Is formatted for immediate submission to the payer
+ * Uses Claude to generate a real clinical appeal letter from structured
+ * FHIR evidence. Letter is stored in the DocumentReference so the dashboard
+ * can display it without relying on Prompt Opinion chat history.
  */
 
-import { FhirStore } from "../fhirStore.js";
-
-export type AppealContext = {
+export interface AppealLetterInput {
+  patientName: string;
   patientId: string;
-  claimId?: string;
-  claimResponseId?: string;
+  medication: string;
   denialReasons: string[];
+  a1cValue: number | null;
+  a1cDate: string | null;
+  t2dDiagnosis: string | null;
+  metforminHistory: Array<{ status: string; note: string | null }>;
   policyVariant: string;
-  // FHIR evidence to cite
-  t2dDiagnosis?: any;
-  a1cObservation?: any;
-  metforminHistory?: any;
-  bpmhSummary?: string;
-  // Optional: note extraction context
-  noteExtractionSummary?: string;
-};
+  appealRound: number;
+  counterObjections?: string[];
+  noteExtractionSummary?: string | null;
+}
 
-export type AppealDraft = {
+export interface AppealLetterResult {
   letterText: string;
   subject: string;
-  addressedReasons: string[];
-  citedEvidence: string[];
-  recommendedNextSteps: string[];
-  urgencyLevel: "routine" | "expedited" | "urgent";
+  citations: string[];
   model: string;
   durationMs: number;
-};
+}
 
-const APPEAL_SYSTEM_PROMPT = `You are ARIA, a clinical prior authorization appeal specialist with deep expertise in payer policy, clinical guidelines, and medical necessity documentation.
+const APPEAL_SYSTEM = `You are ARIA — Appeal & Rebuttal Intelligence Agent. You write formal, persuasive clinical appeal letters on behalf of treating clinicians when prior authorization requests are denied by insurance payers.
 
-Your job is to draft formal, persuasive clinical appeal letters that get prior authorizations approved on reconsideration.
+Your letters are:
+- Addressed to the Payer Medical Director
+- 4-5 paragraphs, formal clinical tone
+- Evidence-based: cite specific FHIR resource IDs, lab values, and clinical guidelines
+- Always cite ADA Standards of Medical Care (current year), relevant clinical trials (SUSTAIN-6, LEADER, EMPA-REG for GLP-1/SGLT-2), and ADA/EASD consensus statements
+- Close with: "Respectfully submitted,\nARIA — Appeal & Rebuttal Intelligence Agent\non behalf of the treating clinician"
 
-Your letters must:
-1. Be professionally formatted for immediate submission to a payer
-2. Directly address EACH denial reason with specific clinical counter-arguments
-3. Cite the specific FHIR clinical evidence provided (by resource type and key values)
-4. Reference relevant clinical guidelines — specifically the ADA Standards of Medical Care in Diabetes (current year) for GLP-1/semaglutide requests
-5. Be factually accurate — never fabricate clinical data
-6. Recommend urgency level based on clinical context
+For Round 2+ rebuttals, escalate urgency and directly address each payer counter-objection with literature.`;
 
-You must respond with a single valid JSON object and nothing else:
-{
-  "subject": "Re: Appeal of Prior Authorization Denial - [medication] for [condition]",
-  "letterText": "Full formal letter text with proper salutation, body paragraphs, and closing. Use \\n for line breaks.",
-  "addressedReasons": ["list of each denial reason and how it was addressed"],
-  "citedEvidence": ["list of FHIR resources and clinical values cited in the letter"],
-  "recommendedNextSteps": ["ordered list of next steps if appeal is rejected"],
-  "urgencyLevel": "routine" | "expedited" | "urgent",
-  "clinicalRationale": "brief summary of the core clinical argument"
-}`;
-
-export async function draftAppealLetter(
-  context: AppealContext,
+export async function generateAppealLetter(
+  input: AppealLetterInput,
   apiKey?: string
-): Promise<AppealDraft> {
+): Promise<AppealLetterResult> {
   const key = apiKey ?? process.env.ANTHROPIC_API_KEY;
-  if (!key) {
-    throw new Error("ANTHROPIC_API_KEY is not set.");
-  }
+  if (!key) throw new Error("ANTHROPIC_API_KEY not set");
 
   const start = Date.now();
 
-  // Build the clinical context summary for Claude
-  const clinicalContext = buildClinicalContext(context);
+  const isRebuttal = input.appealRound > 1;
+  const prompt = isRebuttal
+    ? `Generate a Round ${input.appealRound} rebuttal appeal letter for the following case.
+
+Patient: ${input.patientName} (FHIR ID: ${input.patientId})
+Medication Requested: ${input.medication}
+HbA1c: ${input.a1cValue ?? "not recorded"}% (${input.a1cDate ?? "date unknown"})
+Diagnosis: ${input.t2dDiagnosis ?? "Type 2 Diabetes Mellitus"}
+Prior Medication History: ${input.metforminHistory.map(m => `${m.status}${m.note ? ` — ${m.note}` : ""}`).join("; ") || "not documented"}
+${input.noteExtractionSummary ? `Additional Clinical Context: ${input.noteExtractionSummary}` : ""}
+
+Original Denial Reasons:
+${input.denialReasons.map((r, i) => `${i + 1}. ${r}`).join("\n")}
+
+Payer Counter-Objections to Address in this Rebuttal:
+${(input.counterObjections ?? []).map((r, i) => `${i + 1}. ${r}`).join("\n")}
+
+Write a formal Round ${input.appealRound} rebuttal letter with escalating urgency. Directly address each counter-objection with specific clinical literature citations.`
+    : `Generate a Round 1 clinical appeal letter for the following prior authorization denial.
+
+Patient: ${input.patientName} (FHIR ID: ${input.patientId})
+Medication Requested: ${input.medication}
+HbA1c: ${input.a1cValue ?? "not recorded"}% (${input.a1cDate ?? "date unknown"})
+Diagnosis: ${input.t2dDiagnosis ?? "Type 2 Diabetes Mellitus"}
+Prior Medication History: ${input.metforminHistory.map(m => `${m.status}${m.note ? ` — ${m.note}` : ""}`).join("; ") || "not documented"}
+${input.noteExtractionSummary ? `Additional Clinical Context: ${input.noteExtractionSummary}` : ""}
+
+Denial Reasons to Address:
+${input.denialReasons.map((r, i) => `${i + 1}. ${r}`).join("\n")}
+
+Write a formal appeal letter addressing each denial reason with clinical evidence and ADA guideline citations.`;
 
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -86,111 +90,52 @@ export async function draftAppealLetter(
     },
     body: JSON.stringify({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 1024,
-      system: APPEAL_SYSTEM_PROMPT,
-      messages: [
-        {
-          role: "user",
-          content: clinicalContext,
-        },
-      ],
+      max_tokens: 1200,
+      system: APPEAL_SYSTEM,
+      messages: [{ role: "user", content: prompt }],
     }),
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Anthropic API error ${response.status}: ${errorText}`);
+    const err = await response.text();
+    throw new Error(`Claude API error: ${response.status} ${err}`);
   }
 
-  const data = await response.json() as any;
-  const rawResponse = data.content?.[0]?.text ?? "";
-  const durationMs = Date.now() - start;
+  const data = await response.json();
+  const letterText = data.content?.[0]?.text ?? "";
 
-  let parsed: any;
-  try {
-    const clean = rawResponse
-      .replace(/^```json\s*/i, "")
-      .replace(/^```\s*/i, "")
-      .replace(/```\s*$/i, "")
-      .trim();
-    parsed = JSON.parse(clean);
-  } catch {
-    throw new Error(`Claude returned invalid JSON for appeal letter. Raw: ${rawResponse.slice(0, 500)}`);
+  // Extract citations mentioned in the letter
+  const citationPatterns = [
+    /ADA Standards[^.]+/g,
+    /SUSTAIN-\d[^.]+/g,
+    /LEADER[^.]+trial[^.]*/gi,
+    /EMPA-REG[^.]+/g,
+    /ADA\/EASD[^.]+/g,
+  ];
+  const citations: string[] = [];
+  for (const pat of citationPatterns) {
+    const matches = letterText.match(pat);
+    if (matches) citations.push(...matches.map(m => m.trim().slice(0, 80)));
   }
 
   return {
-    letterText: parsed.letterText,
-    subject: parsed.subject,
-    addressedReasons: parsed.addressedReasons ?? [],
-    citedEvidence: parsed.citedEvidence ?? [],
-    recommendedNextSteps: parsed.recommendedNextSteps ?? [],
-    urgencyLevel: parsed.urgencyLevel ?? "routine",
-    model: data.model ?? "claude-sonnet-4-20250514",
-    durationMs,
+    letterText,
+    subject: `Re: Appeal of Prior Authorization Denial — ${input.medication}${isRebuttal ? ` (Round ${input.appealRound} Rebuttal)` : ""}`,
+    citations: [...new Set(citations)],
+    model: data.model ?? "claude-haiku-4-5-20251001",
+    durationMs: Date.now() - start,
   };
 }
 
-function buildClinicalContext(context: AppealContext): string {
-  const lines: string[] = [
-    `PRIOR AUTHORIZATION APPEAL REQUEST`,
-    `=====================================`,
-    ``,
-    `PATIENT ID: ${context.patientId}`,
-    `CLAIM ID: ${context.claimId ?? "N/A"}`,
-    `CLAIM RESPONSE ID: ${context.claimResponseId ?? "N/A"}`,
-    `POLICY VARIANT: ${context.policyVariant}`,
-    ``,
-    `DENIAL REASONS (must address each one):`,
-    ...context.denialReasons.map((r, i) => `  ${i + 1}. ${r}`),
-    ``,
-    `CLINICAL EVIDENCE AVAILABLE:`,
-  ];
-
-  if (context.t2dDiagnosis) {
-    lines.push(`  - Type 2 Diabetes Diagnosis: ${JSON.stringify(context.t2dDiagnosis.code?.text ?? context.t2dDiagnosis)}`);
-    lines.push(`    FHIR Resource: Condition/${context.t2dDiagnosis.id}`);
-  }
-
-  if (context.a1cObservation) {
-    const val = context.a1cObservation.valueQuantity?.value;
-    const date = context.a1cObservation.effectiveDateTime;
-    lines.push(`  - HbA1c: ${val}% (${date})`);
-    lines.push(`    FHIR Resource: Observation/${context.a1cObservation.id}`);
-  }
-
-  if (context.metforminHistory) {
-    lines.push(`  - Metformin History: ${JSON.stringify(context.metforminHistory)}`);
-  }
-
-  if (context.bpmhSummary) {
-    lines.push(`  - BPMH Summary: ${context.bpmhSummary}`);
-  }
-
-  if (context.noteExtractionSummary) {
-    lines.push(`  - AI-Extracted Clinical Note Summary: ${context.noteExtractionSummary}`);
-  }
-
-  lines.push(``);
-  lines.push(`MEDICATION REQUESTED: Semaglutide (GLP-1 receptor agonist)`);
-  lines.push(`INDICATION: Type 2 Diabetes Mellitus with inadequate glycemic control`);
-  lines.push(``);
-  lines.push(`Please draft a formal appeal letter addressing all denial reasons using the clinical evidence above.`);
-  lines.push(`Cite ADA Standards of Medical Care in Diabetes guidelines where relevant.`);
-
-  return lines.join("\n");
-}
-
-/**
- * Build appeal context from FHIR store after a denial
- */
+// ── buildAppealContext (used by mcpServer to assemble FHIR evidence) ────────
 export function buildAppealContext(
-  store: FhirStore,
+  store: any,
   patientId: string,
   denialReasons: string[],
   policyVariant: string,
   claimId?: string,
   claimResponseId?: string
-): AppealContext {
+) {
   const conditions = store.search("Condition", { subject: patientId });
   const observations = store.search("Observation", { subject: patientId });
   const statements = store.search("MedicationStatement", { subject: patientId });
@@ -198,32 +143,27 @@ export function buildAppealContext(
 
   const t2dDiagnosis = conditions.find((c: any) =>
     JSON.stringify(c).toLowerCase().includes("type 2")
-  );
+  ) ?? null;
 
   const a1cObservation = observations.find((o: any) =>
     JSON.stringify(o).toLowerCase().includes("a1c")
-  );
+  ) ?? null;
 
-  const metforminStatements = statements.filter((s: any) =>
+  const metforminHistory = statements.filter((s: any) =>
     (s.medicationCodeableConcept?.text ?? "").toLowerCase().includes("metformin")
   );
 
-  const bpmhList = lists.find((l: any) =>
-    (l.title ?? "").toLowerCase().includes("bpmh") ||
-    (l.title ?? "").toLowerCase().includes("reconcil")
-  );
+  const bpmhList = lists.find((l: any) => l.title?.toLowerCase().includes("bpmh")) ?? null;
+  const bpmhSummary = bpmhList
+    ? `BPMH List ID: ${bpmhList.id}, ${(bpmhList.entry ?? []).length} medications`
+    : null;
 
   return {
-    patientId,
-    claimId,
-    claimResponseId,
-    denialReasons,
-    policyVariant,
-    t2dDiagnosis,
-    a1cObservation,
-    metforminHistory: metforminStatements,
-    bpmhSummary: bpmhList
-      ? `${bpmhList.title} — ${bpmhList.entry?.length ?? 0} medications reconciled`
-      : undefined,
+    patientId, denialReasons, policyVariant, claimId, claimResponseId,
+    t2dDiagnosis, a1cObservation, metforminHistory, bpmhSummary,
+    noteExtractionSummary: null,
   };
 }
+
+// legacy stub — not used but keeps import happy
+export async function draftAppealLetter() { return null; }
