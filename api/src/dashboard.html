@@ -1,508 +1,468 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>ALICE — Prior Authorization Intelligence</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+tailwind.config = {
+  darkMode: "class",
+  theme: {
+    extend: {
+      colors: {
+        "primary": "#A3B18A",
+        "terracotta": "#E68A56",
+        "cream": "#F9F5F1",
+        "deep-brown": "#3D2B1F",
+        "background-light": "#F9F5F1",
+        "background-dark": "#191b17",
+      },
+      fontFamily: { "display": ["Lexend", "sans-serif"], "mono": ["DM Mono", "monospace"] },
+      borderRadius: { "DEFAULT": "1rem", "lg": "1rem", "xl": "2rem", "full": "9999px" },
+    },
+  },
+}
+</script>
 <style>
-/* ── Theme variables ─────────────────────────────────────────────── */
-:root {
-  --bg:#f0ede8;--s1:#ffffff;--s2:#f7f5f2;--s3:#ede9e4;
-  --border:rgba(0,0,0,0.07);--border2:rgba(0,0,0,0.12);
-  --alice:#5c8a52;--aria:#c4674a;
-  --green:#5c8a52;--red:#c0392b;--amber:#b8731a;
-  --cyan:#2980a8;--purple:#7c5cbf;
-  --text:#1a1f2e;--muted:#6b7280;--dim:#9ca3af;
-  --card-shadow:0 1px 4px rgba(0,0,0,0.06),0 2px 12px rgba(0,0,0,0.04);
-  --mono:'DM Mono',monospace;--sans:'DM Sans',sans-serif;
-}
-[data-theme="dark"] {
-  --bg:#0f1117;--s1:#13161f;--s2:#181c27;--s3:#1e2333;
-  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
-  --alice:#7db86e;--aria:#e07c5a;
-  --green:#7db86e;--red:#f07070;--amber:#e0a040;
-  --cyan:#5ab0d8;--purple:#a88ce0;
-  --text:#e8e4df;--muted:#8a9199;--dim:#4a5168;
-  --card-shadow:none;
-}
-/* ── Reset ───────────────────────────────────────────────────────── */
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.6;min-height:100vh;transition:background .2s,color .2s;}
-/* ── Shell layout ────────────────────────────────────────────────── */
-.shell{display:grid;grid-template-columns:220px 1fr;grid-template-rows:56px 1fr;min-height:100vh;}
-/* ── Topbar ──────────────────────────────────────────────────────── */
-.topbar{grid-column:1/-1;grid-row:1;display:flex;align-items:center;justify-content:space-between;padding:0 24px;background:var(--s1);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;box-shadow:var(--card-shadow);}
-.topbar-brand{display:flex;align-items:center;gap:10px;}
-.topbar-logo{width:32px;height:32px;border-radius:10px;background:var(--alice);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px;color:#fff;}
-.topbar-name{font-weight:600;font-size:16px;color:var(--text);}
-.topbar-sub{font-size:12px;color:var(--muted);margin-left:2px;}
-.topbar-right{display:flex;align-items:center;gap:10px;}
-/* ── Theme toggle ────────────────────────────────────────────────── */
-.theme-toggle{width:36px;height:36px;border-radius:50%;border:1px solid var(--border2);background:var(--s2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;transition:all .15s;}
-.theme-toggle:hover{background:var(--s3);}
-/* ── Live pill ───────────────────────────────────────────────────── */
-.live-pill{display:flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;background:rgba(92,138,82,0.1);border:1px solid rgba(92,138,82,0.25);font-size:12px;color:var(--alice);}
-.live-dot{width:6px;height:6px;border-radius:50%;background:var(--alice);animation:blink 2s infinite;}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
-.sync-pill{display:flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;border:1px solid var(--border2);font-size:12px;color:var(--muted);cursor:pointer;background:var(--s2);transition:all .15s;}
-.sync-pill:hover{border-color:var(--alice);color:var(--alice);}
-.sync-pill.syncing{color:var(--alice);border-color:rgba(92,138,82,0.4);}
-/* ── Sidebar ─────────────────────────────────────────────────────── */
-.sidebar{grid-column:1;grid-row:2;background:var(--s1);border-right:1px solid var(--border);padding:16px 0;overflow-y:auto;}
-.sidebar-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);padding:10px 16px 4px;}
-.nav-item{display:flex;align-items:center;gap:10px;padding:9px 16px;cursor:pointer;font-size:13px;color:var(--muted);transition:all .12s;border-radius:0;}
-.nav-item:hover{background:var(--s2);color:var(--text);}
-.nav-item.active{background:rgba(92,138,82,0.1);color:var(--alice);font-weight:500;border-right:3px solid var(--alice);}
-.patient-switcher{margin:4px 12px 8px;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--s2);}
-.patient-btn{width:100%;padding:9px 12px;background:none;border:none;border-bottom:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:13px;cursor:pointer;text-align:left;transition:all .12s;display:flex;align-items:center;gap:10px;}
-.patient-btn:last-child{border-bottom:none;}
-.patient-btn:hover{background:var(--s1);color:var(--text);}
-.patient-btn.active{background:var(--s1);color:var(--text);}
-.patient-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
-.sidebar-status{margin:4px 12px 4px;padding:12px 14px;background:var(--s2);border:1px solid var(--border);border-radius:12px;}
-.status-row{display:flex;justify-content:space-between;margin-bottom:6px;align-items:center;}
-.status-row:last-child{margin-bottom:0;}
-.status-lbl{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);}
-.status-val{font-family:var(--mono);font-size:12px;color:var(--muted);}
-/* ── Main ────────────────────────────────────────────────────────── */
-.main{grid-column:2;grid-row:2;overflow-y:auto;padding:24px;display:flex;flex-direction:column;gap:16px;}
-/* ── Cards ───────────────────────────────────────────────────────── */
-.panel{background:var(--s1);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:var(--card-shadow);animation:fadeIn .25s ease both;}
-@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
-.panel-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);}
-.panel-title{font-size:13px;font-weight:500;color:var(--muted);display:flex;align-items:center;gap:8px;text-transform:uppercase;letter-spacing:.06em;}
-.panel-body{padding:16px 18px;}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
-@media(max-width:860px){.grid2{grid-template-columns:1fr;}}
-/* ── Pipeline track ──────────────────────────────────────────────── */
-.pipeline-track{display:flex;background:var(--s2);border-radius:10px;overflow:hidden;border:1px solid var(--border);margin-bottom:14px;}
-.pipe-step{flex:1;padding:11px 6px;text-align:center;border-right:1px solid var(--border);cursor:pointer;transition:all .12s;background:none;border-top:none;border-bottom:none;border-left:none;color:var(--dim);font-family:var(--sans);}
-.pipe-step:last-child{border-right:none;}
-.pipe-step:hover{background:rgba(92,138,82,0.06);color:var(--text);}
-.pipe-step.done{color:var(--alice);}
-.pipe-step .sn{font-family:var(--mono);font-size:9px;color:var(--dim);display:block;margin-bottom:2px;}
-.pipe-step .sl{font-size:12px;font-weight:500;}
-/* ── Patient run cards ───────────────────────────────────────────── */
-.pat-run-card{background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px;transition:border-color .15s;}
-.pat-run-card.running{border-color:rgba(92,138,82,0.4);}
-.pat-run-card.done-approved{border-color:rgba(92,138,82,0.5);background:rgba(92,138,82,0.04);}
-.pat-run-card.done-denied{border-color:rgba(196,103,74,0.4);background:rgba(196,103,74,0.03);}
-/* ── Buttons ─────────────────────────────────────────────────────── */
-button{font-family:var(--sans);cursor:pointer;transition:all .12s;border:none;}
-.btn{padding:9px 18px;border-radius:10px;font-size:13px;font-weight:500;}
-.btn-primary{background:var(--alice);color:#fff;}
-.btn-primary:hover{filter:brightness(1.08);}
-.btn-ghost{background:var(--s2);color:var(--text);border:1px solid var(--border2);}
-.btn-ghost:hover{background:var(--s3);}
-.btn-aria{background:rgba(196,103,74,0.1);color:var(--aria);border:1px solid rgba(196,103,74,0.25);}
-.btn-aria:hover{background:rgba(196,103,74,0.18);}
-.btn-green{background:rgba(92,138,82,0.12);color:var(--green);border:1px solid rgba(92,138,82,0.3);}
-.btn-green:hover{background:rgba(92,138,82,0.2);}
-.btn-sm{padding:6px 12px;font-size:12px;border-radius:8px;}
-button:disabled{opacity:.4;cursor:not-allowed;}
-/* ── Badges ──────────────────────────────────────────────────────── */
-.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:6px;font-size:12px;font-weight:500;}
-.badge-green{background:rgba(92,138,82,0.12);color:#3d6b35;border:1px solid rgba(92,138,82,0.2);}
-.badge-red{background:rgba(192,57,43,0.1);color:#c0392b;border:1px solid rgba(192,57,43,0.2);}
-.badge-amber{background:rgba(184,115,26,0.1);color:#8a5510;border:1px solid rgba(184,115,26,0.2);}
-.badge-blue{background:rgba(41,128,168,0.1);color:#1a6080;border:1px solid rgba(41,128,168,0.2);}
-.badge-purple{background:rgba(124,92,191,0.1);color:#5c3d9a;border:1px solid rgba(124,92,191,0.2);}
-.badge-cyan{background:rgba(41,128,168,0.1);color:#1a6080;border:1px solid rgba(41,128,168,0.2);}
-[data-theme="dark"] .badge-green{color:#a0d090;}
-[data-theme="dark"] .badge-red{color:#f08080;}
-[data-theme="dark"] .badge-amber{color:#e0b060;}
-[data-theme="dark"] .badge-blue{color:#70b8e0;}
-[data-theme="dark"] .badge-purple{color:#c0a0f0;}
-/* ── Alerts ──────────────────────────────────────────────────────── */
-.alert{padding:10px 14px;border-radius:10px;font-size:13px;}
-.alert-err{background:rgba(192,57,43,0.08);border:1px solid rgba(192,57,43,0.2);color:var(--red);}
-.alert-ok{background:rgba(92,138,82,0.08);border:1px solid rgba(92,138,82,0.2);color:var(--green);}
-.alert-info{background:rgba(41,128,168,0.08);border:1px solid rgba(41,128,168,0.2);color:var(--cyan);}
-/* ── Form elements ───────────────────────────────────────────────── */
-pre{background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-family:var(--mono);font-size:12px;color:var(--muted);overflow:auto;max-height:220px;white-space:pre-wrap;word-break:break-all;}
-input[type=text]{background:var(--s2);border:1px solid var(--border2);border-radius:10px;color:var(--text);font-family:var(--sans);font-size:13px;padding:9px 14px;outline:none;width:100%;transition:border-color .12s;}
-input[type=text]:focus{border-color:var(--alice);}
-select{background:var(--s2);border:1px solid var(--border2);border-radius:10px;color:var(--text);font-family:var(--sans);font-size:13px;padding:7px 12px;outline:none;cursor:pointer;}
-/* ── Tabs ────────────────────────────────────────────────────────── */
-.tabs{display:flex;gap:4px;}
-.tab{padding:6px 14px;border-radius:8px;font-size:12px;cursor:pointer;border:1px solid transparent;color:var(--muted);transition:all .12s;background:none;}
-.tab.active{background:rgba(92,138,82,0.1);color:var(--alice);border-color:rgba(92,138,82,0.25);font-weight:500;}
-.tab:hover:not(.active){color:var(--text);background:var(--s2);}
-/* ── Timeline ────────────────────────────────────────────────────── */
-.timeline{position:relative;}
-.tl-item{display:flex;gap:12px;padding-bottom:14px;}
-.tl-spine{display:flex;flex-direction:column;align-items:center;flex-shrink:0;width:28px;}
-.tl-node{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid;background:var(--s1);z-index:1;}
-.tl-line{flex:1;width:1px;background:var(--border);min-height:10px;margin-top:2px;}
-.tl-item:last-child .tl-line{display:none;}
-.tl-content{flex:1;background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:10px 14px;min-width:0;}
-.tl-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;gap:8px;flex-wrap:wrap;}
-.tl-agent{font-size:13px;font-weight:600;}
-.tl-action{font-family:var(--mono);font-size:11px;color:var(--dim);background:var(--s3);padding:2px 7px;border-radius:4px;}
-.tl-time{font-family:var(--mono);font-size:11px;color:var(--dim);}
-.tl-patient-tag{font-size:11px;padding:2px 8px;border-radius:4px;background:rgba(92,138,82,0.1);color:var(--alice);border:1px solid rgba(92,138,82,0.2);}
-.tl-desc{font-size:13px;color:var(--muted);}
-.tl-ai{margin-top:8px;padding:10px 12px;background:rgba(124,92,191,0.06);border:1px solid rgba(124,92,191,0.15);border-radius:10px;}
-.tl-tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;}
-.tl-tag{font-family:var(--mono);font-size:11px;padding:2px 7px;border-radius:4px;background:var(--s3);color:var(--dim);border:1px solid var(--border);}
-.tl-handoff{margin-top:8px;padding:8px 12px;background:rgba(196,103,74,0.06);border:1px solid rgba(196,103,74,0.2);border-radius:8px;}
-/* ── Decisions ───────────────────────────────────────────────────── */
-.decision-banner{padding:16px;border-radius:12px;text-align:center;margin-bottom:12px;}
-.decision-banner.approved{background:rgba(92,138,82,0.08);border:1px solid rgba(92,138,82,0.25);}
-.decision-banner.denied{background:rgba(192,57,43,0.07);border:1px solid rgba(192,57,43,0.2);}
-.decision-text{font-size:18px;font-weight:600;letter-spacing:.02em;}
-/* ── Patient cards ───────────────────────────────────────────────── */
-.pt-card{background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:12px;}
-.pt-name{font-weight:500;font-size:14px;margin-bottom:2px;}
-.pt-meta{font-family:var(--mono);font-size:11px;color:var(--muted);}
-/* ── Spinner ─────────────────────────────────────────────────────── */
-.spin{display:inline-block;width:13px;height:13px;border:2px solid var(--border2);border-top-color:var(--alice);border-radius:50%;animation:spin .6s linear infinite;}
-@keyframes spin{to{transform:rotate(360deg)}}
-/* ── Misc ────────────────────────────────────────────────────────── */
-.muted{color:var(--muted);}
-.center{text-align:center;padding:20px 0;}
-.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
-.flex1{flex:1;}
-.graph-wrap{overflow-x:auto;background:var(--s2);border-radius:10px;border:1px solid var(--border);padding:14px;}
-/* ── Prompt boxes ────────────────────────────────────────────────── */
-.prompt-box{background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--text);line-height:1.5;min-height:54px;}
-/* ── Appeals ─────────────────────────────────────────────────────── */
-.round-card{background:var(--s2);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:10px;}
-.round-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);}
-.round-body{padding:12px 14px;}
-.counter-card{margin-top:10px;padding:10px 12px;background:rgba(192,57,43,0.05);border:1px solid rgba(192,57,43,0.18);border-radius:8px;}
-.escalation-bar{display:flex;margin-bottom:14px;border:1px solid var(--border);border-radius:10px;overflow:hidden;}
-.esc-step{flex:1;padding:9px 10px;text-align:center;border-right:1px solid var(--border);background:var(--s2);font-size:12px;color:var(--dim);}
-.esc-step:last-child{border-right:none;}
-.esc-step.active{background:rgba(196,103,74,0.08);color:var(--aria);}
-.esc-step.done{background:rgba(92,138,82,0.07);color:var(--green);}
-/* ── ARIA letter ─────────────────────────────────────────────────── */
-.letter-card{background:var(--s2);border:1px solid rgba(196,103,74,0.25);border-radius:10px;overflow:hidden;margin-top:10px;}
-.letter-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(196,103,74,0.05);border-bottom:1px solid rgba(196,103,74,0.12);cursor:pointer;user-select:none;}
-.letter-head:hover{background:rgba(196,103,74,0.09);}
-.letter-body{padding:16px 18px;font-family:var(--mono);font-size:12px;line-height:1.8;color:var(--text);white-space:pre-wrap;word-break:break-word;max-height:480px;overflow-y:auto;}
-.letter-citations{padding:10px 14px;border-top:1px solid rgba(196,103,74,0.1);background:rgba(0,0,0,0.02);}
-/* ── Reasoning trace ─────────────────────────────────────────────── */
-.reason-drawer{overflow:hidden;max-height:0;transition:max-height .25s ease;}
-.reason-drawer.open{max-height:400px;}
-.reason-content{padding:10px 12px;margin-top:6px;background:rgba(124,92,191,0.05);border:1px solid rgba(124,92,191,0.15);border-radius:8px;}
-.reason-toggle{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--purple);cursor:pointer;padding:3px 8px;border-radius:4px;background:rgba(124,92,191,0.08);border:1px solid rgba(124,92,191,0.15);margin-top:5px;transition:all .12s;}
-.reason-toggle:hover{background:rgba(124,92,191,0.15);}
-/* ── Sync flash ──────────────────────────────────────────────────── */
-@keyframes syncFlash{0%{background:rgba(92,138,82,0.12)}100%{background:transparent}}
-.sync-flash{animation:syncFlash 1s ease;}
+body { font-family: 'Lexend', sans-serif; }
+.material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; font-size: 20px; }
+.nav-item:hover { background-color: rgba(163,177,138,0.15); }
+.nav-item.active { background-color: rgba(163,177,138,0.2); color: #3D2B1F; font-weight: 600; }
+.dark .nav-item.active { color: #F9F5F1; }
+.pipe-btn.done { color: #A3B18A; border-bottom: 3px solid #A3B18A; }
+.pipe-btn.active { color: #3D2B1F; border-bottom: 3px solid #A3B18A; font-weight: 700; }
+.dark .pipe-btn.active { color: #F9F5F1; }
+.pipe-btn { border-bottom: 3px solid transparent; transition: all .15s; }
+.spin { display:inline-block;width:14px;height:14px;border:2px solid rgba(163,177,138,0.3);border-top-color:#A3B18A;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle; }
+@keyframes spin { to { transform:rotate(360deg) } }
+.tl-node { width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid;background:white;flex-shrink:0; }
+.dark .tl-node { background:#191b17; }
+.timeline-line { width:1px;background:rgba(163,177,138,0.2);flex:1;min-height:10px;margin-top:2px; }
+.reason-drawer { overflow:hidden;max-height:0;transition:max-height .25s ease; }
+.reason-drawer.open { max-height:400px; }
+.letter-body { font-family:'DM Mono',monospace;font-size:12px;line-height:1.8;white-space:pre-wrap;word-break:break-word;max-height:480px;overflow-y:auto; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:none} }
+.section-panel { animation:fadeIn .2s ease both; }
+@keyframes syncFlash { 0%{background:rgba(163,177,138,0.15)} 100%{background:transparent} }
+.sync-flash { animation:syncFlash 1s ease; }
 </style>
+
 <script>
 (function(){
   const saved = localStorage.getItem('alice-theme');
   const preferred = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   const theme = saved || preferred;
-  if(theme === 'dark') document.documentElement.setAttribute('data-theme','dark');
+  if(theme === 'dark') document.documentElement.classList.add('dark');
   document.addEventListener('DOMContentLoaded', function(){
     const btn = document.getElementById('theme-toggle');
     if(btn) btn.textContent = theme === 'dark' ? '☀' : '☾';
   });
 })();
-
-function toggleTheme() {
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  const next = isDark ? 'light' : 'dark';
-  document.documentElement.setAttribute('data-theme', next);
-  localStorage.setItem('alice-theme', next);
-  document.getElementById('theme-toggle').textContent = next === 'dark' ? '☀' : '☾';
-}
-
 </script>
 </head>
-<body>
-<div class="shell">
+<body class="bg-background-light dark:bg-background-dark text-deep-brown font-display min-h-screen">
+<div class="flex h-screen overflow-hidden">
 
-<header class="topbar">
-  <div class="topbar-brand">
-    <div class="topbar-logo">A</div>
-    <span class="topbar-name">ALICE</span>
-    <span class="topbar-sub" style="display:none" id="topbar-sub-wide">/ Prior Authorization Intelligence</span>
-  </div>
-  <div class="topbar-right">
-    <div id="error-banner" class="alert alert-err" style="display:none;padding:4px 10px;font-size:11px"></div>
-    <div id="busy-banner" class="alert alert-info" style="display:none;padding:4px 10px;font-size:11px"></div>
-    <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode">☀</button>
-    <div class="sync-pill" id="sync-pill" onclick="toggleAutoSync()" title="Auto-sync with Prompt Opinion every 10s">
-      <span id="sync-icon">⟳</span>
-      <span id="sync-label">Sync OFF</span>
+<!-- ── Sidebar ─────────────────────────────────────────────── -->
+<aside class="w-64 bg-white dark:bg-zinc-900 border-r border-primary/20 flex flex-col justify-between p-5 flex-shrink-0">
+  <div class="flex flex-col gap-6">
+    <!-- Brand -->
+    <div class="flex items-center gap-3 px-1">
+      <div class="w-9 h-9 rounded-xl bg-primary flex items-center justify-center text-white">
+        <span class="material-symbols-outlined" style="font-size:18px">clinical_notes</span>
+      </div>
+      <div>
+        <h1 class="text-deep-brown dark:text-cream font-bold text-base leading-tight">ALICE</h1>
+        <p class="text-deep-brown/50 dark:text-cream/50 text-xs">Prior Auth Intelligence</p>
+      </div>
     </div>
-    <div class="live-pill"><div class="live-dot"></div>LIVE</div>
-    <button class="btn btn-primary" onclick="runFullDemo()" id="btn-demo">▶ Run Full Demo</button>
+    <!-- Nav -->
+    <nav class="flex flex-col gap-1" id="main-nav">
+      <a class="nav-item active flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm" onclick="showSection('pipeline')">
+        <span class="material-symbols-outlined text-primary" style="font-size:18px">account_tree</span><span>Pipeline</span>
+      </a>
+      <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-deep-brown/70 dark:text-cream/60 text-sm" onclick="showSection('run-auth')">
+        <span class="material-symbols-outlined" style="font-size:18px">play_circle</span><span>Run Prior Auth</span>
+      </a>
+      <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-deep-brown/70 dark:text-cream/60 text-sm" onclick="showSection('audit')">
+        <span class="material-symbols-outlined" style="font-size:18px">history</span><span>Audit Trail</span>
+      </a>
+      <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-deep-brown/70 dark:text-cream/60 text-sm" onclick="showSection('appeals')">
+        <span class="material-symbols-outlined" style="font-size:18px">gavel</span><span>ARIA Appeals</span>
+      </a>
+      <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-deep-brown/70 dark:text-cream/60 text-sm" onclick="showSection('smart')">
+        <span class="material-symbols-outlined" style="font-size:18px">travel_explore</span><span>SMART Health IT</span>
+      </a>
+      <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-deep-brown/70 dark:text-cream/60 text-sm" onclick="showSection('fhir')">
+        <span class="material-symbols-outlined" style="font-size:18px">database</span><span>FHIR Store</span>
+      </a>
+    </nav>
+    <!-- Patients -->
+    <div>
+      <p class="text-xs font-semibold text-deep-brown/40 dark:text-cream/30 uppercase tracking-widest px-1 mb-2">Patients</p>
+      <div class="flex flex-col gap-1" id="patient-list">
+        <button onclick="selectPatient('bernard')" id="pt-bernard" class="patient-btn flex items-center gap-2.5 px-3 py-2 rounded-xl text-left hover:bg-primary/10 transition-colors w-full text-sm font-medium bg-primary/10">
+          <span class="w-2 h-2 rounded-full bg-primary flex-shrink-0"></span>
+          <div><div class="text-deep-brown dark:text-cream text-sm font-medium leading-tight">Bernard Rieux</div><div class="text-deep-brown/40 dark:text-cream/40 text-xs font-mono">T2D · GLP-1</div></div>
+        </button>
+        <button onclick="selectPatient('dorothea')" id="pt-dorothea" class="patient-btn flex items-center gap-2.5 px-3 py-2 rounded-xl text-left hover:bg-primary/10 transition-colors w-full text-sm font-medium">
+          <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:#bc8cff"></span>
+          <div><div class="text-deep-brown dark:text-cream text-sm font-medium leading-tight">Dorothea Brooke</div><div class="text-deep-brown/40 dark:text-cream/40 text-xs font-mono">RA · Adalimumab</div></div>
+        </button>
+        <button onclick="selectPatient('eleanor')" id="pt-eleanor" class="patient-btn flex items-center gap-2.5 px-3 py-2 rounded-xl text-left hover:bg-primary/10 transition-colors w-full text-sm font-medium">
+          <span class="w-2 h-2 rounded-full flex-shrink-0 bg-terracotta"></span>
+          <div><div class="text-deep-brown dark:text-cream text-sm font-medium leading-tight">Eleanor Vance</div><div class="text-deep-brown/40 dark:text-cream/40 text-xs font-mono">T2D+RA · Dual</div></div>
+        </button>
+        <button onclick="selectPatient('imported')" id="pt-imported" class="patient-btn hidden flex items-center gap-2.5 px-3 py-2 rounded-xl text-left hover:bg-primary/10 transition-colors w-full text-sm font-medium">
+          <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:#39d0d8"></span>
+          <div><div class="text-deep-brown dark:text-cream text-sm font-medium leading-tight" id="imported-name">SMART Patient</div><div class="text-deep-brown/40 dark:text-cream/40 text-xs font-mono">SMART import</div></div>
+        </button>
+      </div>
+    </div>
+    <!-- Policy -->
+    <div>
+      <p class="text-xs font-semibold text-deep-brown/40 dark:text-cream/30 uppercase tracking-widest px-1 mb-2">Policy Variant</p>
+      <select id="policy-variant" class="w-full bg-cream dark:bg-zinc-800 border border-primary/20 rounded-xl text-sm px-3 py-2 text-deep-brown dark:text-cream focus:outline-none focus:ring-2 focus:ring-primary/40">
+        <option value="standard">standard</option>
+        <option value="strict">strict</option>
+        <option value="denied">denied</option>
+        <option value="insulin-standard">insulin-standard</option>
+        <option value="insulin-strict">insulin-strict</option>
+        <option value="adalimumab-standard">adalimumab-standard</option>
+        <option value="adalimumab-strict">adalimumab-strict</option>
+      </select>
+    </div>
   </div>
-</header>
-
-<aside class="sidebar">
-  <div class="sidebar-label">Navigation</div>
-  <div class="nav-item active" onclick="showSection('pipeline')"><span>⚡</span> Pipeline</div>
-  <div class="nav-item" onclick="showSection('run-auth')"><span>🚀</span> Run Prior Auth</div>
-  <div class="nav-item" onclick="showSection('audit')"><span>🔍</span> Audit Trail</div>
-  <div class="nav-item" onclick="showSection('appeals')"><span>✉</span> ARIA Appeals</div>
-  <div class="nav-item" onclick="showSection('smart')"><span>🌐</span> SMART Health IT</div>
-  <div class="nav-item" onclick="showSection('fhir')"><span>📦</span> FHIR Store</div>
-
-  <div class="sidebar-label" style="margin-top:8px">Patients</div>
-  <div class="patient-switcher">
-    <button class="patient-btn active" id="pt-bernard" onclick="selectPatient('bernard')">
-      <span class="patient-dot" style="background:#388bfd"></span>
-      <div><div style="font-weight:500;color:var(--text);font-size:12px">Bernard Rieux</div><div style="font-size:10px;font-family:var(--mono)">T2D · GLP-1</div></div>
+  <!-- Bottom: status + run demo -->
+  <div class="flex flex-col gap-3">
+    <div class="bg-cream dark:bg-zinc-800 rounded-xl p-3 text-xs space-y-1.5">
+      <div class="flex justify-between"><span class="text-deep-brown/40 dark:text-cream/40 uppercase tracking-wider">Decision</span><span id="stat-status" class="font-mono font-medium text-deep-brown/60 dark:text-cream/60">—</span></div>
+      <div class="flex justify-between"><span class="text-deep-brown/40 dark:text-cream/40 uppercase tracking-wider">HbA1c</span><span id="stat-a1c" class="font-mono font-medium text-deep-brown/60 dark:text-cream/60">—</span></div>
+      <div class="flex justify-between"><span class="text-deep-brown/40 dark:text-cream/40 uppercase tracking-wider">Bundle</span><span id="stat-bundle" class="font-mono font-medium text-deep-brown/60 dark:text-cream/60">—</span></div>
+      <div class="flex justify-between"><span class="text-deep-brown/40 dark:text-cream/40 uppercase tracking-wider">Sync</span><span id="stat-sync" class="font-mono font-medium text-deep-brown/60 dark:text-cream/60">—</span></div>
+    </div>
+    <button id="btn-demo" onclick="runFullDemo()" class="w-full bg-primary hover:bg-primary/90 text-white font-bold py-3 rounded-xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2 text-sm">
+      <span class="material-symbols-outlined" style="font-size:18px">play_arrow</span> Run Full Demo
     </button>
-    <button class="patient-btn" id="pt-dorothea" onclick="selectPatient('dorothea')">
-      <span class="patient-dot" style="background:#bc8cff"></span>
-      <div><div style="font-weight:500;color:var(--text);font-size:12px">Dorothea Brooke</div><div style="font-size:10px;font-family:var(--mono)">RA · Adalimumab</div></div>
-    </button>
-    <button class="patient-btn" id="pt-eleanor" onclick="selectPatient('eleanor')">
-      <span class="patient-dot" style="background:#f0a500"></span>
-      <div><div style="font-weight:500;color:var(--text);font-size:12px">Eleanor Vance</div><div style="font-size:10px;font-family:var(--mono)">T2D+RA · Dual</div></div>
-    </button>
-    <button class="patient-btn" id="pt-imported" onclick="selectPatient('imported')" style="display:none">
-      <span class="patient-dot" style="background:#39d0d8"></span>
-      <div><div style="font-weight:500;color:var(--text);font-size:12px" id="imported-name">SMART Patient</div><div style="font-size:10px;font-family:var(--mono)">SMART import · T2D</div></div>
-    </button>
-  </div>
-
-  <div class="sidebar-label" style="margin-top:8px">Policy Variant</div>
-  <div style="padding:0 12px 8px">
-    <select id="policy-variant" style="width:100%">
-      <option value="standard">standard</option>
-      <option value="strict">strict</option>
-      <option value="denied">denied</option>
-      <option value="insulin-standard">insulin-standard</option>
-      <option value="insulin-strict">insulin-strict</option>
-      <option value="adalimumab-standard">adalimumab-standard</option>
-      <option value="adalimumab-strict">adalimumab-strict</option>
-    </select>
-  </div>
-
-  <div class="sidebar-label">Status</div>
-  <div class="sidebar-status">
-    <div class="status-row"><span class="status-lbl">Decision</span><span class="status-val" id="stat-status">—</span></div>
-    <div class="status-row"><span class="status-lbl">HbA1c</span><span class="status-val" id="stat-a1c">—</span></div>
-    <div class="status-row"><span class="status-lbl">Bundle</span><span class="status-val" id="stat-bundle">—</span></div>
-    <div class="status-row"><span class="status-lbl">Policy</span><span class="status-val" id="stat-policy">standard</span></div>
-    <div class="status-row"><span class="status-lbl">Last Sync</span><span class="status-val" id="stat-sync">—</span></div>
   </div>
 </aside>
 
-<main class="main">
-
-  <!-- ── PIPELINE (step-by-step) ── -->
-  <div id="section-pipeline">
-    <div class="panel">
-      <div class="panel-head">
-        <div class="panel-title" id="pipeline-title"><span style="color:var(--alice)">⚡</span> Prior Auth Pipeline — Bernard Rieux</div>
-        <button class="btn btn-ghost btn-sm" onclick="downloadBundle()">⬇ Bundle</button>
-      </div>
-      <div class="panel-body">
-        <div class="pipeline-track">
-          <button class="pipe-step" id="ps-1" onclick="onSeed()"><span class="sn">01</span><span class="sl">Seed</span></button>
-          <button class="pipe-step" id="ps-2" onclick="onMedRec()"><span class="sn">02</span><span class="sl">MedRec</span></button>
-          <button class="pipe-step" id="ps-3" onclick="onPrescribe()"><span class="sn">03</span><span class="sl">Prescribe</span></button>
-          <button class="pipe-step" id="ps-4" onclick="onEvidence()"><span class="sn">04</span><span class="sl">Evidence</span></button>
-          <button class="pipe-step" id="ps-5" onclick="onPolicy()"><span class="sn">05</span><span class="sl">Policy</span></button>
-          <button class="pipe-step" id="ps-6" onclick="onCompose()"><span class="sn">06</span><span class="sl">Compose</span></button>
-          <button class="pipe-step" id="ps-7" onclick="onSubmit()"><span class="sn">07</span><span class="sl">Submit</span></button>
-        </div>
-      </div>
+<!-- ── Main ─────────────────────────────────────────────────── -->
+<main class="flex-1 flex flex-col overflow-hidden">
+  <!-- Topbar -->
+  <header class="h-16 bg-white/70 dark:bg-zinc-900/70 backdrop-blur-md border-b border-primary/10 px-6 flex items-center justify-between flex-shrink-0 sticky top-0 z-10">
+    <div class="flex items-center gap-3">
+      <h2 class="text-base font-bold text-deep-brown dark:text-cream" id="topbar-title">Prior Auth Dashboard</h2>
+      <div id="error-banner" class="hidden text-xs bg-red-50 border border-red-200 text-red-600 px-3 py-1 rounded-full font-mono"></div>
+      <div id="busy-banner" class="hidden text-xs bg-primary/10 border border-primary/20 text-primary px-3 py-1 rounded-full"></div>
     </div>
-    <div class="grid2">
-      <div class="panel"><div class="panel-head"><div class="panel-title"><span style="color:var(--alice)">💊</span> Medication Reconciliation</div></div><div class="panel-body"><div id="medrec-out" class="muted center">Run Step 02</div></div></div>
-      <div class="panel"><div class="panel-head"><div class="panel-title"><span style="color:var(--alice)">📋</span> Clinical Evidence</div></div><div class="panel-body"><div id="evidence-out" class="muted center">Run Step 04</div></div></div>
-      <div class="panel"><div class="panel-head"><div class="panel-title"><span style="color:var(--alice)">⚖️</span> Policy Check</div></div><div class="panel-body"><div id="policy-out" class="muted center">Run Step 05</div></div></div>
-      <div class="panel"><div class="panel-head"><div class="panel-title"><span style="color:var(--alice)">🏥</span> Payer Decision</div></div><div class="panel-body"><div id="decision-out" class="muted center">Run Step 07</div></div></div>
-    </div>
-  </div>
-
-  <!-- ── RUN PRIOR AUTH (one-click, any patient) ── -->
-  <div id="section-run-auth" style="display:none">
-    <div class="panel">
-      <div class="panel-head">
-        <div class="panel-title"><span style="color:var(--alice)">🚀</span> Run Prior Authorization</div>
-        <div class="row" style="gap:6px">
-          <select id="run-policy" style="font-size:11px;padding:4px 8px">
-            <option value="standard">standard</option>
-            <option value="strict">strict</option>
-            <option value="denied">denied</option>
-            <option value="insulin-standard">insulin-standard</option>
-            <option value="insulin-strict">insulin-strict</option>
-            <option value="adalimumab-standard">adalimumab-standard</option>
-            <option value="adalimumab-strict">adalimumab-strict</option>
-          </select>
-          <button class="btn btn-primary btn-sm" onclick="runAllPatients()">▶ Run All</button>
-        </div>
+    <div class="flex items-center gap-3">
+      <button onclick="toggleAutoSync()" id="sync-pill" class="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border border-primary/20 text-deep-brown/50 dark:text-cream/50 hover:border-primary hover:text-primary transition-colors bg-white dark:bg-zinc-800">
+        <span id="sync-icon" class="material-symbols-outlined" style="font-size:14px">sync</span>
+        <span id="sync-label">Sync OFF</span>
+      </button>
+      <div class="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary">
+        <span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span> LIVE
       </div>
-      <div class="panel-body">
-        <div style="font-size:12px;color:var(--muted);margin-bottom:12px">One-click prior authorization for any patient. Results appear below in real-time.</div>
+      <button onclick="toggleTheme()" id="theme-toggle" class="w-8 h-8 rounded-full border border-primary/20 bg-white dark:bg-zinc-800 flex items-center justify-center text-deep-brown/60 dark:text-cream/60 hover:border-primary transition-colors text-sm">☀</button>
+    </div>
+  </header>
 
-        <!-- Bernard -->
-        <div class="pat-run-card" id="rc-bernard">
-          <div class="row" style="justify-content:space-between;margin-bottom:8px">
-            <div class="row" style="gap:8px">
-              <span class="patient-dot" style="background:#388bfd;width:9px;height:9px"></span>
-              <span style="font-weight:500">Bernard Rieux</span>
-              <span class="badge badge-blue" style="font-size:10px">T2D · GLP-1</span>
+  <!-- Content area -->
+  <div class="flex-1 overflow-y-auto">
+    <div class="p-6 max-w-5xl mx-auto w-full">
+
+      <!-- ── PIPELINE ── -->
+      <div id="section-pipeline" class="section-panel">
+        <!-- Patient header -->
+        <div class="flex flex-wrap items-end justify-between gap-4 mb-6">
+          <div class="flex items-center gap-4">
+            <div class="w-16 h-16 rounded-xl bg-terracotta/15 flex items-center justify-center">
+              <span class="material-symbols-outlined text-terracotta" style="font-size:32px">person</span>
             </div>
-            <button class="btn btn-green btn-sm" onclick="runQuickAuth('patient-001','bernard')">▶ Run</button>
-          </div>
-          <div id="rc-out-bernard" class="muted" style="font-size:12px">Ready</div>
-        </div>
-
-        <!-- Dorothea -->
-        <div class="pat-run-card" id="rc-dorothea">
-          <div class="row" style="justify-content:space-between;margin-bottom:8px">
-            <div class="row" style="gap:8px">
-              <span class="patient-dot" style="background:#bc8cff;width:9px;height:9px"></span>
-              <span style="font-weight:500">Dorothea Brooke</span>
-              <span class="badge badge-purple" style="font-size:10px">RA · Adalimumab</span>
+            <div>
+              <h3 class="text-2xl font-bold text-deep-brown dark:text-cream tracking-tight" id="pipeline-patient-name">Bernard Rieux</h3>
+              <div class="flex items-center gap-3 mt-1">
+                <span class="bg-primary/10 text-primary px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider">T2D · GLP-1</span>
+                <span class="text-deep-brown/50 dark:text-cream/50 text-xs" id="pipeline-patient-meta">DOB: 01/03/1947</span>
+              </div>
             </div>
-            <button class="btn btn-green btn-sm" onclick="runQuickAuth('patient-ra-001','dorothea')">▶ Run</button>
           </div>
-          <div id="rc-out-dorothea" class="muted" style="font-size:12px">Ready</div>
+          <button onclick="downloadBundle()" class="bg-white dark:bg-zinc-800 border-2 border-primary/30 text-primary hover:bg-primary hover:text-white font-bold px-5 py-2 rounded-xl transition-all text-sm flex items-center gap-2">
+            <span class="material-symbols-outlined" style="font-size:16px">download</span> Bundle JSON
+          </button>
         </div>
 
-        <!-- Eleanor -->
-        <div class="pat-run-card" id="rc-eleanor">
-          <div class="row" style="justify-content:space-between;margin-bottom:8px">
-            <div class="row" style="gap:8px">
-              <span class="patient-dot" style="background:#f0a500;width:9px;height:9px"></span>
-              <span style="font-weight:500">Eleanor Vance</span>
-              <span class="badge badge-amber" style="font-size:10px">T2D+RA · Dual</span>
+        <!-- Pipeline steps -->
+        <div class="bg-white dark:bg-zinc-900 rounded-xl border border-primary/10 shadow-sm mb-6 flex items-center overflow-x-auto">
+          <button id="ps-1" onclick="onSeed()" class="pipe-btn flex-1 py-4 px-2 text-center text-sm font-semibold text-deep-brown/40 dark:text-cream/30 hover:text-primary whitespace-nowrap">1. Seed</button>
+          <button id="ps-2" onclick="onMedRec()" class="pipe-btn flex-1 py-4 px-2 text-center text-sm font-semibold text-deep-brown/40 dark:text-cream/30 hover:text-primary whitespace-nowrap">2. MedRec</button>
+          <button id="ps-3" onclick="onPrescribe()" class="pipe-btn flex-1 py-4 px-2 text-center text-sm font-semibold text-deep-brown/40 dark:text-cream/30 hover:text-primary whitespace-nowrap">3. Prescribe</button>
+          <button id="ps-4" onclick="onEvidence()" class="pipe-btn flex-1 py-4 px-2 text-center text-sm font-semibold text-deep-brown/40 dark:text-cream/30 hover:text-primary whitespace-nowrap">4. Evidence</button>
+          <button id="ps-5" onclick="onPolicy()" class="pipe-btn flex-1 py-4 px-2 text-center text-sm font-semibold text-deep-brown/40 dark:text-cream/30 hover:text-primary whitespace-nowrap">5. Policy</button>
+          <button id="ps-6" onclick="onCompose()" class="pipe-btn flex-1 py-4 px-2 text-center text-sm font-semibold text-deep-brown/40 dark:text-cream/30 hover:text-primary whitespace-nowrap">6. Compose</button>
+          <button id="ps-7" onclick="onSubmit()" class="pipe-btn flex-1 py-4 px-2 text-center text-sm font-semibold text-deep-brown/40 dark:text-cream/30 hover:text-primary whitespace-nowrap">7. Submit</button>
+        </div>
+
+        <!-- Status cards -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div class="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-primary/10 shadow-sm hover:shadow-md transition-shadow">
+            <div class="flex items-center justify-between mb-3">
+              <span class="material-symbols-outlined text-terracotta bg-terracotta/10 p-1.5 rounded-lg" style="font-size:18px">pending_actions</span>
             </div>
-            <button class="btn btn-green btn-sm" onclick="runQuickAuth('patient-comorbid-001','eleanor')">▶ Run</button>
+            <p class="text-deep-brown/50 dark:text-cream/50 text-xs font-medium">Decision</p>
+            <p class="text-lg font-bold text-deep-brown dark:text-cream mt-0.5" id="stat-decision-card">—</p>
           </div>
-          <div id="rc-out-eleanor" class="muted" style="font-size:12px">Ready</div>
-        </div>
-
-        <!-- SMART imported patient (shown when imported) -->
-        <div class="pat-run-card" id="rc-imported" style="display:none">
-          <div class="row" style="justify-content:space-between;margin-bottom:8px">
-            <div class="row" style="gap:8px">
-              <span class="patient-dot" style="background:#39d0d8;width:9px;height:9px"></span>
-              <span style="font-weight:500" id="rc-imported-name">SMART Patient</span>
-              <span class="badge badge-cyan" style="font-size:10px">SMART Import</span>
+          <div class="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-primary/10 shadow-sm hover:shadow-md transition-shadow">
+            <div class="flex items-center justify-between mb-3">
+              <span class="material-symbols-outlined text-primary bg-primary/10 p-1.5 rounded-lg" style="font-size:18px">biotech</span>
             </div>
-            <button class="btn btn-green btn-sm" onclick="runQuickAuth(state.smartImported&&state.smartImported.internalPatientId,'imported')">▶ Run</button>
+            <p class="text-deep-brown/50 dark:text-cream/50 text-xs font-medium">HbA1c Level</p>
+            <p class="text-lg font-bold text-deep-brown dark:text-cream mt-0.5" id="stat-a1c-card">—</p>
           </div>
-          <div id="rc-out-imported" class="muted" style="font-size:12px">Ready</div>
+          <div class="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-primary/10 shadow-sm hover:shadow-md transition-shadow">
+            <div class="flex items-center justify-between mb-3">
+              <span class="material-symbols-outlined text-deep-brown/40 bg-cream dark:bg-zinc-800 p-1.5 rounded-lg" style="font-size:18px">folder_zip</span>
+            </div>
+            <p class="text-deep-brown/50 dark:text-cream/50 text-xs font-medium">FHIR Bundle</p>
+            <p class="text-lg font-bold text-deep-brown dark:text-cream mt-0.5" id="stat-bundle-card">—</p>
+          </div>
+          <div class="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-primary/10 shadow-sm hover:shadow-md transition-shadow">
+            <div class="flex items-center justify-between mb-3">
+              <span class="material-symbols-outlined text-primary bg-primary/10 p-1.5 rounded-lg" style="font-size:18px">policy</span>
+            </div>
+            <p class="text-deep-brown/50 dark:text-cream/50 text-xs font-medium">Policy</p>
+            <p class="text-lg font-bold text-deep-brown dark:text-cream mt-0.5 font-mono text-sm" id="stat-policy">standard</p>
+          </div>
         </div>
 
+        <!-- Results grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="bg-white dark:bg-zinc-900 rounded-xl border border-primary/10 shadow-sm overflow-hidden">
+            <div class="px-5 py-3 border-b border-primary/10 bg-cream/30 dark:bg-zinc-800/30 flex items-center gap-2">
+              <span class="material-symbols-outlined text-primary" style="font-size:16px">medication</span>
+              <span class="text-xs font-semibold uppercase tracking-wider text-deep-brown/50 dark:text-cream/50">Medication Reconciliation</span>
+            </div>
+            <div class="p-5"><div id="medrec-out" class="text-deep-brown/40 dark:text-cream/40 text-sm text-center py-4">Run Step 2</div></div>
+          </div>
+          <div class="bg-white dark:bg-zinc-900 rounded-xl border border-primary/10 shadow-sm overflow-hidden">
+            <div class="px-5 py-3 border-b border-primary/10 bg-cream/30 dark:bg-zinc-800/30 flex items-center gap-2">
+              <span class="material-symbols-outlined text-primary" style="font-size:16px">lab_research</span>
+              <span class="text-xs font-semibold uppercase tracking-wider text-deep-brown/50 dark:text-cream/50">Clinical Evidence</span>
+            </div>
+            <div class="p-5"><div id="evidence-out" class="text-deep-brown/40 dark:text-cream/40 text-sm text-center py-4">Run Step 4</div></div>
+          </div>
+          <div class="bg-white dark:bg-zinc-900 rounded-xl border border-primary/10 shadow-sm overflow-hidden">
+            <div class="px-5 py-3 border-b border-primary/10 bg-cream/30 dark:bg-zinc-800/30 flex items-center gap-2">
+              <span class="material-symbols-outlined text-primary" style="font-size:16px">balance</span>
+              <span class="text-xs font-semibold uppercase tracking-wider text-deep-brown/50 dark:text-cream/50">Policy Check</span>
+            </div>
+            <div class="p-5"><div id="policy-out" class="text-deep-brown/40 dark:text-cream/40 text-sm text-center py-4">Run Step 5</div></div>
+          </div>
+          <div class="bg-white dark:bg-zinc-900 rounded-xl border border-primary/10 shadow-sm overflow-hidden">
+            <div class="px-5 py-3 border-b border-primary/10 bg-cream/30 dark:bg-zinc-800/30 flex items-center gap-2">
+              <span class="material-symbols-outlined text-terracotta" style="font-size:16px">local_hospital</span>
+              <span class="text-xs font-semibold uppercase tracking-wider text-deep-brown/50 dark:text-cream/50">Payer Decision</span>
+            </div>
+            <div class="p-5"><div id="decision-out" class="text-deep-brown/40 dark:text-cream/40 text-sm text-center py-4">Run Step 7</div></div>
+          </div>
+        </div>
       </div>
+
+      <!-- ── RUN PRIOR AUTH ── -->
+      <div id="section-run-auth" class="section-panel hidden">
+        <div class="bg-white dark:bg-zinc-900 rounded-xl border border-primary/10 shadow-sm overflow-hidden">
+          <div class="px-6 py-4 border-b border-primary/10 bg-cream/30 dark:bg-zinc-800/30 flex items-center justify-between">
+            <div>
+              <h4 class="font-bold text-deep-brown dark:text-cream">Run Prior Authorization</h4>
+              <p class="text-deep-brown/50 dark:text-cream/50 text-sm">One-click prior auth for any patient. Results appear in real-time.</p>
+            </div>
+            <div class="flex items-center gap-3">
+              <select id="run-policy" class="bg-cream dark:bg-zinc-800 border border-primary/20 rounded-xl text-sm px-3 py-2 text-deep-brown dark:text-cream focus:outline-none focus:ring-2 focus:ring-primary/40">
+                <option value="standard">standard</option><option value="strict">strict</option>
+                <option value="denied">denied</option><option value="insulin-standard">insulin-standard</option>
+                <option value="insulin-strict">insulin-strict</option>
+                <option value="adalimumab-standard">adalimumab-standard</option>
+                <option value="adalimumab-strict">adalimumab-strict</option>
+              </select>
+              <button onclick="runAllPatients()" class="bg-primary text-white font-bold px-5 py-2 rounded-xl text-sm flex items-center gap-2 hover:bg-primary/90">
+                <span class="material-symbols-outlined" style="font-size:16px">play_arrow</span> Run All
+              </button>
+            </div>
+          </div>
+          <div class="p-6 space-y-3">
+            <div id="rc-bernard" class="flex items-center justify-between p-4 rounded-xl bg-cream/50 dark:bg-zinc-800/50 border border-primary/10">
+              <div class="flex items-center gap-3">
+                <span class="w-2.5 h-2.5 rounded-full bg-primary flex-shrink-0"></span>
+                <div><p class="font-semibold text-deep-brown dark:text-cream text-sm">Bernard Rieux</p><p class="text-xs text-deep-brown/40 dark:text-cream/40 font-mono">T2D · GLP-1</p></div>
+              </div>
+              <div class="flex items-center gap-3">
+                <div id="rc-out-bernard" class="text-xs text-deep-brown/40 dark:text-cream/40">Ready</div>
+                <button onclick="runQuickAuth('patient-001','bernard')" class="bg-primary/10 text-primary border border-primary/20 font-bold px-4 py-1.5 rounded-lg text-xs hover:bg-primary hover:text-white transition-all">Run</button>
+              </div>
+            </div>
+            <div id="rc-dorothea" class="flex items-center justify-between p-4 rounded-xl bg-cream/50 dark:bg-zinc-800/50 border border-primary/10">
+              <div class="flex items-center gap-3">
+                <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:#bc8cff"></span>
+                <div><p class="font-semibold text-deep-brown dark:text-cream text-sm">Dorothea Brooke</p><p class="text-xs text-deep-brown/40 dark:text-cream/40 font-mono">RA · Adalimumab</p></div>
+              </div>
+              <div class="flex items-center gap-3">
+                <div id="rc-out-dorothea" class="text-xs text-deep-brown/40 dark:text-cream/40">Ready</div>
+                <button onclick="runQuickAuth('patient-ra-001','dorothea')" class="bg-primary/10 text-primary border border-primary/20 font-bold px-4 py-1.5 rounded-lg text-xs hover:bg-primary hover:text-white transition-all">Run</button>
+              </div>
+            </div>
+            <div id="rc-eleanor" class="flex items-center justify-between p-4 rounded-xl bg-cream/50 dark:bg-zinc-800/50 border border-primary/10">
+              <div class="flex items-center gap-3">
+                <span class="w-2.5 h-2.5 rounded-full bg-terracotta flex-shrink-0"></span>
+                <div><p class="font-semibold text-deep-brown dark:text-cream text-sm">Eleanor Vance</p><p class="text-xs text-deep-brown/40 dark:text-cream/40 font-mono">T2D+RA · Dual</p></div>
+              </div>
+              <div class="flex items-center gap-3">
+                <div id="rc-out-eleanor" class="text-xs text-deep-brown/40 dark:text-cream/40">Ready</div>
+                <button onclick="runQuickAuth('patient-comorbid-001','eleanor')" class="bg-primary/10 text-primary border border-primary/20 font-bold px-4 py-1.5 rounded-lg text-xs hover:bg-primary hover:text-white transition-all">Run</button>
+              </div>
+            </div>
+            <div id="rc-imported" class="hidden flex items-center justify-between p-4 rounded-xl bg-cream/50 dark:bg-zinc-800/50 border border-primary/10">
+              <div class="flex items-center gap-3">
+                <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:#39d0d8"></span>
+                <div><p class="font-semibold text-deep-brown dark:text-cream text-sm" id="rc-imported-name">SMART Patient</p><p class="text-xs text-deep-brown/40 dark:text-cream/40 font-mono">SMART Import</p></div>
+              </div>
+              <div class="flex items-center gap-3">
+                <div id="rc-out-imported" class="text-xs text-deep-brown/40 dark:text-cream/40">Ready</div>
+                <button onclick="runQuickAuth(state.smartImported&&state.smartImported.internalPatientId,'imported')" class="bg-primary/10 text-primary border border-primary/20 font-bold px-4 py-1.5 rounded-lg text-xs hover:bg-primary hover:text-white transition-all">Run</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── AUDIT TRAIL ── -->
+      <div id="section-audit" class="section-panel hidden">
+        <div class="bg-white dark:bg-zinc-900 rounded-xl border border-primary/10 shadow-sm overflow-hidden">
+          <div class="px-6 py-4 border-b border-primary/10 bg-cream/30 dark:bg-zinc-800/30 flex items-center justify-between flex-wrap gap-3">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-deep-brown/40" style="font-size:18px">history</span>
+              <span class="font-bold text-deep-brown dark:text-cream">Audit Trail &amp; Provenance</span>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <div class="flex rounded-lg overflow-hidden border border-primary/20">
+                <button id="tab-timeline" onclick="setAuditView('timeline')" class="px-3 py-1.5 text-xs font-semibold bg-primary/10 text-primary">Timeline</button>
+                <button id="tab-graph" onclick="setAuditView('graph')" class="px-3 py-1.5 text-xs font-semibold text-deep-brown/50 dark:text-cream/50 hover:bg-primary/5">Graph</button>
+              </div>
+              <button onclick="loadAudit('patient-001')" class="px-3 py-1.5 text-xs font-semibold bg-cream dark:bg-zinc-800 border border-primary/20 rounded-lg text-deep-brown/60 dark:text-cream/60 hover:border-primary">Bernard</button>
+              <button onclick="loadAudit('patient-ra-001')" class="px-3 py-1.5 text-xs font-semibold bg-cream dark:bg-zinc-800 border border-primary/20 rounded-lg text-deep-brown/60 dark:text-cream/60 hover:border-primary">Dorothea</button>
+              <button onclick="loadAudit('patient-comorbid-001')" class="px-3 py-1.5 text-xs font-semibold bg-cream dark:bg-zinc-800 border border-primary/20 rounded-lg text-deep-brown/60 dark:text-cream/60 hover:border-primary">Eleanor</button>
+              <button onclick="loadAudit()" class="px-3 py-1.5 text-xs font-semibold bg-cream dark:bg-zinc-800 border border-primary/20 rounded-lg text-deep-brown/60 dark:text-cream/60 hover:border-primary">↻</button>
+            </div>
+          </div>
+          <div class="p-6"><div id="audit-out" class="text-deep-brown/40 dark:text-cream/40 text-sm text-center py-8">Run a prior authorization, then click a patient above.</div></div>
+        </div>
+      </div>
+
+      <!-- ── ARIA APPEALS ── -->
+      <div id="section-appeals" class="section-panel hidden">
+        <div class="bg-white dark:bg-zinc-900 rounded-xl border border-primary/10 shadow-sm overflow-hidden mb-4">
+          <div class="px-6 py-4 border-b border-primary/10 bg-cream/30 dark:bg-zinc-800/30 flex items-center justify-between flex-wrap gap-3">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-terracotta" style="font-size:18px">gavel</span>
+              <span class="font-bold text-deep-brown dark:text-cream">ARIA Appeals &amp; Escalation</span>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="loadAppeals('patient-001')" class="px-3 py-1.5 text-xs font-semibold bg-cream dark:bg-zinc-800 border border-primary/20 rounded-lg text-deep-brown/60 dark:text-cream/60 hover:border-primary">Bernard</button>
+              <button onclick="loadAppeals('patient-ra-001')" class="px-3 py-1.5 text-xs font-semibold bg-cream dark:bg-zinc-800 border border-primary/20 rounded-lg text-deep-brown/60 dark:text-cream/60 hover:border-primary">Dorothea</button>
+              <button onclick="loadAppeals('patient-comorbid-001')" class="px-3 py-1.5 text-xs font-semibold bg-cream dark:bg-zinc-800 border border-primary/20 rounded-lg text-deep-brown/60 dark:text-cream/60 hover:border-primary">Eleanor</button>
+            </div>
+          </div>
+          <div class="p-6"><div id="appeals-out" class="text-deep-brown/40 dark:text-cream/40 text-sm text-center py-8">Select a patient to view their appeals.</div></div>
+        </div>
+        <!-- Prompt Quick-Launch -->
+        <div class="bg-white dark:bg-zinc-900 rounded-xl border border-primary/10 shadow-sm overflow-hidden">
+          <div class="px-6 py-4 border-b border-primary/10 bg-cream/30 dark:bg-zinc-800/30">
+            <span class="font-bold text-deep-brown dark:text-cream">Prompt Opinion Quick-Launch</span>
+            <p class="text-xs text-deep-brown/50 dark:text-cream/50 mt-0.5">Copy a prompt → paste into Prompt Opinion → dashboard auto-updates when sync is on.</p>
+          </div>
+          <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-cream/50 dark:bg-zinc-800/50 rounded-xl p-4 border border-primary/10">
+              <p class="text-xs font-semibold uppercase tracking-wider text-deep-brown/40 dark:text-cream/40 mb-2">Round 1 — Initial Appeal</p>
+              <p id="prompt-r1" class="text-sm text-deep-brown dark:text-cream leading-relaxed mb-3">Run a prior authorization using the denied policy variant for Bernard Rieux, then have ARIA draft a formal appeal letter addressing all denial reasons.</p>
+              <button onclick="copyPrompt('prompt-r1')" class="text-xs font-bold text-terracotta border border-terracotta/30 bg-terracotta/5 px-3 py-1.5 rounded-lg hover:bg-terracotta hover:text-white transition-all">Copy Prompt</button>
+            </div>
+            <div class="bg-cream/50 dark:bg-zinc-800/50 rounded-xl p-4 border border-primary/10">
+              <p class="text-xs font-semibold uppercase tracking-wider text-deep-brown/40 dark:text-cream/40 mb-2">Round 2 — Counter-Denial</p>
+              <p id="prompt-r2" class="text-sm text-deep-brown dark:text-cream leading-relaxed mb-3">Simulate the payer counter-denying the appeal, then have ARIA submit a Round 2 rebuttal citing SUSTAIN-6, ADA 2024 guidelines, and ADA/EASD consensus.</p>
+              <button onclick="copyPrompt('prompt-r2')" class="text-xs font-bold text-terracotta border border-terracotta/30 bg-terracotta/5 px-3 py-1.5 rounded-lg hover:bg-terracotta hover:text-white transition-all">Copy Prompt</button>
+            </div>
+            <div class="bg-cream/50 dark:bg-zinc-800/50 rounded-xl p-4 border border-primary/10">
+              <p class="text-xs font-semibold uppercase tracking-wider text-deep-brown/40 dark:text-cream/40 mb-2">Eleanor — Dual Appeal</p>
+              <p id="prompt-eleanor" class="text-sm text-deep-brown dark:text-cream leading-relaxed mb-3">Run a prior authorization for Eleanor Vance using strict GLP-1 and adalimumab-strict policy variants, then have ARIA draft appeals for any denials.</p>
+              <button onclick="copyPrompt('prompt-eleanor')" class="text-xs font-bold text-terracotta border border-terracotta/30 bg-terracotta/5 px-3 py-1.5 rounded-lg hover:bg-terracotta hover:text-white transition-all">Copy Prompt</button>
+            </div>
+            <div class="bg-cream/50 dark:bg-zinc-800/50 rounded-xl p-4 border border-primary/10">
+              <p class="text-xs font-semibold uppercase tracking-wider text-deep-brown/40 dark:text-cream/40 mb-2">Show Audit Trail</p>
+              <p id="prompt-audit" class="text-sm text-deep-brown dark:text-cream leading-relaxed mb-3">Show me the complete audit trail for Bernard Rieux including all agent handoffs, AI decisions, and data sources used.</p>
+              <button onclick="copyPrompt('prompt-audit')" class="text-xs font-bold text-terracotta border border-terracotta/30 bg-terracotta/5 px-3 py-1.5 rounded-lg hover:bg-terracotta hover:text-white transition-all">Copy Prompt</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── SMART HEALTH IT ── -->
+      <div id="section-smart" class="section-panel hidden">
+        <div class="bg-white dark:bg-zinc-900 rounded-xl border border-primary/10 shadow-sm overflow-hidden mb-4">
+          <div class="px-6 py-4 border-b border-primary/10 bg-cream/30 dark:bg-zinc-800/30 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-primary" style="font-size:18px">travel_explore</span>
+              <span class="font-bold text-deep-brown dark:text-cream">SMART Health IT — Live Patient Search</span>
+            </div>
+            <span class="text-xs font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-full">r4.smarthealthit.org · synthetic</span>
+          </div>
+          <div class="p-6">
+            <div class="flex gap-3 mb-4">
+              <div class="relative flex-1">
+                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-deep-brown/30" style="font-size:16px">search</span>
+                <input id="smart-query" type="text" placeholder="Search by name (e.g. Smith, Johnson…)" class="w-full pl-9 pr-4 py-2.5 bg-cream dark:bg-zinc-800 border border-primary/20 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 text-deep-brown dark:text-cream" onkeydown="if(event.key==='Enter')onSmartSearch()"/>
+              </div>
+              <button onclick="onSmartSearch()" class="bg-primary text-white font-bold px-5 py-2 rounded-xl text-sm hover:bg-primary/90">Search</button>
+            </div>
+            <div id="smart-out" class="text-deep-brown/40 dark:text-cream/40 text-sm">Public FHIR R4 sandbox — synthetic patients only.</div>
+          </div>
+        </div>
+        <div id="smart-imported-panel" class="hidden bg-white dark:bg-zinc-900 rounded-xl border border-primary/20 shadow-sm overflow-hidden">
+          <div class="px-6 py-4 border-b border-primary/10 flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary" style="font-size:16px">check_circle</span>
+            <span class="font-bold text-deep-brown dark:text-cream text-sm">Imported Patient — Ready for Prior Auth</span>
+          </div>
+          <div class="p-6">
+            <div id="smart-imported-summary" class="text-deep-brown/40 dark:text-cream/40 text-sm mb-4"></div>
+            <div class="flex gap-3">
+              <button onclick="runImportedAuth()" class="bg-primary text-white font-bold px-5 py-2 rounded-xl text-sm flex items-center gap-2 hover:bg-primary/90"><span class="material-symbols-outlined" style="font-size:16px">play_arrow</span> Run Prior Auth</button>
+              <button onclick="showSection('run-auth')" class="bg-cream dark:bg-zinc-800 border border-primary/20 text-deep-brown/60 dark:text-cream/60 font-bold px-5 py-2 rounded-xl text-sm hover:border-primary">View in Run Auth →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── FHIR STORE ── -->
+      <div id="section-fhir" class="section-panel hidden">
+        <div class="bg-white dark:bg-zinc-900 rounded-xl border border-primary/10 shadow-sm overflow-hidden">
+          <div class="px-6 py-4 border-b border-primary/10 bg-cream/30 dark:bg-zinc-800/30 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-primary" style="font-size:18px">database</span>
+              <span class="font-bold text-deep-brown dark:text-cream">Raw FHIR Store</span>
+            </div>
+            <button onclick="loadFhir()" class="bg-cream dark:bg-zinc-800 border border-primary/20 text-deep-brown/60 dark:text-cream/60 font-bold px-4 py-1.5 rounded-lg text-sm hover:border-primary">Load Dump</button>
+          </div>
+          <div class="p-6"><div id="fhir-out" class="text-deep-brown/40 dark:text-cream/40 text-sm text-center py-8">Click Load Dump to inspect raw FHIR resources.</div></div>
+        </div>
+      </div>
+
     </div>
   </div>
-
-  <!-- ── AUDIT TRAIL ── -->
-  <div id="section-audit" style="display:none">
-    <div class="panel">
-      <div class="panel-head">
-        <div class="panel-title"><span style="color:var(--purple)">🔍</span> Audit Trail &amp; Provenance</div>
-        <div class="row" style="gap:6px">
-          <div class="tabs">
-            <button class="tab active" id="tab-timeline" onclick="setAuditView('timeline')">Timeline</button>
-            <button class="tab" id="tab-graph" onclick="setAuditView('graph')">Graph</button>
-          </div>
-          <button class="btn btn-ghost btn-sm" onclick="loadAudit('patient-001')">Bernard</button>
-          <button class="btn btn-ghost btn-sm" onclick="loadAudit('patient-ra-001')">Dorothea</button>
-          <button class="btn btn-ghost btn-sm" onclick="loadAudit('patient-comorbid-001')">Eleanor</button>
-          <button class="btn btn-ghost btn-sm" onclick="loadAudit()">↻ Latest</button>
-        </div>
-      </div>
-      <div class="panel-body"><div id="audit-out" class="muted center">Run a prior authorization in Prompt Opinion or click a patient above.</div></div>
-    </div>
-  </div>
-
-  <!-- ── ARIA APPEALS ── -->
-  <div id="section-appeals" style="display:none">
-    <div class="panel">
-      <div class="panel-head">
-        <div class="panel-title"><span style="color:var(--aria)">✉</span> ARIA Appeals &amp; Escalation Tracker</div>
-        <div class="row" style="gap:6px">
-          <button class="btn btn-ghost btn-sm" onclick="loadAppeals('patient-001')">Bernard</button>
-          <button class="btn btn-ghost btn-sm" onclick="loadAppeals('patient-ra-001')">Dorothea</button>
-          <button class="btn btn-ghost btn-sm" onclick="loadAppeals('patient-comorbid-001')">Eleanor</button>
-        </div>
-      </div>
-      <div class="panel-body"><div id="appeals-out" class="muted center">Select a patient to view their appeals history.</div></div>
-    </div>
-    <div class="panel">
-      <div class="panel-head"><div class="panel-title"><span style="color:var(--aria)">⚡</span> Prompt Opinion Quick-Launch</div></div>
-      <div class="panel-body">
-        <div style="font-size:12px;color:var(--muted);margin-bottom:12px">Copy a prompt → paste into Prompt Opinion → the dashboard auto-updates when ARIA responds (enable Sync above).</div>
-        <div class="grid2">
-          <div>
-            <div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;color:var(--dim);margin-bottom:6px">Round 1 — Initial Appeal</div>
-            <div class="prompt-box" id="prompt-r1">Run a prior authorization using the denied policy variant for Bernard Rieux, then have ARIA draft a formal appeal letter addressing all denial reasons.</div>
-            <button class="btn btn-aria btn-sm" style="margin-top:6px" onclick="copyPrompt('prompt-r1')">Copy Prompt</button>
-          </div>
-          <div>
-            <div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;color:var(--dim);margin-bottom:6px">Round 2 — Counter-Denial Rebuttal</div>
-            <div class="prompt-box" id="prompt-r2">Simulate the payer counter-denying the appeal, then have ARIA submit a Round 2 rebuttal citing SUSTAIN-6, ADA 2024 guidelines, and ADA/EASD consensus on GLP-1 therapy.</div>
-            <button class="btn btn-aria btn-sm" style="margin-top:6px" onclick="copyPrompt('prompt-r2')">Copy Prompt</button>
-          </div>
-          <div>
-            <div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;color:var(--dim);margin-bottom:6px">Eleanor — Dual Appeal</div>
-            <div class="prompt-box" id="prompt-eleanor">Run a prior authorization for Eleanor Vance using strict GLP-1 and adalimumab-strict policy variants, then have ARIA draft appeals for any denials.</div>
-            <button class="btn btn-aria btn-sm" style="margin-top:6px" onclick="copyPrompt('prompt-eleanor')">Copy Prompt</button>
-          </div>
-          <div>
-            <div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;color:var(--dim);margin-bottom:6px">Show Audit Trail</div>
-            <div class="prompt-box" id="prompt-audit">Show me the complete audit trail for Bernard Rieux including all agent handoffs, AI decisions, and data sources used.</div>
-            <button class="btn btn-aria btn-sm" style="margin-top:6px" onclick="copyPrompt('prompt-audit')">Copy Prompt</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── SMART HEALTH IT ── -->
-  <div id="section-smart" style="display:none">
-    <div class="panel">
-      <div class="panel-head">
-        <div class="panel-title"><span style="color:var(--cyan)">🌐</span> SMART Health IT — Live Patient Search</div>
-        <span class="badge badge-cyan" style="font-size:10px">r4.smarthealthit.org · synthetic</span>
-      </div>
-      <div class="panel-body">
-        <div class="row" style="margin-bottom:12px">
-          <input type="text" class="flex1" id="smart-query" placeholder="Search by name (e.g. Smith, Johnson, Williams…)" onkeydown="if(event.key==='Enter')onSmartSearch()"/>
-          <button class="btn btn-ghost btn-sm" onclick="onSmartSearch()">Search</button>
-        </div>
-        <div id="smart-out" class="muted" style="font-size:12px">Public FHIR R4 sandbox — synthetic patients only.</div>
-      </div>
-    </div>
-    <!-- Imported patient pipeline panel — shown after import -->
-    <div id="smart-imported-panel" style="display:none">
-      <div class="panel">
-        <div class="panel-head">
-          <div class="panel-title"><span style="color:var(--cyan)">✓</span> Imported Patient — Ready for Prior Auth</div>
-        </div>
-        <div class="panel-body">
-          <div id="smart-imported-summary" class="muted">No patient imported yet.</div>
-          <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
-            <button class="btn btn-primary btn-sm" onclick="runImportedAuth()">▶ Run Prior Auth</button>
-            <button class="btn btn-ghost btn-sm" onclick="showSection('run-auth')">View in Run Auth →</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── FHIR STORE ── -->
-  <div id="section-fhir" style="display:none">
-    <div class="panel">
-      <div class="panel-head">
-        <div class="panel-title"><span style="color:var(--cyan)">📦</span> Raw FHIR Store</div>
-        <button class="btn btn-ghost btn-sm" onclick="loadFhir()">Load Dump</button>
-      </div>
-      <div class="panel-body"><div id="fhir-out" class="muted center">Click Load Dump to inspect raw FHIR resources.</div></div>
-    </div>
-  </div>
-
 </main>
 </div>
+
 <script>
 // ── State ──────────────────────────────────────────────────────────────────
 const PATIENT_NAMES = {
@@ -526,16 +486,19 @@ let state = {
 // ── Navigation ─────────────────────────────────────────────────────────────
 const SECTIONS = ['pipeline','run-auth','audit','appeals','smart','fhir'];
 function showSection(name) {
-  SECTIONS.forEach(s => { document.getElementById('section-'+s).style.display = s===name?'':'none'; });
-  document.querySelectorAll('.nav-item').forEach((el,i) => { el.classList.toggle('active', SECTIONS[i]===name); });
+  SECTIONS.forEach(s => { const el=document.getElementById('section-'+s); if(el){el.classList.toggle('hidden', s!==name);} });
+  document.querySelectorAll('#main-nav .nav-item').forEach((el,i) => { el.classList.toggle('active', SECTIONS[i]===name); el.classList.toggle('text-deep-brown/70',!el.classList.contains('active')); });
   if (name==='audit' && !state.auditTrail) loadAudit();
 }
 
 function selectPatient(p) {
-  document.querySelectorAll('.patient-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('pt-'+p)?.classList.add('active');
+  document.querySelectorAll('.patient-btn').forEach(b => b.classList.remove('bg-primary/10'));
+  const active = document.getElementById('pt-'+p);
+  if(active) active.classList.add('bg-primary/10');
   const names = {bernard:'Bernard Rieux',dorothea:'Dorothea Brooke',eleanor:'Eleanor Vance',imported:state.smartImported?.patient?.name?.[0]?.text??'SMART Patient'};
-  document.getElementById('pipeline-title').innerHTML = `<span style="color:var(--alice)">⚡</span> Prior Auth Pipeline — ${names[p]}`;
+  const tags = {bernard:'T2D · GLP-1',dorothea:'RA · Adalimumab',eleanor:'T2D+RA · Dual',imported:'SMART Import'};
+  const nameEl = document.getElementById('pipeline-patient-name');
+  if(nameEl) nameEl.textContent = names[p]||'—';
   const ids = {bernard:'patient-001',dorothea:'patient-ra-001',eleanor:'patient-comorbid-001',imported:state.smartImported?.internalPatientId};
   state.currentPatientId = ids[p] || 'patient-001';
 }
@@ -557,9 +520,9 @@ function busy(msg) {
   document.getElementById('btn-demo').disabled = !!msg;
   document.getElementById('btn-demo').innerHTML = msg ? '<span class="spin"></span>' : '▶ Run Full Demo';
 }
-function err(msg) { const el=document.getElementById('error-banner'); el.style.display=msg?'block':'none'; el.textContent=msg||''; }
+function err(msg) { const el=document.getElementById('error-banner'); el.classList.toggle('hidden',!msg); el.textContent=msg||''; }
 function setEl(id, html) { const el=document.getElementById(id); if(el) el.innerHTML=html; }
-function markStep(n) { const el=document.getElementById('ps-'+n); if(el) el.classList.add('done'); }
+function markStep(n) { const el=document.getElementById('ps-'+n); if(el){el.classList.add('done');el.classList.remove('text-deep-brown/40','dark:text-cream/30');} }
 function policyVariant() { return document.getElementById('policy-variant').value; }
 function resolvePatientName(patientId) { return PATIENT_NAMES[patientId] || state.smartImported?.patient?.name?.[0]?.text || patientId?.slice(0,16)+'…'; }
 
@@ -686,7 +649,12 @@ async function runFullDemo() {
   const btn = document.getElementById('btn-demo');
   const setBusy = (msg) => {
     btn.disabled = !!msg;
-    btn.innerHTML = msg ? `<span class="spin"></span> ${msg}` : '▶ Run Full Demo';
+    btn.innerHTML = msg
+      ? `<span class="spin"></span> ${msg}`
+      : '<span class="material-symbols-outlined" style="font-size:18px">play_arrow</span> Run Full Demo';
+    const banner = document.getElementById('busy-banner');
+    banner.classList.toggle('hidden', !msg);
+    banner.textContent = msg ? `⏳ ${msg}` : '';
   };
 
   try {
@@ -713,8 +681,8 @@ async function runFullDemo() {
         <span class="badge badge-green">Metformin trial: Yes</span>
       </div>
     `);
-    setEl('stat-a1c', `<span style="color:var(--green)">${a1c}%</span>`);
-    setEl('stat-bundle', `<span style="color:var(--cyan)">${entries} resources</span>`);
+    setEl('stat-a1c',`<span class='text-primary font-mono font-bold'>${a1c}%</span>`);setEl('stat-a1c-card',`${a1c}% Controlled`);
+    setEl('stat-bundle',`<span class='font-mono font-bold text-primary'>${entries} res</span>`);setEl('stat-bundle-card',`${entries} resources`);
     setEl('stat-policy', 'standard');
     setEl('policy-out', `
       <div class="decision-banner approved">
@@ -728,7 +696,7 @@ async function runFullDemo() {
         <div style="font-size:11px;margin-top:4px;font-family:var(--mono);color:var(--muted)">ClaimResponse: ${r1.packet?.claim?.id?.slice(0,16)??'—'}…</div>
       </div>
     `);
-    setEl('stat-status', `<span style="color:var(--green)">APPROVED</span>`);
+    setEl('stat-status',`<span class='text-primary font-mono font-bold'>APPROVED</span>`);setEl('stat-decision-card','✓ Approved');
 
     await new Promise(r => setTimeout(r, 1400));
 
@@ -741,7 +709,7 @@ async function runFullDemo() {
 
     [5,6,7].forEach(n => markStep(n));
     setEl('stat-policy', 'denied');
-    setEl('stat-status', `<span style="color:var(--red)">DENIED → ARIA</span>`);
+    setEl('stat-status',`<span class='text-terracotta font-mono font-bold'>DENIED</span>`);setEl('stat-decision-card','✗ Denied → ARIA');
 
     setEl('policy-out', `
       <div class="decision-banner denied">
@@ -801,11 +769,11 @@ async function onSmartImport(patientId, patientName) {
     const gender = res.patient?.gender ?? '—';
 
     // Update sidebar patient button
-    document.getElementById('pt-imported').style.display = '';
+    document.getElementById('pt-imported').classList.remove('hidden');
     setEl('imported-name', name);
 
     // Show imported panel
-    document.getElementById('smart-imported-panel').style.display = '';
+    document.getElementById('smart-imported-panel').classList.remove('hidden');
     setEl('smart-imported-summary', `
       <div class="row" style="gap:8px;margin-bottom:8px">
         <span style="font-weight:500;font-size:13px">${name}</span>
@@ -820,7 +788,7 @@ async function onSmartImport(patientId, patientName) {
     `);
 
     // Also show in Run Prior Auth section
-    document.getElementById('rc-imported').style.display = '';
+    document.getElementById('rc-imported').classList.remove('hidden');
     setEl('rc-imported-name', name);
     document.getElementById('rc-out-imported').textContent = 'Ready — click Run to start prior auth';
 
@@ -1046,6 +1014,15 @@ function toggleReason(el) {
   el.textContent = open ? '◈ Hide reasoning ▾' : '◈ Why did ALICE decide this? ▸';
 }
 
+
+function toggleTheme() {
+  const isDark = document.documentElement.classList.contains('dark');
+  document.documentElement.classList.toggle('dark', !isDark);
+  localStorage.setItem('alice-theme', isDark ? 'light' : 'dark');
+  document.getElementById('theme-toggle').textContent = isDark ? '☾' : '☀';
+}
+
 </script>
+</div>
 </body>
 </html>
