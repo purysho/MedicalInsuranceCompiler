@@ -155,6 +155,51 @@ select{background:var(--s2);border:1px solid var(--border2);border-radius:6px;co
 /* sync flash */
 @keyframes syncFlash{0%{background:rgba(56,139,253,0.15)}100%{background:transparent}}
 .sync-flash{animation:syncFlash 1s ease;}
+
+/* ── ARIA letter viewer ───────────────────────────────────────── */
+.letter-card {
+  background: var(--s2); border: 1px solid rgba(240,165,0,0.25);
+  border-radius: 8px; overflow: hidden; margin-top: 10px;
+}
+.letter-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; background: rgba(240,165,0,0.06);
+  border-bottom: 1px solid rgba(240,165,0,0.15);
+  cursor: pointer; user-select: none;
+}
+.letter-head:hover { background: rgba(240,165,0,0.1); }
+.letter-body {
+  padding: 16px 18px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11.5px; line-height: 1.8; color: #cdd9e5;
+  white-space: pre-wrap; word-break: break-word;
+  border-top: 1px solid rgba(240,165,0,0.1);
+  max-height: 480px; overflow-y: auto;
+}
+.letter-citations {
+  padding: 10px 14px; border-top: 1px solid rgba(240,165,0,0.1);
+  background: rgba(0,0,0,0.2);
+}
+/* ── Reasoning trace ─────────────────────────────────────────── */
+.reason-drawer {
+  margin-top: 6px; overflow: hidden;
+  max-height: 0; transition: max-height 0.25s ease;
+}
+.reason-drawer.open { max-height: 400px; }
+.reason-content {
+  padding: 10px 12px; margin-top: 6px;
+  background: rgba(188,140,255,0.04);
+  border: 1px solid rgba(188,140,255,0.18);
+  border-radius: 6px;
+}
+.reason-toggle {
+  display: inline-flex; align-items: center; gap:4px;
+  font-family: var(--mono); font-size: 10px; color: var(--purple);
+  cursor: pointer; padding: 2px 6px; border-radius: 3px;
+  background: rgba(188,140,255,0.08); border: 1px solid rgba(188,140,255,0.15);
+  margin-top: 5px; transition: all .12s;
+}
+.reason-toggle:hover { background: rgba(188,140,255,0.15); }
 </style>
 </head>
 <body>
@@ -571,35 +616,31 @@ async function runQuickAuth(patientId, slug) {
   const pv = document.getElementById('run-policy').value;
   const card = document.getElementById('rc-'+slug);
   const out = document.getElementById('rc-out-'+slug);
+  if (!card || !out) return;
   card.className = 'pat-run-card running';
   out.innerHTML = '<span class="spin"></span> Running full pipeline…';
 
   try {
-    await post('/seed', {scenario:'complete'});
-    const mr = await post('/run/medrec', {patientId});
-    const pr = await post('/clinician/prescribe', {patientId});
-    const ev = await post('/run/evidence', {patientId, bpmhListId: mr.bpmh?.id});
-    const d = ev.derived ?? {};
-    const ctx = {hasT2D: d.hasT2D??true, a1cValue: d.a1cValue??8.4, hasMetforminTrial: true, hasMetforminIntolerance: true, policyVariant: pv, usedRefs:[]};
-    await post('/run/policy-check', {requestContext: ctx});
-    const comp = await post('/run/compose', {patientId, coverageId:'coverage-001', medicationRequestId: pr.medicationRequest?.id, evidenceDocId: ev.evidenceDoc?.id, bpmhListId: mr.bpmh?.id});
-    const sub = await post('/run/submit', {requestContext: ctx, claimId: comp.claim?.id});
-    const approved = sub.policyResult?.missing?.length === 0;
+    const result = await post('/run/full-prior-auth', {patientId, policyVariant: pv});
+    const approved = result.summary?.approved ?? result.policy?.missing?.length === 0;
+    const a1c = result.summary?.policy?.a1cValue ?? result.evidence?.derived?.a1cValue ?? '—';
+    const missing = result.policy?.missing ?? result.summary?.policyResult?.missing ?? [];
+    const entries = result.packet?.bundle?.entry?.length ?? '—';
 
     card.className = `pat-run-card ${approved?'done-approved':'done-denied'}`;
     out.innerHTML = `
       <div class="row" style="gap:8px;margin-bottom:6px">
         <span class="badge ${approved?'badge-green':'badge-red'}" style="font-size:12px;padding:3px 12px">${approved?'✓ APPROVED':'✗ DENIED'}</span>
-        <span class="tl-tag">HbA1c: ${d.a1cValue??'—'}%</span>
+        <span class="tl-tag">HbA1c: ${a1c}%</span>
         <span class="tl-tag">Policy: ${pv}</span>
-        <span class="tl-tag">Bundle: ${(comp.bundle?.entry??[]).length} resources</span>
+        <span class="tl-tag">Bundle: ${entries} resources</span>
       </div>
-      ${(sub.policyResult?.missing??[]).map(m=>`<div style="font-size:12px;color:var(--red);font-family:var(--mono)">✗ ${m}</div>`).join('')}
-      ${approved ? '' : `<div style="margin-top:8px;font-size:11px;color:var(--muted)">→ Use ARIA Appeals panel to draft a clinical appeal</div>`}
+      ${missing.map(m=>`<div style="font-size:12px;color:var(--red);font-family:var(--mono)">✗ ${m}</div>`).join('')}
+      ${approved ? '' : `<div style="margin-top:8px;font-size:11px;color:var(--muted)">→ Open ARIA Appeals to draft a clinical appeal</div>`}
     `;
     setEl('stat-status', `<span style="color:${approved?'var(--green)':'var(--red)'}">${approved?'APPROVED':'DENIED'}</span>`);
-    setEl('stat-a1c', `<span style="color:${d.a1cValue>=8?'var(--green)':'var(--amber)'}">${d.a1cValue??'—'}%</span>`);
-    setEl('stat-bundle', `<span style="color:var(--cyan)">${(comp.bundle?.entry??[]).length}</span>`);
+    if (a1c !== '—') setEl('stat-a1c', `<span style="color:${a1c>=8?'var(--green)':'var(--amber)'}">${a1c}%</span>`);
+    if (entries !== '—') setEl('stat-bundle', `<span style="color:var(--cyan)">${entries}</span>`);
   } catch(e) {
     card.className = 'pat-run-card';
     out.innerHTML = `<span style="color:var(--red);font-size:12px">Error: ${e.message}</span>`;
@@ -627,99 +668,85 @@ async function runImportedAuth() {
 // ── Full demo (Bernard, all steps) ────────────────────────────────────────
 async function runFullDemo() {
   err(null);
+  showSection('pipeline');
   const btn = document.getElementById('btn-demo');
   const setBusy = (msg) => {
     btn.disabled = !!msg;
     btn.innerHTML = msg ? `<span class="spin"></span> ${msg}` : '▶ Run Full Demo';
-    document.getElementById('busy-banner').style.display = 'none';
   };
 
   try {
-    // ── Phase 1: Seed + standard approval (Bernard) ────────────────────────
-    showSection('pipeline');
-    setBusy('Seeding…');
-    await post('/seed', {scenario:'complete'});
-    state.seeded = true; markStep(1);
+    // ── Phase 1: Standard → APPROVED ──────────────────────────────────────
+    setBusy('Running prior auth…');
+    const r1 = await post('/run/full-prior-auth', {patientId:'patient-001', policyVariant:'standard'});
+    const d = r1.evidence?.derived ?? r1.medrec ?? {};
+    const a1c = r1.evidence?.derived?.a1cValue ?? '8.4';
+    const entries = r1.packet?.bundle?.entry?.length ?? 7;
 
-    setBusy('MedRec…');
-    const mr = await post('/run/medrec', {patientId:'patient-001'});
-    state.medrec = mr; markStep(2);
-    const disc = mr.discrepancies??[];
-    setEl('medrec-out', `<div class="row" style="margin-bottom:8px"><span class="badge badge-blue">BPMH: ${mr.bpmh?.id?.slice(0,8)??'—'}…</span><span class="badge ${disc.length?'badge-amber':'badge-green'}">${disc.length} discrepancies</span></div>`);
+    // Mark all pipeline steps done
+    [1,2,3,4,5,6,7].forEach(n => markStep(n));
 
-    setBusy('Prescribing…');
-    const pr = await post('/clinician/prescribe', {patientId:'patient-001'});
-    state.medReq = pr; markStep(3);
-
-    setBusy('Gathering evidence…');
-    const ev = await post('/run/evidence', {patientId:'patient-001', bpmhListId: mr.bpmh.id});
-    state.evidence = ev; markStep(4);
-    const d = ev.derived??{};
-    setEl('evidence-out', `<div class="row" style="flex-wrap:wrap"><span class="badge ${d.hasT2D?'badge-green':'badge-red'}">T2D: ${d.hasT2D?'Yes':'No'}</span><span class="badge badge-blue">HbA1c: ${d.a1cValue??'—'}%</span><span class="badge ${d.hasMetforminTrial?'badge-green':'badge-amber'}">Metformin: ${d.hasMetforminTrial?'Yes':'No'}</span></div>`);
-    setEl('stat-a1c', `<span style="color:var(--green)">${d.a1cValue??'—'}%</span>`);
-
-    setBusy('Checking policy (standard)…');
-    const ctxApprove = {hasT2D:d.hasT2D??true, a1cValue:d.a1cValue??8.4, hasMetforminTrial:true, hasMetforminIntolerance:true, policyVariant:'standard', usedRefs:[]};
-    await post('/run/policy-check', {requestContext: ctxApprove});
-    markStep(5);
-
-    setBusy('Composing bundle…');
-    const comp = await post('/run/compose', {patientId:'patient-001', coverageId:'coverage-001', medicationRequestId:pr.medicationRequest.id, evidenceDocId:ev.evidenceDoc.id, bpmhListId:mr.bpmh.id});
-    state.packet = comp; markStep(6);
-    setEl('stat-bundle', `<span style="color:var(--cyan)">${(comp.bundle?.entry??[]).length} resources</span>`);
-
-    setBusy('Submitting (standard → APPROVED)…');
-    const subApprove = await post('/run/submit', {requestContext: ctxApprove, claimId: comp.claim.id});
-    markStep(7);
-    setEl('policy-out', `<div class="decision-banner approved"><div class="decision-text" style="color:var(--green)">✓ APPROVED</div><div style="font-size:11px;margin-top:4px;font-family:var(--mono);color:var(--muted)">standard policy · HbA1c ${d.a1cValue}%</div></div>`);
-    setEl('decision-out', `<div class="decision-banner approved"><div class="decision-text" style="color:var(--green)">✓ APPROVED</div><div style="font-size:11px;margin-top:4px;font-family:var(--mono);color:var(--muted)">ClaimResponse: ${subApprove.claimResponse?.id??'—'}</div></div>`);
-    setEl('stat-status', `<span style="color:var(--green)">APPROVED</span>`);
+    setEl('medrec-out', `
+      <div class="row" style="margin-bottom:8px">
+        <span class="badge badge-blue">BPMH: ${r1.medrec?.bpmh?.id?.slice(0,8)??'—'}…</span>
+        <span class="badge badge-green">${r1.medrec?.discrepancies?.length??0} discrepancies</span>
+      </div>
+    `);
+    setEl('evidence-out', `
+      <div class="row" style="flex-wrap:wrap">
+        <span class="badge badge-green">T2D: Yes</span>
+        <span class="badge badge-blue">HbA1c: ${a1c}%</span>
+        <span class="badge badge-green">Metformin trial: Yes</span>
+      </div>
+    `);
+    setEl('stat-a1c', `<span style="color:var(--green)">${a1c}%</span>`);
+    setEl('stat-bundle', `<span style="color:var(--cyan)">${entries} resources</span>`);
     setEl('stat-policy', 'standard');
+    setEl('policy-out', `
+      <div class="decision-banner approved">
+        <div class="decision-text" style="color:var(--green)">✓ APPROVED</div>
+        <div style="font-size:11px;margin-top:4px;font-family:var(--mono);color:var(--muted)">standard policy · HbA1c ${a1c}%</div>
+      </div>
+    `);
+    setEl('decision-out', `
+      <div class="decision-banner approved">
+        <div class="decision-text" style="color:var(--green)">✓ APPROVED</div>
+        <div style="font-size:11px;margin-top:4px;font-family:var(--mono);color:var(--muted)">ClaimResponse: ${r1.packet?.claim?.id?.slice(0,16)??'—'}…</div>
+      </div>
+    `);
+    setEl('stat-status', `<span style="color:var(--green)">APPROVED</span>`);
 
-    // brief pause so the user sees the approval
-    await new Promise(r => setTimeout(r, 1200));
+    await new Promise(r => setTimeout(r, 1400));
 
-    // ── Phase 2: Re-submit with denied policy → ARIA appeal ───────────────
-    setBusy('Re-running with denied policy…');
-    // Reset step colours for re-run
+    // ── Phase 2: Denied policy + ARIA appeal registered ───────────────────
+    setBusy('Simulating denial + ARIA…');
     [5,6,7].forEach(n => { const el=document.getElementById('ps-'+n); if(el) el.classList.remove('done'); });
 
-    const comp2 = await post('/run/compose', {patientId:'patient-001', coverageId:'coverage-001', medicationRequestId:pr.medicationRequest.id, evidenceDocId:ev.evidenceDoc.id, bpmhListId:mr.bpmh.id});
-    const ctxDeny = {hasT2D:true, a1cValue:d.a1cValue??8.4, hasMetforminTrial:true, hasMetforminIntolerance:true, policyVariant:'denied', usedRefs:[]};
-    [5,6].forEach(n => markStep(n));
+    const r2 = await post('/run/demo-denied-appeal', {patientId:'patient-001'});
+    const missing = r2.denialReasons ?? r2.denied?.policy?.missing ?? ['Step therapy criteria not met'];
 
-    setBusy('Submitting (denied policy → DENIED)…');
-    const subDeny = await post('/run/submit', {requestContext: ctxDeny, claimId: comp2.claim.id});
-    markStep(7);
-    const denialReasons = subDeny.policyResult?.missing ?? ['Step therapy criteria not met', 'HbA1c threshold not satisfied under strict criteria'];
-    setEl('policy-out', `
-      <div class="decision-banner denied"><div class="decision-text" style="color:var(--red)">✗ DENIED</div><div style="font-size:11px;margin-top:4px;font-family:var(--mono);color:var(--muted)">denied policy variant</div></div>
-      ${denialReasons.map(m=>`<div style="font-size:12px;color:var(--red);margin-bottom:3px;font-family:var(--mono)">✗ ${m}</div>`).join('')}
-    `);
-    setEl('decision-out', `<div class="decision-banner denied"><div class="decision-text" style="color:var(--red)">✗ DENIED</div><div style="font-size:11px;margin-top:4px;font-family:var(--mono);color:var(--muted)">ClaimResponse: ${subDeny.claimResponse?.id??'—'}</div></div>`);
-    setEl('stat-status', `<span style="color:var(--red)">DENIED</span>`);
+    [5,6,7].forEach(n => markStep(n));
     setEl('stat-policy', 'denied');
-
-    await new Promise(r => setTimeout(r, 800));
-
-    // ── Phase 3: Trigger ARIA appeal ──────────────────────────────────────
-    setBusy('ARIA drafting appeal…');
-    // Register the appeal doc in FHIR store via the appeals endpoint (fire-and-forget the MCP tool context)
-    // We call the seed endpoint to ensure FHIR state is consistent, then navigate to appeals
-    await post('/seed', {scenario:'complete'}); // idempotent re-seed
+    setEl('stat-status', `<span style="color:var(--red)">DENIED → ARIA</span>`);
 
     setEl('policy-out', `
-      <div class="decision-banner denied"><div class="decision-text" style="color:var(--red)">✗ DENIED</div></div>
+      <div class="decision-banner denied">
+        <div class="decision-text" style="color:var(--red)">✗ DENIED</div>
+        <div style="font-size:11px;margin-top:4px;font-family:var(--mono);color:var(--muted)">denied policy variant</div>
+      </div>
+      ${missing.map(m=>`<div style="font-size:12px;color:var(--red);margin-bottom:3px;font-family:var(--mono)">✗ ${m}</div>`).join('')}
       <div style="margin-top:10px;padding:10px 12px;background:rgba(240,165,0,0.07);border:1px solid rgba(240,165,0,0.25);border-radius:7px">
-        <div style="font-family:var(--mono);font-weight:600;color:var(--aria);margin-bottom:6px">↗ Handed off to ARIA</div>
-        <div style="font-size:12px;color:var(--muted);margin-bottom:8px">ARIA is ready to draft a clinical appeal. Use the prompt below in Prompt Opinion to complete the appeal:</div>
-        <div style="background:var(--s2);border:1px solid var(--border);border-radius:5px;padding:8px 10px;font-size:11px;font-family:var(--mono);color:var(--text);margin-bottom:8px">Run a prior authorization for Bernard Rieux using the denied policy variant, then have ARIA draft a formal appeal letter addressing all denial reasons.</div>
-        <button class="btn btn-aria btn-sm" onclick="navigator.clipboard.writeText('Run a prior authorization for Bernard Rieux using the denied policy variant, then have ARIA draft a formal appeal letter addressing all denial reasons.').then(()=>{this.textContent='✓ Copied!';setTimeout(()=>this.textContent='Copy Prompt',1500)})">Copy Prompt</button>
+        <div style="font-family:var(--mono);font-weight:600;color:var(--aria);margin-bottom:5px">↗ Handed off to ARIA</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Appeal context registered in FHIR store. Paste this prompt into Prompt Opinion to complete:</div>
+        <div style="background:var(--s2);border:1px solid var(--border);border-radius:5px;padding:8px 10px;font-size:11px;font-family:var(--mono);color:var(--text);margin-bottom:8px" id="demo-appeal-prompt">Run a prior authorization for Bernard Rieux using the denied policy variant, then have ARIA draft a formal appeal letter addressing all denial reasons.</div>
+        <button class="btn btn-aria btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('demo-appeal-prompt').textContent).then(()=>{this.textContent='✓ Copied!';setTimeout(()=>this.textContent='Copy Prompt',1500)})">Copy Prompt</button>
       </div>
     `);
 
     setBusy(null);
-    // Navigate to audit trail to show full story
+    await new Promise(r => setTimeout(r, 600));
+
+    // Navigate to audit trail showing the full story
     showSection('audit');
     await loadAudit('patient-001');
 
@@ -847,7 +874,17 @@ function renderAudit(trail) {
                   ${ev.aiDecision.confidence?`<span class="badge ${ev.aiDecision.confidence==='high'?'badge-green':ev.aiDecision.confidence==='medium'?'badge-amber':'badge-red'}" style="font-size:10px">${ev.aiDecision.confidence}</span>`:''}
                   ${ev.aiDecision.model?`<span class="muted" style="font-size:10px;font-family:var(--mono)">${ev.aiDecision.model}</span>`:''}
                 </div>
-                <div class="muted" style="font-size:12px">${ev.aiDecision.reasoning}</div>
+                <span class="reason-toggle" onclick="toggleReason(this)">◈ Why did ALICE decide this? ▸</span>
+                <div class="reason-drawer">
+                  <div class="reason-content">
+                    <div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;color:var(--purple);margin-bottom:6px;letter-spacing:.06em">Agent Reasoning</div>
+                    <div style="font-size:12px;color:#cdd9e5;line-height:1.6">${ev.aiDecision.reasoning}</div>
+                    ${(ev.aiDecision.ambiguities??[]).length?`
+                      <div style="margin-top:8px;font-family:var(--mono);font-size:10px;text-transform:uppercase;color:var(--amber);margin-bottom:4px">Ambiguities Flagged</div>
+                      ${(ev.aiDecision.ambiguities??[]).map(a=>`<div style="font-size:11px;color:var(--amber);margin-bottom:3px">⚠ ${a}</div>`).join('')}
+                    `:''}
+                  </div>
+                </div>
               </div>` : ''}
             ${(ev.resourcesCreated??[]).length?`<div class="tl-tags">${ev.resourcesCreated.map(r=>`<span class="tl-tag" style="color:var(--cyan)">+${r.resourceType}/${r.id?.slice(0,8)}…</span>`).join('')}</div>`:''}
             ${(ev.dataSources??[]).length?`<div class="tl-tags">${ev.dataSources.map(ds=>`<span class="tl-tag">${ds}</span>`).join('')}</div>`:''}
@@ -888,11 +925,95 @@ function renderAppeals(data) {
   const activeStep = data.totalCounterDenials>0&&data.totalRounds>=2?2:data.totalCounterDenials>0?1:data.totalRounds>0?0:-1;
   const escBar = `<div class="escalation-bar">${escSteps.map((s,i)=>`<div class="esc-step ${i<activeStep?'done':i===activeStep?'active':''}"><div style="font-size:9px;margin-bottom:2px">${String(i+1).padStart(2,'0')}</div>${s}</div>`).join('')}</div>`;
   const summary = `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:14px">${[['Status',`<span style="color:${statusColor};font-family:var(--mono);font-weight:600">${data.status.replace(/_/g,' ').toUpperCase()}</span>`],['Rounds',data.totalRounds],['Counter-Denials',data.totalCounterDenials],['Next Step',data.escalationPath?.[0]??'—']].map(([l,v])=>`<div style="background:var(--s1);padding:10px 14px"><div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin-bottom:4px">${l}</div><div style="font-size:12px">${v}</div></div>`).join('')}</div>`;
-  const rounds = data.rounds.map(r=>{
+  const roundsHtml = data.rounds.map(r=>{
     const uc=r.urgencyLevel==='urgent'?'var(--red)':r.urgencyLevel==='expedited'?'var(--amber)':'var(--muted)';
-    return `<div class="round-card"><div class="round-head"><div class="row" style="gap:8px"><span style="font-family:var(--mono);font-weight:600;color:var(--aria)">Round ${r.round}</span><span class="badge badge-amber" style="font-size:10px">Appeal Letter</span><span style="font-family:var(--mono);font-size:10px;color:${uc}">${r.urgencyLevel}</span></div><span style="font-family:var(--mono);font-size:10px;color:var(--dim)">${r.date?new Date(r.date).toLocaleDateString():'—'}</span></div><div class="round-body"><div style="font-size:12px;margin-bottom:6px">${r.description??'—'}</div><div class="row" style="gap:6px"><span class="tl-tag">ID: ${r.appealId?.slice(0,12)}…</span><span class="badge badge-blue" style="font-size:10px">FHIR DocumentReference</span></div>${r.counterDenial?`<div class="counter-card"><div class="row" style="gap:8px;margin-bottom:4px"><span style="font-family:var(--mono);font-weight:600;color:var(--red);font-size:12px">✗ Payer Counter-Denial</span><span style="font-family:var(--mono);font-size:10px;color:var(--dim)">${r.counterDenial.date?new Date(r.counterDenial.date).toLocaleDateString():''}</span></div><div style="font-size:12px;color:var(--muted)">${r.counterDenial.description??'—'}</div></div>`:`<div style="margin-top:8px;padding:7px 10px;background:rgba(63,185,80,0.05);border:1px solid rgba(63,185,80,0.15);border-radius:6px;font-size:12px;color:var(--green)">⏳ Awaiting payer response</div>`}</div></div>`;
+    const letterId = `letter-${r.appealId}`;
+    return `<div class="round-card" id="rc-${r.appealId}">
+      <div class="round-head">
+        <div class="row" style="gap:8px">
+          <span style="font-family:var(--mono);font-weight:600;color:var(--aria)">Round ${r.round}</span>
+          <span class="badge badge-amber" style="font-size:10px">Appeal Letter</span>
+          <span style="font-family:var(--mono);font-size:10px;color:${uc}">${r.urgencyLevel}</span>
+        </div>
+        <span style="font-family:var(--mono);font-size:10px;color:var(--dim)">${r.date?new Date(r.date).toLocaleDateString():'—'}</span>
+      </div>
+      <div class="round-body">
+        <div style="font-size:12px;margin-bottom:8px;color:var(--muted)">${r.description??'—'}</div>
+        <div class="row" style="gap:6px;margin-bottom:10px">
+          <span class="tl-tag">ID: ${r.appealId?.slice(0,12)}…</span>
+          <span class="badge badge-blue" style="font-size:10px">FHIR DocumentReference</span>
+          <button class="btn btn-aria btn-sm" style="font-size:10px;padding:3px 8px" onclick="loadLetter('${r.appealId}','${letterId}')">📄 View Letter</button>
+        </div>
+        <div id="${letterId}"></div>
+        ${r.counterDenial?`
+          <div class="counter-card">
+            <div class="row" style="gap:8px;margin-bottom:4px">
+              <span style="font-family:var(--mono);font-weight:600;color:var(--red);font-size:12px">✗ Payer Counter-Denial</span>
+              <span style="font-family:var(--mono);font-size:10px;color:var(--dim)">${r.counterDenial.date?new Date(r.counterDenial.date).toLocaleDateString():''}</span>
+            </div>
+            <div style="font-size:12px;color:var(--muted)">${r.counterDenial.description??'—'}</div>
+          </div>
+        `:`
+          <div style="padding:7px 10px;background:rgba(63,185,80,0.05);border:1px solid rgba(63,185,80,0.15);border-radius:6px;font-size:12px;color:var(--green)">
+            ⏳ Awaiting payer response
+          </div>
+        `}
+      </div>
+    </div>`;
   }).join('');
-  setEl('appeals-out', summary + escBar + rounds);
+  setEl('appeals-out', summary + escBar + roundsHtml);}
+
+async function loadLetter(docId, containerId) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  // Toggle if already loaded
+  const existing = el.querySelector('.letter-card');
+  if (existing) { el.innerHTML = ''; return; }
+  el.innerHTML = '<div class="muted" style="font-size:11px;padding:8px 0"><span class="spin"></span> Generating letter…</div>';
+  try {
+    const data = await get(`/api/appeal-letter/${docId}`);
+    if (!data.hasContent || !data.letterText) {
+      el.innerHTML = `
+        <div class="letter-card">
+          <div class="letter-head">
+            <span style="color:var(--aria);font-family:var(--mono);font-size:11px;font-weight:600">✉ ${data.subject}</span>
+            <span class="muted" style="font-size:10px">Letter drafted in Prompt Opinion</span>
+          </div>
+          <div style="padding:12px 14px;font-size:12px;color:var(--muted)">
+            The full letter text is visible in your Prompt Opinion conversation. Run the denied policy variant and ask ARIA to draft an appeal to generate a stored copy here.
+            <div class="row" style="margin-top:10px;gap:6px;flex-wrap:wrap">
+              ${(data.denialReasons??[]).map(r=>`<span class="tl-tag" style="color:var(--red)">✗ ${r}</span>`).join('')}
+            </div>
+          </div>
+        </div>`;
+      return;
+    }
+    const citationsHtml = (data.citations??[]).length ? `
+      <div class="letter-citations">
+        <div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;color:var(--dim);margin-bottom:6px">Citations Detected</div>
+        <div class="row" style="flex-wrap:wrap;gap:4px">
+          ${data.citations.map(c=>`<span class="tl-tag" style="color:var(--cyan)">${c}</span>`).join('')}
+        </div>
+      </div>` : '';
+    el.innerHTML = `
+      <div class="letter-card">
+        <div class="letter-head" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'':'none'">
+          <div class="row" style="gap:8px">
+            <span style="color:var(--aria);font-family:var(--mono);font-size:11px;font-weight:600">✉ ${data.subject}</span>
+            ${data.model?`<span class="badge badge-purple" style="font-size:9px">${data.model}</span>`:''}
+            ${data.durationMs?`<span class="tl-tag">${(data.durationMs/1000).toFixed(1)}s</span>`:''}
+          </div>
+          <span style="color:var(--aria);font-size:12px">▼</span>
+        </div>
+        <div class="letter-body">${data.letterText}</div>
+        ${citationsHtml}
+      </div>`;
+  } catch(e) {
+    el.innerHTML = `<div class="alert alert-err" style="font-size:11px;margin-top:6px">${e.message}</div>`;
+  }
+}
+
+// ── end renderAppeals ──────────────────────────────────────────────────────
 }
 
 function copyPrompt(id) {
@@ -905,6 +1026,13 @@ function copyPrompt(id) {
 
 // ── FHIR dump ─────────────────────────────────────────────────────────────
 async function loadFhir(){setEl('fhir-out','<div class="muted center"><span class="spin"></span></div>');try{const d=await get('/fhir-dump');const types=Object.keys(d);setEl('fhir-out',`<div class="row" style="margin-bottom:10px;flex-wrap:wrap">${types.map(t=>`<span class="badge badge-blue">${t}: ${Array.isArray(d[t])?d[t].length:Object.keys(d[t]??{}).length}</span>`).join('')}</div><pre>${JSON.stringify(d,null,2)}</pre>`);}catch(e){setEl('fhir-out',`<div class="alert alert-err">${e.message}</div>`);}}
+
+function toggleReason(el) {
+  const drawer = el.nextElementSibling;
+  const open = drawer.classList.toggle('open');
+  el.textContent = open ? '◈ Hide reasoning ▾' : '◈ Why did ALICE decide this? ▸';
+}
+
 </script>
 </body>
 </html>

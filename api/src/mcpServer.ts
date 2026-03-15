@@ -394,7 +394,7 @@ const TOOLS = [
 
 // ── Tool execution ────────────────────────────────────────────────────────────
 
-async function executeTool(
+export async function executeTool(
   store: FhirStore,
   name: string,
   args: Record<string, any>
@@ -1073,7 +1073,40 @@ async function executeTool(
       });
       completeSession(existingSession, "appealed");
 
-      // Register a placeholder DocumentReference so the appeal has a FHIR ID
+      // Generate real letter via Claude
+      let letterResult: any = null;
+      try {
+        const { generateAppealLetter } = await import("./agents/appealAgent.js");
+        const a1cObs = store.search("Observation", { subject: args.patientId })
+          .find((o: any) => JSON.stringify(o).toLowerCase().includes("a1c"));
+        const conditions = store.search("Condition", { subject: args.patientId });
+        const t2d = conditions.find((c: any) => JSON.stringify(c).toLowerCase().includes("type 2"));
+        const metHistory = store.search("MedicationStatement", { subject: args.patientId })
+          .filter((s: any) => (s.medicationCodeableConcept?.text ?? "").toLowerCase().includes("metformin"))
+          .map((s: any) => ({ status: s.status, note: s.note?.[0]?.text ?? null }));
+        const patientRec = store.search("Patient", { id: args.patientId })[0]
+          ?? store.search("Patient", {})[0];
+        const patientName = patientRec?.name?.[0]?.text
+          ?? patientRec?.name?.[0]?.family
+          ?? "the patient";
+        letterResult = await generateAppealLetter({
+          patientName,
+          patientId: args.patientId,
+          medication: "Semaglutide (GLP-1 Agonist)",
+          denialReasons,
+          a1cValue: a1cObs?.valueQuantity?.value ?? null,
+          a1cDate: a1cObs?.effectiveDateTime ?? null,
+          t2dDiagnosis: t2d?.code?.text ?? "Type 2 Diabetes Mellitus",
+          metforminHistory: metHistory,
+          policyVariant: args.policyVariant ?? "standard",
+          appealRound: 1,
+          noteExtractionSummary: args.noteExtractionSummary ?? null,
+        });
+      } catch (letterErr: any) {
+        console.warn("Letter generation failed, storing placeholder:", letterErr.message);
+      }
+
+      // Store DocumentReference with letter content
       const appealDoc = store.create({
         resourceType: "DocumentReference",
         status: "current",
@@ -1081,6 +1114,24 @@ async function executeTool(
         subject: { reference: `Patient/${args.patientId}` },
         date: new Date().toISOString(),
         description: `Appeal — ${denialReasons.join("; ")}`,
+        content: letterResult ? [{
+          attachment: {
+            contentType: "text/plain",
+            title: letterResult.subject,
+            data: Buffer.from(letterResult.letterText).toString("base64"),
+          }
+        }] : [],
+        extension: [{
+          url: "https://alice.health/appeal-metadata",
+          valueString: JSON.stringify({
+            appealRound: 1,
+            denialReasons,
+            citations: letterResult?.citations ?? [],
+            model: letterResult?.model ?? null,
+            durationMs: letterResult?.durationMs ?? null,
+            subject: letterResult?.subject ?? null,
+          }),
+        }],
       });
 
       // Return full structured context for ARIA to write the letter herself

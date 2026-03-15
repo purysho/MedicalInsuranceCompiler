@@ -9,7 +9,7 @@ import { runComposePacket } from "./agents/packetComposerAgent.js";
 import { runDecision } from "./agents/decisionAgent.js";
 import { writeProvenance } from "./agents/auditAgent.js";
 import { clearMcpLog, getMcpLog, runTool } from "./mcp.js";
-import { createMcpHandler } from "./mcpServer.js";
+import { createMcpHandler, executeTool } from "./mcpServer.js";
 import { diffPolicies, getPolicyDefinition } from "./policies.js";
 import { randomUUID } from "crypto";
 import path from "path";
@@ -169,6 +169,34 @@ app.get("/api/audit/:patientId/all", (req, res) => {
 app.get("/api/audit", (_req, res) => {
   res.json(getAllTrails());
 });
+
+// ── Appeal letter content endpoint ───────────────────────────────────────────
+app.get("/api/appeal-letter/:docId", (req, res) => {
+  const doc = store.read("DocumentReference", req.params.docId);
+  if (!doc) return res.status(404).json({ error: "Document not found" });
+
+  const attachment = doc.content?.[0]?.attachment;
+  const letterText = attachment?.data
+    ? Buffer.from(attachment.data, "base64").toString("utf-8")
+    : null;
+
+  let meta: any = {};
+  try { meta = JSON.parse(doc.extension?.[0]?.valueString ?? "{}"); } catch {}
+
+  res.json({
+    id: doc.id,
+    date: doc.date,
+    subject: meta.subject ?? doc.description ?? "Appeal Letter",
+    letterText,
+    appealRound: meta.appealRound ?? 1,
+    denialReasons: meta.denialReasons ?? [],
+    citations: meta.citations ?? [],
+    model: meta.model ?? null,
+    durationMs: meta.durationMs ?? null,
+    hasContent: !!letterText,
+  });
+});
+
 // ── Appeals route ─────────────────────────────────────────────────────────────
 app.get("/api/appeals/:patientId", (req, res) => {
   const pid = req.params.patientId;
@@ -383,6 +411,37 @@ app.post("/run/submit", async (req, res) => {
   res.json(out);
 });
 
+
+// ── Full prior auth (single endpoint — calls the same logic as MCP tool) ────
+app.post("/run/full-prior-auth", async (req, res) => {
+  try {
+    const { patientId = "patient-001", policyVariant = "standard" } = req.body ?? {};
+    const result = await executeTool(store, "alice_run_full_prior_auth", { patientId, policyVariant });
+    res.json(result);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── Run denied + register appeal context (for demo flow) ─────────────────────
+app.post("/run/demo-denied-appeal", async (req, res) => {
+  try {
+    const { patientId = "patient-001" } = req.body ?? {};
+    // Run with denied policy
+    const denied = await executeTool(store, "alice_run_full_prior_auth", { patientId, policyVariant: "denied" });
+    const denialReasons = denied.policy?.missing ?? ["Step therapy criteria not met"];
+    // Register the appeal context (creates DocumentReference in FHIR store + audit event)
+    const appeal = await executeTool(store, "aria_draft_appeal", {
+      patientId,
+      denialReasons,
+      claimId: denied.packet?.claim?.id,
+      policyVariant: "denied",
+    });
+    res.json({ denied, appeal, denialReasons });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
 app.get("/packet/:bundleId", (req, res) => {
   const bundleId = req.params.bundleId;
   const bundle = store.read("Bundle", bundleId);
