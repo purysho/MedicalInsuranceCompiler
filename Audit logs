@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#9fb18b",
+                        "background-light": "#f7f7f7",
+                        "background-dark": "#191b17",
+                    },
+                    fontFamily: {
+                        "display": ["Lexend"]
+                    },
+                    borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Lexend', sans-serif; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100">
+<div class="flex h-screen overflow-hidden">
+<!-- Side Navigation -->
+<aside class="w-72 flex flex-col bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800">
+<div class="p-6 flex items-center gap-3">
+<div class="size-10 rounded-full bg-primary flex items-center justify-center text-white overflow-hidden shadow-sm" data-alt="Insurance compiler app logo icon">
+<span class="material-symbols-outlined">health_metrics</span>
+</div>
+<div class="flex flex-col">
+<h1 class="text-base font-bold leading-tight">Insurance Compiler</h1>
+<p class="text-xs text-slate-500 dark:text-slate-400">Medical Admin Portal</p>
+</div>
+</div>
+<nav class="flex-1 px-4 space-y-1 overflow-y-auto">
+<a class="flex items-center gap-3 px-4 py-3 text-slate-600 dark:text-slate-400 hover:bg-primary/10 hover:text-primary rounded-xl transition-colors" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="text-sm font-medium">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-600 dark:text-slate-400 hover:bg-primary/10 hover:text-primary rounded-xl transition-colors" href="#">
+<span class="material-symbols-outlined">assignment</span>
+<span class="text-sm font-medium">Authorizations</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 bg-primary/20 text-primary rounded-xl transition-colors" href="#">
+<span class="material-symbols-outlined">history</span>
+<span class="text-sm font-medium">Audit Trail</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-600 dark:text-slate-400 hover:bg-primary/10 hover:text-primary rounded-xl transition-colors" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="text-sm font-medium">Patients</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-600 dark:text-slate-400 hover:bg-primary/10 hover:text-primary rounded-xl transition-colors" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="text-sm font-medium">Settings</span>
+</a>
+</nav>
+<div class="p-4 border-t border-slate-200 dark:border-slate-800">
+<div class="flex items-center gap-3 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50">
+<div class="size-10 rounded-full bg-slate-200" data-alt="User profile avatar placeholder image">
+<img alt="Profile" class="rounded-full" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCFKnf8XKyDkDipNAqZE3eYNnqPQyl8SDuRFoRbfCnx2F3sQ9h9fPFnlThDTiZuZQTr2zvVxUO5edSJ_Mi4i2TzLjroYwKWWyAy_naX9f2Md88wI0VfgRdX8An85IqTxs9nk9pNaBXNWkBAT8SMfkqTEQ6FSTnhV8cKu7GtlALUsk4HCjvg1JY-zSDetiQyuOGbUZnkDqc7MRzokJXf6rsA8bFtWECzXdcDWcOTAuvDzpef1zYvCu9Mm6Ec8QLQlo9MxYLSkjEWusY"/>
+</div>
+<div class="flex flex-col">
+<p class="text-sm font-semibold">Dr. Sarah Chen</p>
+<p class="text-xs text-slate-500">Administrator</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 flex flex-col overflow-hidden">
+<!-- Header -->
+<header class="h-16 flex items-center justify-between px-8 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shrink-0">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary">manage_search</span>
+<h2 class="text-xl font-bold tracking-tight">Audit Trail</h2>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-3 text-slate-400 text-lg">search</span>
+<input class="pl-10 pr-4 py-2 w-64 bg-slate-100 dark:bg-slate-800 border-none rounded-full text-sm focus:ring-2 focus:ring-primary/50" placeholder="Global search..." type="text"/>
+</div>
+<button class="size-10 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+<span class="material-symbols-outlined text-slate-600 dark:text-slate-400">notifications</span>
+</button>
+</div>
+</header>
+<!-- Scrollable Body -->
+<div class="flex-1 overflow-y-auto p-8 space-y-6">
+<!-- Page Title & Description -->
+<div>
+<h3 class="text-2xl font-bold">Audit Logs</h3>
+<p class="text-slate-500 dark:text-slate-400">Comprehensive history of all authorization activities and status changes.</p>
+</div>
+<!-- Filters Bar -->
+<div class="flex flex-wrap items-center gap-3 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
+<div class="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 px-4 py-2 rounded-full cursor-pointer hover:bg-slate-200 transition-colors">
+<span class="material-symbols-outlined text-sm">calendar_today</span>
+<span class="text-sm font-medium text-slate-700 dark:text-slate-300">Today</span>
+<span class="material-symbols-outlined text-sm">expand_more</span>
+</div>
+<div class="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 px-4 py-2 rounded-full cursor-pointer hover:bg-slate-200 transition-colors">
+<span class="material-symbols-outlined text-sm">person</span>
+<span class="text-sm font-medium text-slate-700 dark:text-slate-300">All Patients</span>
+<span class="material-symbols-outlined text-sm">expand_more</span>
+</div>
+<div class="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 px-4 py-2 rounded-full cursor-pointer hover:bg-slate-200 transition-colors">
+<span class="material-symbols-outlined text-sm">priority_high</span>
+<span class="text-sm font-medium text-slate-700 dark:text-slate-300">High Priority Only</span>
+<span class="material-symbols-outlined text-sm">expand_more</span>
+</div>
+<div class="flex-1"></div>
+<div class="relative flex items-center max-w-xs w-full">
+<span class="material-symbols-outlined absolute left-3 text-slate-400 text-lg">filter_list</span>
+<input class="pl-10 pr-4 py-2 w-full bg-slate-100 dark:bg-slate-800 border-none rounded-xl text-sm focus:ring-2 focus:ring-primary/50" placeholder="Filter by Patient Name or ID..." type="text"/>
+</div>
+</div>
+<!-- Log List -->
+<div class="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
+<div class="grid grid-cols-12 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">
+<div class="col-span-3">User &amp; Action</div>
+<div class="col-span-4">Description</div>
+<div class="col-span-2">Patient Reference</div>
+<div class="col-span-2">Timestamp</div>
+<div class="col-span-1 text-right">Details</div>
+</div>
+<div class="divide-y divide-slate-100 dark:divide-slate-800">
+<!-- Entry 1 -->
+<div class="grid grid-cols-12 px-6 py-4 items-center hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+<div class="col-span-3 flex items-center gap-3">
+<div class="size-8 rounded-full bg-primary/20 flex items-center justify-center text-primary" data-alt="System update icon">
+<span class="material-symbols-outlined text-base">edit_note</span>
+</div>
+<div>
+<p class="text-sm font-semibold">Mark Thompson</p>
+<p class="text-[10px] text-primary font-bold uppercase">Status Changed</p>
+</div>
+</div>
+<div class="col-span-4 text-sm text-slate-600 dark:text-slate-400">
+                                Changed authorization status from <span class="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-xs font-medium">Pending</span> to <span class="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-2 py-0.5 rounded text-xs font-medium">Approved</span>
+</div>
+<div class="col-span-2">
+<p class="text-sm font-medium">Elena Rodriguez</p>
+<p class="text-[10px] text-slate-400">ID: #AUTH-92831</p>
+</div>
+<div class="col-span-2">
+<p class="text-sm">Today, 10:45 AM</p>
+<p class="text-[10px] text-slate-400">via Portal Dashboard</p>
+</div>
+<div class="col-span-1 text-right">
+<button class="text-slate-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">info</span>
+</button>
+</div>
+</div>
+<!-- Entry 2 -->
+<div class="grid grid-cols-12 px-6 py-4 items-center hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+<div class="col-span-3 flex items-center gap-3">
+<div class="size-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400" data-alt="Document upload icon">
+<span class="material-symbols-outlined text-base">upload_file</span>
+</div>
+<div>
+<p class="text-sm font-semibold">Sarah Chen</p>
+<p class="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase">File Uploaded</p>
+</div>
+</div>
+<div class="col-span-4 text-sm text-slate-600 dark:text-slate-400">
+                                Uploaded supplemental clinical documentation: <span class="text-primary hover:underline cursor-pointer italic">MRI_Report_03-24.pdf</span>
+</div>
+<div class="col-span-2">
+<p class="text-sm font-medium">James Wilson</p>
+<p class="text-[10px] text-slate-400">ID: #AUTH-92845</p>
+</div>
+<div class="col-span-2">
+<p class="text-sm">Today, 09:12 AM</p>
+<p class="text-[10px] text-slate-400">via Batch Processor</p>
+</div>
+<div class="col-span-1 text-right">
+<button class="text-slate-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">info</span>
+</button>
+</div>
+</div>
+<!-- Entry 3 -->
+<div class="grid grid-cols-12 px-6 py-4 items-center hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+<div class="col-span-3 flex items-center gap-3">
+<div class="size-8 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-amber-600 dark:text-amber-400" data-alt="Warning alert icon">
+<span class="material-symbols-outlined text-base">priority_high</span>
+</div>
+<div>
+<p class="text-sm font-semibold">System Automator</p>
+<p class="text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase">Escalation</p>
+</div>
+</div>
+<div class="col-span-4 text-sm text-slate-600 dark:text-slate-400">
+                                Priority escalated due to approaching SLA deadline (48-hour threshold exceeded).
+                            </div>
+<div class="col-span-2">
+<p class="text-sm font-medium">Maya Patel</p>
+<p class="text-[10px] text-slate-400">ID: #AUTH-92790</p>
+</div>
+<div class="col-span-2">
+<p class="text-sm">Today, 07:30 AM</p>
+<p class="text-[10px] text-slate-400">Auto-generated</p>
+</div>
+<div class="col-span-1 text-right">
+<button class="text-slate-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">info</span>
+</button>
+</div>
+</div>
+<!-- Entry 4 -->
+<div class="grid grid-cols-12 px-6 py-4 items-center hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+<div class="col-span-3 flex items-center gap-3">
+<div class="size-8 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center text-red-600 dark:text-red-400" data-alt="Error or rejection icon">
+<span class="material-symbols-outlined text-base">cancel</span>
+</div>
+<div>
+<p class="text-sm font-semibold">Robert Green</p>
+<p class="text-[10px] text-red-600 dark:text-red-400 font-bold uppercase">Claim Denied</p>
+</div>
+</div>
+<div class="col-span-4 text-sm text-slate-600 dark:text-slate-400">
+                                Authorization request denied. Reason: <span class="italic text-slate-500">Duplicate service request detected for current fiscal cycle.</span>
+</div>
+<div class="col-span-2">
+<p class="text-sm font-medium">David Miller</p>
+<p class="text-[10px] text-slate-400">ID: #AUTH-92812</p>
+</div>
+<div class="col-span-2">
+<p class="text-sm">Yesterday, 04:55 PM</p>
+<p class="text-[10px] text-slate-400">via Clinical Review</p>
+</div>
+<div class="col-span-1 text-right">
+<button class="text-slate-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">info</span>
+</button>
+</div>
+</div>
+<!-- Entry 5 -->
+<div class="grid grid-cols-12 px-6 py-4 items-center hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+<div class="col-span-3 flex items-center gap-3">
+<div class="size-8 rounded-full bg-primary/20 flex items-center justify-center text-primary" data-alt="User profile edit icon">
+<span class="material-symbols-outlined text-base">person_edit</span>
+</div>
+<div>
+<p class="text-sm font-semibold">Sarah Chen</p>
+<p class="text-[10px] text-primary font-bold uppercase">Info Updated</p>
+</div>
+</div>
+<div class="col-span-4 text-sm text-slate-600 dark:text-slate-400">
+                                Updated patient demographic info and insurance provider details.
+                            </div>
+<div class="col-span-2">
+<p class="text-sm font-medium">Elena Rodriguez</p>
+<p class="text-[10px] text-slate-400">ID: #AUTH-92831</p>
+</div>
+<div class="col-span-2">
+<p class="text-sm">Yesterday, 02:20 PM</p>
+<p class="text-[10px] text-slate-400">via Portal Dashboard</p>
+</div>
+<div class="col-span-1 text-right">
+<button class="text-slate-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">info</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Pagination -->
+<div class="bg-slate-50 dark:bg-slate-800/50 px-6 py-4 flex items-center justify-between border-t border-slate-200 dark:border-slate-800">
+<p class="text-xs text-slate-500">Showing 1 to 10 of 258 activities</p>
+<div class="flex items-center gap-2">
+<button class="px-3 py-1 text-xs font-semibold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-100 disabled:opacity-50" disabled="">Previous</button>
+<button class="px-3 py-1 text-xs font-semibold bg-primary text-white rounded-lg">1</button>
+<button class="px-3 py-1 text-xs font-semibold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-100">2</button>
+<button class="px-3 py-1 text-xs font-semibold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-100">3</button>
+<span class="text-xs text-slate-400 mx-1">...</span>
+<button class="px-3 py-1 text-xs font-semibold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-100">26</button>
+<button class="px-3 py-1 text-xs font-semibold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-100">Next</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>
