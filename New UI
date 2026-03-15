@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#A3B18A",
+                        "terracotta": "#E68A56",
+                        "cream": "#F9F5F1",
+                        "deep-brown": "#3D2B1F",
+                        "background-light": "#F9F5F1",
+                        "background-dark": "#191b17",
+                    },
+                    fontFamily: {
+                        "display": ["Lexend", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "1rem",
+                        "lg": "1rem",
+                        "xl": "2rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Lexend', sans-serif; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .active-step { border-bottom: 4px solid #A3B18A; color: #3D2B1F; }
+        .nav-item:hover { background-color: rgba(163, 177, 138, 0.15); }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-deep-brown font-display min-h-screen">
+<div class="flex h-screen overflow-hidden">
+<!-- Side Navigation Rail -->
+<aside class="w-72 bg-white dark:bg-zinc-900 border-r border-primary/20 flex flex-col justify-between p-6">
+<div class="flex flex-col gap-8">
+<!-- Branding -->
+<div class="flex items-center gap-3 px-2">
+<div class="size-10 rounded-xl bg-primary flex items-center justify-center text-white">
+<span class="material-symbols-outlined">clinical_notes</span>
+</div>
+<div>
+<h1 class="text-deep-brown dark:text-cream font-bold text-lg leading-tight">Compiler</h1>
+<p class="text-deep-brown/60 dark:text-cream/60 text-xs">Freud Medical System</p>
+</div>
+</div>
+<!-- Nav Links -->
+<nav class="flex flex-col gap-2">
+<a class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl bg-primary/20 text-deep-brown font-medium" href="#">
+<span class="material-symbols-outlined text-primary">account_tree</span>
+<span>Pipeline</span>
+</a>
+<a class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-deep-brown/70 hover:text-deep-brown" href="#">
+<span class="material-symbols-outlined">play_circle</span>
+<span>Run Prior Auth</span>
+</a>
+<a class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-deep-brown/70 hover:text-deep-brown" href="#">
+<span class="material-symbols-outlined">history</span>
+<span>Audit Trail</span>
+</a>
+<a class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-deep-brown/70 hover:text-deep-brown" href="#">
+<span class="material-symbols-outlined">group</span>
+<span>Patient Directory</span>
+</a>
+<a class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-deep-brown/70 hover:text-deep-brown" href="#">
+<span class="material-symbols-outlined">database</span>
+<span>Insurance Database</span>
+</a>
+<a class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-deep-brown/70 hover:text-deep-brown" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span>Settings</span>
+</a>
+</nav>
+</div>
+<!-- New Auth Button -->
+<button class="w-full bg-primary hover:bg-primary/90 text-white font-bold py-4 rounded-xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2">
+<span class="material-symbols-outlined">add</span>
+                New Auth
+            </button>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col overflow-y-auto">
+<!-- Header -->
+<header class="h-20 bg-white/50 backdrop-blur-md border-b border-primary/10 px-8 flex items-center justify-between sticky top-0 z-10">
+<div class="flex items-center gap-12">
+<h2 class="text-xl font-bold text-deep-brown">Prior Auth Dashboard</h2>
+<nav class="hidden md:flex items-center gap-8">
+<a class="text-deep-brown/60 hover:text-primary font-medium text-sm transition-colors" href="#">Overview</a>
+<a class="text-deep-brown/60 hover:text-primary font-medium text-sm transition-colors" href="#">Analytics</a>
+<a class="text-deep-brown/60 hover:text-primary font-medium text-sm transition-colors" href="#">Reports</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-deep-brown/40">search</span>
+<input class="pl-10 pr-4 py-2 bg-white border border-primary/20 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 w-64" placeholder="Search patients..." type="text"/>
+</div>
+<button class="size-10 rounded-full bg-white border border-primary/20 flex items-center justify-center text-deep-brown/60 hover:text-primary">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<div class="size-10 rounded-full bg-cover bg-center border-2 border-primary/20" data-alt="Portrait of a medical professional" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCjPCoV_womgYkl-vhhO6OpajGPFHxu4Mkl2LHiZ9DHK3RH5AfgpZI_5XV-JOo2ej1AWCS86Pve5GznH-5Mb0bvccbSCevx4GpISBfQcKrFe9yQMkPwW2ayaig73aGqgpIs83SWzuW1eUm-qrpgYLbKIEhb_sjqNzZSGngn_iBpllgIpqylvvKyzYFwRekWZcM5o5tZPT0E-Io-I2IyQ8UEH_kQetu-V6HPXGEhP6UWmVMbKSr-TUrGikAEUeZC-vD1cdqjPCWDkVY')"></div>
+</div>
+</header>
+<!-- Dashboard Content -->
+<div class="p-8 max-w-6xl mx-auto w-full">
+<!-- Patient Profile Header -->
+<div class="flex flex-wrap items-end justify-between gap-6 mb-8">
+<div class="flex items-center gap-6">
+<div class="size-24 rounded-xl bg-terracotta/20 flex items-center justify-center">
+<span class="material-symbols-outlined text-terracotta text-5xl">person</span>
+</div>
+<div>
+<h3 class="text-4xl font-bold text-deep-brown tracking-tight">Bernard Rieux</h3>
+<div class="flex items-center gap-4 mt-1">
+<span class="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">ID: #44921</span>
+<span class="text-deep-brown/60 text-sm">DOB: 05/12/1978</span>
+<span class="text-deep-brown/60 text-sm italic">• Diabetes Type 2</span>
+</div>
+</div>
+</div>
+<button class="bg-white border-2 border-primary/30 text-primary hover:bg-primary hover:text-white font-bold px-6 py-3 rounded-xl transition-all">
+                        Edit Patient Profile
+                    </button>
+</div>
+<!-- 7-Step Pipeline Nav -->
+<div class="bg-white rounded-xl p-2 mb-8 border border-primary/10 shadow-sm flex items-center overflow-x-auto">
+<button class="flex-1 py-4 px-2 text-center text-sm font-bold text-deep-brown/40 hover:text-primary transition-colors whitespace-nowrap">1. Seed</button>
+<button class="flex-1 py-4 px-2 text-center text-sm font-bold text-deep-brown/40 hover:text-primary transition-colors whitespace-nowrap">2. MedRec</button>
+<button class="flex-1 py-4 px-2 text-center text-sm font-bold text-deep-brown/40 hover:text-primary transition-colors whitespace-nowrap">3. Prescribe</button>
+<button class="flex-1 py-4 px-2 text-center text-sm font-bold text-deep-brown active-step whitespace-nowrap">4. Evidence</button>
+<button class="flex-1 py-4 px-2 text-center text-sm font-bold text-deep-brown/40 hover:text-primary transition-colors whitespace-nowrap">5. Policy</button>
+<button class="flex-1 py-4 px-2 text-center text-sm font-bold text-deep-brown/40 hover:text-primary transition-colors whitespace-nowrap">6. Compose</button>
+<button class="flex-1 py-4 px-2 text-center text-sm font-bold text-deep-brown/40 hover:text-primary transition-colors whitespace-nowrap">7. Submit</button>
+</div>
+<!-- Status Cards Grid -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+<!-- Decision Card -->
+<div class="bg-white p-6 rounded-xl border border-primary/10 shadow-sm hover:shadow-md transition-shadow">
+<div class="flex items-center justify-between mb-4">
+<span class="material-symbols-outlined text-terracotta bg-terracotta/10 p-2 rounded-lg">pending_actions</span>
+<span class="text-xs font-bold text-terracotta uppercase">Priority</span>
+</div>
+<h4 class="text-deep-brown/60 text-sm font-medium">Decision Status</h4>
+<p class="text-xl font-bold text-deep-brown mt-1">Pending Review</p>
+<div class="mt-4 h-1.5 w-full bg-primary/10 rounded-full overflow-hidden">
+<div class="bg-terracotta h-full w-[65%]"></div>
+</div>
+</div>
+<!-- Lab Results Card -->
+<div class="bg-white p-6 rounded-xl border border-primary/10 shadow-sm hover:shadow-md transition-shadow">
+<div class="flex items-center justify-between mb-4">
+<span class="material-symbols-outlined text-primary bg-primary/10 p-2 rounded-lg">biotech</span>
+<span class="text-xs font-bold text-primary uppercase">Stable</span>
+</div>
+<h4 class="text-deep-brown/60 text-sm font-medium">HbA1c Level</h4>
+<p class="text-xl font-bold text-deep-brown mt-1">7.2% Controlled</p>
+<p class="text-xs text-deep-brown/40 mt-1">Last checked: 14 days ago</p>
+</div>
+<!-- Auth ID Card -->
+<div class="bg-white p-6 rounded-xl border border-primary/10 shadow-sm hover:shadow-md transition-shadow">
+<div class="flex items-center justify-between mb-4">
+<span class="material-symbols-outlined text-deep-brown/40 bg-cream p-2 rounded-lg">tag</span>
+</div>
+<h4 class="text-deep-brown/60 text-sm font-medium">Prior Auth ID</h4>
+<p class="text-xl font-bold text-deep-brown mt-1">PA-88291-B</p>
+<p class="text-xs text-deep-brown/40 mt-1">Referral Code: REF-009</p>
+</div>
+<!-- Policy Card -->
+<div class="bg-white p-6 rounded-xl border border-primary/10 shadow-sm hover:shadow-md transition-shadow">
+<div class="flex items-center justify-between mb-4">
+<span class="material-symbols-outlined text-primary bg-primary/10 p-2 rounded-lg">policy</span>
+</div>
+<h4 class="text-deep-brown/60 text-sm font-medium">Latest Policy</h4>
+<p class="text-xl font-bold text-deep-brown mt-1">Aetna-2024-v2</p>
+<p class="text-xs text-deep-brown/40 mt-1">Coverage: Specialist Meds</p>
+</div>
+</div>
+<!-- Main Section: Evidence Collection -->
+<div class="bg-white rounded-xl border border-primary/10 shadow-sm overflow-hidden">
+<div class="p-8 border-b border-primary/10 flex items-center justify-between bg-cream/30">
+<div>
+<h4 class="text-2xl font-bold text-deep-brown">4. Clinical Evidence Collection</h4>
+<p class="text-deep-brown/60">Upload and verify supporting documentation for the authorization request.</p>
+</div>
+<button class="bg-primary text-white font-bold px-6 py-2 rounded-lg flex items-center gap-2">
+<span class="material-symbols-outlined text-lg">upload_file</span>
+                            Upload New
+                        </button>
+</div>
+<div class="p-8">
+<div class="space-y-4">
+<!-- Document Item -->
+<div class="flex items-center justify-between p-4 rounded-xl bg-cream/50 border border-primary/5">
+<div class="flex items-center gap-4">
+<div class="size-12 rounded-lg bg-white flex items-center justify-center border border-primary/10 shadow-sm">
+<span class="material-symbols-outlined text-primary">picture_as_pdf</span>
+</div>
+<div>
+<p class="font-bold text-deep-brown text-sm">Blood Glucose History - Q3 2023.pdf</p>
+<p class="text-xs text-deep-brown/40">Verified by Dr. Castel • 10/24/2023</p>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-xs font-bold text-primary bg-primary/10 px-2 py-1 rounded">MATCHED</span>
+<button class="text-deep-brown/40 hover:text-terracotta"><span class="material-symbols-outlined">delete</span></button>
+</div>
+</div>
+<!-- Document Item -->
+<div class="flex items-center justify-between p-4 rounded-xl bg-cream/50 border border-primary/5">
+<div class="flex items-center gap-4">
+<div class="size-12 rounded-lg bg-white flex items-center justify-center border border-primary/10 shadow-sm">
+<span class="material-symbols-outlined text-terracotta">description</span>
+</div>
+<div>
+<p class="font-bold text-deep-brown text-sm">Metformin Initial Prescription.docx</p>
+<p class="text-xs text-deep-brown/40">Patient History Link • 05/12/2022</p>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-xs font-bold text-terracotta bg-terracotta/10 px-2 py-1 rounded">PENDING OCR</span>
+<button class="text-deep-brown/40 hover:text-terracotta"><span class="material-symbols-outlined">delete</span></button>
+</div>
+</div>
+</div>
+<!-- Action Bar -->
+<div class="mt-8 pt-8 border-t border-primary/10 flex justify-end gap-4">
+<button class="px-8 py-3 rounded-xl border-2 border-primary/20 text-deep-brown/60 font-bold hover:bg-cream">Save Draft</button>
+<button class="px-8 py-3 rounded-xl bg-primary text-white font-bold hover:shadow-lg shadow-primary/20 transition-all flex items-center gap-2">
+                                Continue to Policy
+                                <span class="material-symbols-outlined">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>
