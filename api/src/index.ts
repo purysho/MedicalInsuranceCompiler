@@ -453,10 +453,13 @@ app.get("/packet/:bundleId", (req, res) => {
 
 
 app.get("/policy-data", (req, res) => {
+  const variants = ["standard","strict","denied","insulin-standard","insulin-strict","adalimumab-standard","adalimumab-strict"];
+  const library: Record<string, any> = {};
+  for (const v of variants) library[v] = getPolicyDefinition(v);
   const variant = String(req.query?.variant ?? "standard");
   const policy = getPolicyDefinition(variant);
   const diff = diffPolicies("standard", "strict");
-  res.json({ policy, library: Object.values({ standard: getPolicyDefinition("standard"), strict: getPolicyDefinition("strict") }), diff });
+  res.json({ policy, library, diff });
 });
 
 app.post("/show-me-why", (req, res) => {
