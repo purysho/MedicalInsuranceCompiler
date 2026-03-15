@@ -877,16 +877,50 @@ function selectPatient(p) {
   document.querySelectorAll('.patient-btn').forEach(b => b.classList.remove('bg-primary/10'));
   const active = document.getElementById('pt-'+p);
   if(active) active.classList.add('bg-primary/10');
-  // Sync pipeline dropdown with sidebar
+
+  // Resolve patient metadata
+  const importedName = state.smartImported?.patientName ?? state.smartImported?.patient?.name?.[0]?.text ?? 'SMART Patient';
+  const importedDob  = state.smartImported?.patient?.birthDate ?? '—';
+  const importedTag  = 'SMART Import · T2D';
+  const names = {bernard:'Bernard Rieux',    dorothea:'Dorothea Brooke',      eleanor:'Eleanor Vance',    imported:importedName};
+  const dobs  = {bernard:'01/03/1947',       dorothea:'22/04/1968',           eleanor:'14/09/1971',       imported:importedDob};
+  const tags  = {bernard:'T2D · GLP-1',      dorothea:'RA · Adalimumab',      eleanor:'T2D+RA · Dual',    imported:importedTag};
+  const ids   = {bernard:'patient-001',       dorothea:'patient-ra-001',       eleanor:'patient-comorbid-001', imported:state.smartImported?.patientId};
+
+  state.currentPatientId = ids[p] || 'patient-001';
+
+  // Update pipeline header
+  setEl('pipeline-patient-name', names[p] || '—');
+  const metaEl = document.getElementById('pipeline-patient-meta');
+  if (metaEl) metaEl.textContent = 'DOB: ' + (dobs[p] || '—');
+  // Update tag badge
+  const tagEl = document.querySelector('#section-pipeline .bg-primary\/10.text-primary');
+  if (tagEl) tagEl.textContent = tags[p] || '';
+
+  // Sync policy dropdowns
   const pv = document.getElementById('policy-variant')?.value;
   const pp = document.getElementById('pipeline-policy');
   if(pp && pv) pp.value = pv;
-  const names = {bernard:'Bernard Rieux',dorothea:'Dorothea Brooke',eleanor:'Eleanor Vance',imported:state.smartImported?.patient?.name?.[0]?.text??'SMART Patient'};
-  const tags = {bernard:'T2D · GLP-1',dorothea:'RA · Adalimumab',eleanor:'T2D+RA · Dual',imported:'SMART Import'};
-  const nameEl = document.getElementById('pipeline-patient-name');
-  if(nameEl) nameEl.textContent = names[p]||'—';
-  const ids = {bernard:'patient-001',dorothea:'patient-ra-001',eleanor:'patient-comorbid-001',imported:state.smartImported?.patientId};
-  state.currentPatientId = ids[p] || 'patient-001';
+
+  // Reset pipeline steps and result boxes for the new patient
+  [1,2,3,4,5,6,7].forEach(n => {
+    const el = document.getElementById('ps-'+n);
+    if(el) { el.classList.remove('done'); }
+  });
+  setEl('medrec-out',    '<div class="text-deep-brown/40 dark:text-cream/40 text-sm text-center py-4">Run Step 2</div>');
+  setEl('evidence-out',  '<div class="text-deep-brown/40 dark:text-cream/40 text-sm text-center py-4">Run Step 4</div>');
+  setEl('policy-out',    '<div class="text-deep-brown/40 dark:text-cream/40 text-sm text-center py-4">Run Step 5</div>');
+  setEl('decision-out',  '<div class="text-deep-brown/40 dark:text-cream/40 text-sm text-center py-4">Run Step 7</div>');
+  setEl('stat-decision-card', '—');
+  setEl('stat-a1c-card', '—');
+  setEl('stat-bundle-card', '—');
+  setEl('stat-status', '<span class="font-mono text-deep-brown/40 dark:text-cream/40">—</span>');
+  setEl('stat-a1c',    '<span class="font-mono text-deep-brown/40 dark:text-cream/40">—</span>');
+  setEl('stat-bundle', '<span class="font-mono text-deep-brown/40 dark:text-cream/40">—</span>');
+
+  // Clear per-patient state
+  state.medrec = null; state.medReq = null; state.evidence = null;
+  state.policy = null; state.packet = null; state.decision = null;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -910,7 +944,7 @@ function err(msg) { const el=document.getElementById('error-banner'); el.classLi
 function setEl(id, html) { const el=document.getElementById(id); if(el) el.innerHTML=html; }
 function markStep(n) { const el=document.getElementById('ps-'+n); if(el){el.classList.add('done');el.classList.remove('text-deep-brown/40','dark:text-cream/30');} }
 function policyVariant() { return document.getElementById('policy-variant').value; }
-function resolvePatientName(patientId) { return PATIENT_NAMES[patientId] || state.smartImported?.patient?.name?.[0]?.text || patientId?.slice(0,16)+'…'; }
+function resolvePatientName(patientId) { return PATIENT_NAMES[patientId] || (state.smartImported?.patientId === patientId ? (state.smartImported?.patientName ?? state.smartImported?.patient?.name?.[0]?.text) : null) || patientId?.slice(0,16)+'…'; }
 
 // ── Auto-sync with Prompt Opinion ─────────────────────────────────────────
 function toggleAutoSync() {
@@ -1158,6 +1192,8 @@ async function onSmartImport(patientId, patientName) {
   try {
     const res = await post('/api/smart/import',{smartPatientId:patientId});
     state.smartImported = res;
+    // Ensure patientName is stored top-level for easy access
+    if (!state.smartImported.patientName) state.smartImported.patientName = name;
     const name = res.patientName ?? res.patient?.name?.[0]?.text ?? patientName ?? patientId;
     const dob = res.patient?.birthDate ?? '—';
     const gender = res.patient?.gender ?? '—';
