@@ -142,7 +142,7 @@ body { font-family: 'Lexend', sans-serif; }
     <!-- Policy -->
     <div>
       <p class="text-xs font-semibold text-deep-brown/40 dark:text-cream/30 uppercase tracking-widest px-1 mb-2">Policy Variant</p>
-      <select id="policy-variant" class="w-full bg-cream dark:bg-zinc-800 border border-primary/20 rounded-xl text-sm px-3 py-2 text-deep-brown dark:text-cream focus:outline-none focus:ring-2 focus:ring-primary/40">
+      <select id="policy-variant" onchange="const pp=document.getElementById('pipeline-policy');if(pp)pp.value=this.value;" class="w-full bg-cream dark:bg-zinc-800 border border-primary/20 rounded-xl text-sm px-3 py-2 text-deep-brown dark:text-cream focus:outline-none focus:ring-2 focus:ring-primary/40">
         <option value="standard">standard</option>
         <option value="strict">strict</option>
         <option value="denied">denied</option>
@@ -208,12 +208,25 @@ body { font-family: 'Lexend', sans-serif; }
               </div>
             </div>
           </div>
-          <div class="flex gap-2">
+          <div class="flex gap-2 flex-wrap items-center">
+            <select id="pipeline-policy" onchange="document.getElementById('policy-variant').value=this.value"
+              class="bg-cream dark:bg-zinc-800 border border-primary/20 rounded-xl text-sm px-3 py-2 text-deep-brown dark:text-cream focus:outline-none focus:ring-2 focus:ring-primary/40">
+              <option value="standard">standard ✓ best</option>
+              <option value="strict">strict</option>
+              <option value="denied">denied</option>
+              <option value="insulin-standard">insulin-standard</option>
+              <option value="insulin-strict">insulin-strict</option>
+              <option value="adalimumab-standard">adalimumab-standard</option>
+              <option value="adalimumab-strict">adalimumab-strict</option>
+            </select>
             <button onclick="runFullPipelineForCurrentPatient()" class="bg-primary text-white font-bold px-5 py-2 rounded-xl transition-all text-sm flex items-center gap-2 hover:bg-primary/90">
               <span class="material-symbols-outlined" style="font-size:16px">play_arrow</span> Run Auth
             </button>
-            <button onclick="downloadBundle()" class="bg-white dark:bg-zinc-800 border-2 border-primary/30 text-primary hover:bg-primary hover:text-white font-bold px-5 py-2 rounded-xl transition-all text-sm flex items-center gap-2">
-              <span class="material-symbols-outlined" style="font-size:16px">download</span> Bundle
+            <button onclick="runDeniedAndOpenARIA()" class="bg-terracotta/10 text-terracotta border border-terracotta/25 font-bold px-4 py-2 rounded-xl transition-all text-sm flex items-center gap-2 hover:bg-terracotta hover:text-white">
+              <span class="material-symbols-outlined" style="font-size:16px">gavel</span> Deny + ARIA
+            </button>
+            <button onclick="downloadBundle()" class="bg-white dark:bg-zinc-800 border-2 border-primary/30 text-primary hover:bg-primary hover:text-white font-bold px-4 py-2 rounded-xl transition-all text-sm flex items-center gap-2">
+              <span class="material-symbols-outlined" style="font-size:16px">download</span>
             </button>
           </div>
         </div>
@@ -849,7 +862,7 @@ let state = {
 };
 
 // ── Navigation ─────────────────────────────────────────────────────────────
-const SECTIONS = ['pipeline','run-auth','audit','appeals','smart','fhir','patients','payers','auditlogs','submission','aria-chat'];
+const SECTIONS = ['pipeline','run-auth','audit','appeals','smart','fhir','aria-chat','patients','payers','auditlogs','submission'];
 function showSection(name) {
   SECTIONS.forEach(s => { const el=document.getElementById('section-'+s); if(el){el.classList.toggle('hidden', s!==name);} });
   // Lazy-load section data
@@ -864,6 +877,10 @@ function selectPatient(p) {
   document.querySelectorAll('.patient-btn').forEach(b => b.classList.remove('bg-primary/10'));
   const active = document.getElementById('pt-'+p);
   if(active) active.classList.add('bg-primary/10');
+  // Sync pipeline dropdown with sidebar
+  const pv = document.getElementById('policy-variant')?.value;
+  const pp = document.getElementById('pipeline-policy');
+  if(pp && pv) pp.value = pv;
   const names = {bernard:'Bernard Rieux',dorothea:'Dorothea Brooke',eleanor:'Eleanor Vance',imported:state.smartImported?.patient?.name?.[0]?.text??'SMART Patient'};
   const tags = {bernard:'T2D · GLP-1',dorothea:'RA · Adalimumab',eleanor:'T2D+RA · Dual',imported:'SMART Import'};
   const nameEl = document.getElementById('pipeline-patient-name');
@@ -1411,9 +1428,11 @@ async function loadPatientDirectory() {
     allPatients = fhirPatients.map(p => {
       const trail = auditList.find(t => (t.patientId??t.trail?.patientId) === p.id);
       const decision = trail?.finalDecision ?? trail?.trail?.finalDecision ?? 'pending';
-      const conditions = (fhirRes.Condition ?? []).filter(c => c.subject?.reference?.includes(p.id));
+      const condArr = Array.isArray(fhirRes.Condition) ? fhirRes.Condition : Object.values(fhirRes.Condition ?? {});
+      const conditions = condArr.filter(c => c.subject?.reference?.includes(p.id));
       const condText = conditions.map(c => c.code?.text ?? '').filter(Boolean).join(', ') || 'Not recorded';
-      const obs = (fhirRes.Observation ?? []).filter(o => o.subject?.reference?.includes(p.id));
+      const obsArr = Array.isArray(fhirRes.Observation) ? fhirRes.Observation : Object.values(fhirRes.Observation ?? {});
+      const obs = obsArr.filter(o => o.subject?.reference?.includes(p.id));
       const a1c = obs.find(o => JSON.stringify(o).toLowerCase().includes('a1c'));
       return {
         id: p.id,
@@ -2086,19 +2105,45 @@ async function sendAriaMessage() {
   appendAriaMessage('user', msg);
   document.getElementById('aria-send-btn').disabled = true;
 
-  // Build context from current state
-  const contextParts = [];
+  // Build rich context — fetch live FHIR data if state is empty
   const patientId = state.currentPatientId || 'patient-001';
   const patientName = resolvePatientName(patientId);
-  contextParts.push(`Current patient: ${patientName} (ID: ${patientId})`);
-  if (state.policy?.missing?.length) contextParts.push(`Last denial reasons: ${state.policy.missing.join('; ')}`);
+  const contextParts = [`Current patient: ${patientName} (FHIR ID: ${patientId})`];
+
+  // Use state if available, otherwise fetch live
+  let clinicalCtx = '';
   if (state.evidence?.derived) {
     const d = state.evidence.derived;
-    contextParts.push(`Clinical data: HbA1c ${d.a1cValue??'unknown'}%, T2D: ${d.hasT2D?'Yes':'No'}, Metformin trial: ${d.hasMetforminTrial?'Yes':'No'}`);
+    clinicalCtx = `HbA1c: ${d.a1cValue??'unknown'}%, T2D: ${d.hasT2D?'Yes':'No'}, Metformin trial: ${d.hasMetforminTrial?'Yes':'No'}, Metformin intolerance: ${d.intolerance?'Yes':'No'}`;
+  } else {
+    // Try to fetch from FHIR store live
+    try {
+      const fhir = await get('/fhir-dump');
+      const obsArr = Array.isArray(fhir.Observation) ? fhir.Observation : Object.values(fhir.Observation ?? {});
+      const condArr = Array.isArray(fhir.Condition) ? fhir.Condition : Object.values(fhir.Condition ?? {});
+      const stmtArr = Array.isArray(fhir.MedicationStatement) ? fhir.MedicationStatement : Object.values(fhir.MedicationStatement ?? {});
+      const a1c = obsArr.find(o => JSON.stringify(o).toLowerCase().includes('a1c') && o.subject?.reference?.includes(patientId));
+      const t2d = condArr.find(c => JSON.stringify(c).toLowerCase().includes('type 2') && c.subject?.reference?.includes(patientId));
+      const metformin = stmtArr.find(s => (s.medicationCodeableConcept?.text ?? '').toLowerCase().includes('metformin') && s.subject?.reference?.includes(patientId));
+      if (a1c?.valueQuantity?.value) clinicalCtx += `HbA1c: ${a1c.valueQuantity.value}%, `;
+      if (t2d) clinicalCtx += 'T2D: confirmed, ';
+      if (metformin) clinicalCtx += `Metformin: ${metformin.status} (${metformin.note?.[0]?.text ?? 'documented'}), `;
+    } catch {}
   }
-  const contextNote = contextParts.length ? `
+  if (clinicalCtx) contextParts.push(`Clinical data: ${clinicalCtx.replace(/,\s*$/, '')}`);
 
-[Dashboard context: ${contextParts.join(' | ')}]` : '';
+  if (state.policy?.missing?.length) contextParts.push(`Prior auth DENIED — missing criteria: ${state.policy.missing.join('; ')}`);
+  else if (state.decision) contextParts.push(`Prior auth result: ${state.policy?.missing?.length===0 ? 'APPROVED' : 'see audit trail'}`);
+
+  // Also fetch latest audit trail summary
+  try {
+    const trail = await get(`/api/audit/${patientId}`).catch(() => null);
+    if (trail?.finalDecision) contextParts.push(`Last audit decision: ${trail.finalDecision.toUpperCase()}, ${trail.summary?.totalEvents ?? 0} events, agents: ${trail.summary?.agentsInvolved?.join(', ')}`);
+  } catch {}
+
+  const contextNote = `
+
+[ALICE Dashboard context — ${contextParts.join(' | ')}]`;
 
   // Add to history
   ariaHistory.push({ role: 'user', content: msg + contextNote });
@@ -2211,6 +2256,50 @@ function ariaQuickPrompt(type) {
 }
 
 // Update SECTIONS array to include aria-chat
+
+
+// ── Run denied + auto-open ARIA ────────────────────────────────────────────
+async function runDeniedAndOpenARIA() {
+  const pid = state.currentPatientId || 'patient-001';
+  const patientName = resolvePatientName(pid);
+  const btn = document.querySelector('[onclick="runDeniedAndOpenARIA()"]');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Running…'; }
+
+  try {
+    // Run with denied policy
+    const result = await post('/run/full-prior-auth', {patientId: pid, policyVariant: 'denied'});
+    const missing = result.policy?.missing ?? result.summary?.policyResult?.missing ?? ['Step therapy criteria not met'];
+    const a1c = result.evidence?.derived?.a1cValue ?? null;
+
+    // Update pipeline UI to show denial
+    [1,2,3,4,5,6,7].forEach(n => markStep(n));
+    setEl('policy-out', `<div class='text-center py-3 rounded-xl bg-rose-50 dark:bg-rose-900/20 border border-rose-200 mb-2'><span class='text-xl font-black text-rose-600'>✗ DENIED</span><div class='text-xs text-deep-brown/40 mt-1 font-mono'>denied policy variant</div></div>${missing.map(m=>`<div class='text-xs text-rose-600 font-mono mb-1'>✗ ${m}</div>`).join('')}`);
+    setEl('decision-out', `<div class='text-center py-3 rounded-xl bg-rose-50 dark:bg-rose-900/20 border border-rose-200'><span class='text-xl font-black text-rose-600'>✗ DENIED</span></div>`);
+    setEl('stat-decision-card', '✗ Denied');
+    setEl('stat-status', `<span class='font-mono font-bold text-terracotta'>DENIED</span>`);
+
+    // Store denial in state for ARIA context
+    state.policy = { missing, met: [] };
+    state.evidence = state.evidence ?? { derived: { hasT2D: true, a1cValue: a1c, hasMetforminTrial: true } };
+
+    // Navigate to ARIA and pre-populate with denial context
+    showSection('aria-chat');
+    setTimeout(() => {
+      const a1cText = a1c ? ('HbA1c ' + a1c + '%') : '';
+      const denialList = missing.map(function(r){ return '- ' + r; }).join('; ');
+      const clinicalExtra = a1cText ? (' Clinical values: ' + a1cText + '. T2D confirmed. Metformin intolerance documented.') : '';
+      const prompt = 'Please draft a formal prior authorization appeal letter for ' + patientName + '. The GLP-1 (Semaglutide) prior auth was DENIED under the strict policy. Denial reasons: ' + denialList + '.' + clinicalExtra + ' Write a complete letter to the Payer Medical Director, citing ADA 2024 Standards, SUSTAIN-6 trial, and ADA/EASD GLP-1 consensus.';
+            document.getElementById('aria-input').value = prompt;
+      document.getElementById('aria-input').focus();
+      // Auto-send after short delay so user can see it
+      setTimeout(() => sendAriaMessage(), 800);
+    }, 300);
+
+  } catch(e) {
+    err(e.message);
+  }
+  if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px">gavel</span> Deny + ARIA'; }
+}
 
 function toggleTheme() {
   const isDark = document.documentElement.classList.contains('dark');
