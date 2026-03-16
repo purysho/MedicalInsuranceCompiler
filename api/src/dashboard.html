@@ -858,8 +858,9 @@ let state = {
   auditTrail: null, auditView: 'timeline',
   smartResults: [], smartImported: null,
   autoSync: false, syncInterval: null, lastSyncHash: null,
-  activeRunPatientId: null, // track which patient the current run is for
+  activeRunPatientId: null,
   currentPatientId: 'patient-001',
+  patientResults: {}, // per-patient results cache: { [patientId]: { medrec, evidence, policy, packet, decision, approved, a1c, das28, entries, missing } }
 };
 
 // ── Navigation ─────────────────────────────────────────────────────────────
@@ -931,6 +932,12 @@ function selectPatient(p) {
   state.activeRunPatientId = null;
   state.medrec = null; state.medReq = null; state.evidence = null;
   state.policy = null; state.packet = null; state.decision = null;
+
+  // Restore cached results for this patient if available
+  const cached = state.patientResults[state.currentPatientId];
+  if (cached) {
+    restorePatientResults(state.currentPatientId, cached);
+  }
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -1754,6 +1761,9 @@ function runFullPipelineForCurrentPatient() {
     setEl('stat-bundle-card',`${entries} resources`);
     setEl('stat-status',`<span class='font-mono font-bold ${approved?'text-primary':'text-terracotta'}'>${approved?'APPROVED':'DENIED'}</span>`);
     setEl('stat-decision-card',approved?'✓ Approved':'✗ Denied');
+    // Cache results for this patient so switching away and back restores them
+    state.patientResults[pid] = { approved, a1c, das28, entries, missing, pv,
+      medrec: r.medrec, evidence: r.evidence, policy: r.policy, packet: r.packet };
     showSubmissionResult({approved,patientName:resolvePatientName(pid),policyVariant:pv,claimId:r.packet?.claim?.id,policyResult:{missing}});
     setBusy(null);
   }).catch(e=>{err(e.message);setBusy(null);});
@@ -2404,6 +2414,46 @@ function syncRunAuthSection() {
   // Scroll active card into view
   const active = document.querySelector(`.pat-run-card[data-slug="${slug}"]`);
   if (active) active.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+// ── Restore cached results for a patient ──────────────────────────────────
+function restorePatientResults(pid, cached) {
+  const { approved, a1c, das28, entries, missing, pv } = cached;
+  const isRA       = pid === 'patient-ra-001' || pid === '147e21d9-ab4e-449c-aeb4-8f3d6f7b1b4c';
+  const isComorbid = pid === 'patient-comorbid-001' || pid === 'd6417ffa-1ed8-4bb9-ae4c-d3820c9615f9';
+
+  // Restore step indicators
+  [1,2,3,4,5,6,7].forEach(n => markStep(n));
+
+  // Restore medrec box
+  const bpmhId = cached.medrec?.bpmh?.id ?? null;
+  setEl('medrec-out', bpmhId
+    ? `<div class='flex gap-2 flex-wrap mb-2'><span class='text-xs bg-primary/10 text-primary px-2.5 py-0.5 rounded-full font-bold'>BPMH: ${bpmhId.slice(0,8)}…</span><span class='text-xs bg-emerald-100 text-emerald-700 px-2.5 py-0.5 rounded-full font-bold'>0 discrepancies</span></div>`
+    : `<div class='text-xs text-emerald-600'>Medication reconciliation complete</div>`
+  );
+
+  // Restore evidence box
+  if (isComorbid) {
+    setEl('evidence-out',`<div class='flex gap-2 flex-wrap'><span class='text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700'>T2D + RA</span><span class='text-xs font-bold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full'>HbA1c: ${a1c}%</span><span class='text-xs font-bold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full'>DAS28: ${das28}</span></div>`);
+  } else if (isRA) {
+    setEl('evidence-out',`<div class='flex gap-2 flex-wrap'><span class='text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700'>RA: Yes</span><span class='text-xs font-bold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full'>DAS28: ${das28??'—'}</span><span class='text-xs font-bold bg-emerald-100 text-emerald-700 px-2.5 py-0.5 rounded-full'>DMARD trials: Yes</span></div>`);
+  } else {
+    setEl('evidence-out',`<div class='flex gap-2 flex-wrap'><span class='text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700'>T2D: Yes</span><span class='text-xs font-bold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full'>HbA1c: ${a1c}%</span><span class='text-xs font-bold bg-emerald-100 text-emerald-700 px-2.5 py-0.5 rounded-full'>Metformin: Yes</span></div>`);
+  }
+
+  // Restore policy and decision boxes
+  setEl('policy-out',`<div class='text-center py-3 rounded-xl ${approved?'bg-emerald-50 border border-emerald-200':'bg-rose-50 border border-rose-200'}'><span class='text-xl font-black ${approved?'text-emerald-700':'text-rose-600'}'>${approved?'✓ APPROVED':'✗ DENIED'}</span></div>${(missing??[]).map(m=>`<div class='text-xs text-rose-600 font-mono mt-1'>✗ ${m}</div>`).join('')}`);
+  setEl('decision-out',`<div class='text-center py-3 rounded-xl ${approved?'bg-emerald-50 border border-emerald-200':'bg-rose-50 border border-rose-200'}'><span class='text-xl font-black ${approved?'text-emerald-700':'text-rose-600'}'>${approved?'✓ APPROVED':'✗ DENIED'}</span></div>`);
+
+  // Restore stat cards
+  const displayA1c = isRA ? (das28 ? das28+' DAS28' : '—') : (a1c ? a1c+'%' : '—');
+  setEl('stat-decision-card', approved ? '✓ Approved' : '✗ Denied');
+  setEl('stat-a1c-card', isRA ? (das28 ? 'DAS28: '+das28 : '—') : (a1c ? a1c+'% Controlled' : '—'));
+  setEl('stat-bundle-card', entries ? entries+' resources' : '—');
+  setEl('stat-policy', pv ?? 'standard');
+  setEl('stat-status', `<span class='font-mono font-bold ${approved?'text-primary':'text-terracotta'}'>${approved?'APPROVED':'DENIED'}</span>`);
+  setEl('stat-a1c', `<span class='font-mono font-bold text-primary'>${displayA1c}</span>`);
+  setEl('stat-bundle', `<span class='font-mono font-bold text-primary'>${entries} res</span>`);
 }
 
 function toggleTheme() {
