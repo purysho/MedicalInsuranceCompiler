@@ -1,7 +1,8 @@
 import express from "express";
 import cors from "cors";
 import { FhirStore } from "./fhirStore.js";
-import { seedSynthetic, PO_PATIENT_ID } from "./seed.js";
+import { seedSynthetic, seedRA, seedComorbid, PO_PATIENT_ID, LEGACY_PATIENT_ID, RA_PATIENT_ID, COMORBID_PATIENT_ID } from "./seed.js";
+import { checkPolicy } from "./policy.js";
 import { A2ABus } from "./a2a.js";
 import { runMedRec } from "./agents/medrecAgent.js";
 import { runEvidence } from "./agents/evidenceAgent.js";
@@ -451,7 +452,6 @@ function getAuthTool(patientId: string, policyVariant: string): { tool: string; 
   const isRA = patientId === "patient-ra-001" || patientId === "147e21d9-ab4e-449c-aeb4-8f3d6f7b1b4c";
   const isComorbid = patientId === "patient-comorbid-001" || patientId === "d6417ffa-1ed8-4bb9-ae4c-d3820c9615f9";
   const isInsulin = policyVariant === "insulin-standard" || policyVariant === "insulin-strict";
-
   if (isComorbid) return { tool: "alice_run_prior_auth_comorbid", args: { patientId, glp1PolicyVariant: policyVariant.startsWith("adalimumab") ? "standard" : policyVariant, adalimumabPolicyVariant: policyVariant.startsWith("adalimumab") ? policyVariant : "adalimumab-strict" } };
   if (isRA)       return { tool: "alice_run_prior_auth_adalimumab", args: { patientId, policyVariant: policyVariant.startsWith("adalimumab") ? policyVariant : "adalimumab-standard" } };
   if (isInsulin)  return { tool: "alice_run_prior_auth_insulin", args: { patientId, policyVariant } };
@@ -461,27 +461,112 @@ function getAuthTool(patientId: string, policyVariant: string): { tool: string; 
 app.post("/run/full-prior-auth", async (req, res) => {
   try {
     const { patientId = "patient-001", policyVariant = "standard" } = req.body ?? {};
-    const { tool, args } = getAuthTool(patientId, policyVariant);
-    const result = await executeTool(store, tool, args);
-    res.json(result);
+
+    const isRA = patientId === "patient-ra-001" || patientId === "147e21d9-ab4e-449c-aeb4-8f3d6f7b1b4c";
+    const isComorbid = patientId === "patient-comorbid-001" || patientId === "d6417ffa-1ed8-4bb9-ae4c-d3820c9615f9";
+
+    // Auto-select appropriate policy variant if caller sent a mismatched one
+    let resolvedPolicy = policyVariant;
+    if (isRA && !policyVariant.startsWith("adalimumab")) resolvedPolicy = "adalimumab-standard";
+    if (isComorbid && policyVariant === "standard") resolvedPolicy = "standard"; // GLP-1 leg for comorbid
+    if (!isRA && !isComorbid && policyVariant.startsWith("adalimumab")) resolvedPolicy = "standard";
+
+    // Clear store and seed the correct patient data fresh
+    store.clear();
+    if (isComorbid) { seedComorbid(store); }
+    else if (isRA)  { seedRA(store); }
+    else            { seedSynthetic(store, { scenario: "complete" }); }
+
+    // Resolve actual patient ID to the seeded one
+    const resolvedId = isComorbid ? COMORBID_PATIENT_ID : isRA ? RA_PATIENT_ID : LEGACY_PATIENT_ID;
+
+    // Run pipeline directly using low-level agents (bypasses tool hardcoded ID mapping)
+    const medrecResult = await runMedRec(store, resolvedId);
+    const bpmhListId = medrecResult.bpmh.id;
+
+    // Ensure a medication request exists
+    let medReqs = store.search("MedicationRequest", { subject: resolvedId });
+    let medReq = medReqs[0];
+    if (!medReq) {
+      const med = isRA ? "Adalimumab 40mg (Humira)" : isComorbid ? "Semaglutide (GLP-1) + Adalimumab" : "Semaglutide (GLP-1)";
+      medReq = store.create({ resourceType: "MedicationRequest", status: "active", intent: "order", subject: { reference: `Patient/${resolvedId}` }, medicationCodeableConcept: { text: med }, authoredOn: new Date().toISOString() });
+    }
+
+    const evidenceResult = await runEvidence(store, resolvedId, bpmhListId);
+
+    // Build policy context from FHIR data — runEvidence only handles GLP-1 fields,
+    // so we extract RA/DAS28 fields directly here for all patient types
+    const conditions = store.search("Condition", { subject: resolvedId });
+    const observations = store.search("Observation", { subject: resolvedId });
+    const statements = store.search("MedicationStatement", { subject: resolvedId });
+
+    const hasT2D = conditions.some((c: any) => JSON.stringify(c).toLowerCase().includes("type 2"));
+    const hasRA  = conditions.some((c: any) => JSON.stringify(c).toLowerCase().includes("rheumatoid") || JSON.stringify(c).toLowerCase().includes("arthritis"));
+    const a1cObs   = observations.find((o: any) => JSON.stringify(o).toLowerCase().includes("a1c"));
+    const das28Obs = observations.find((o: any) => JSON.stringify(o).toLowerCase().includes("das28"));
+    const a1cValue   = (a1cObs as any)?.valueQuantity?.value ?? null;
+    const das28Value = (das28Obs as any)?.valueQuantity?.value ?? null;
+    const hasMetforminTrial       = statements.some((s: any) => (s.medicationCodeableConcept?.text ?? "").toLowerCase().includes("metformin"));
+    const hasMetforminIntolerance = statements.some((s: any) => (s.note?.[0]?.text ?? "").toLowerCase().includes("intoler"));
+    const hasMtxTrial = statements.some((s: any) => JSON.stringify(s).toLowerCase().includes("methotrexate"));
+
+    // Augment evidenceResult.derived with RA fields so the dashboard gets the full picture
+    (evidenceResult as any).derived = {
+      ...evidenceResult.derived,
+      hasT2D, hasRA, a1cValue, das28Value,
+      hasMetforminTrial, hasMetforminIntolerance, hasMtxTrial,
+    };
+
+    const policyResult = checkPolicy({
+      hasT2D, hasRA, a1cValue, das28Value,
+      hasMetforminTrial, hasMetforminIntolerance, hasMtxTrial,
+      policyVariant: resolvedPolicy,
+    } as any);
+
+    const packetResult = await runComposePacket(store, {
+      patientId: resolvedId, coverageId: isRA ? "coverage-ra-001" : "coverage-001",
+      medicationRequestId: medReq.id!, evidenceDocId: evidenceResult.evidenceDoc.id, bpmhListId,
+    });
+
+    const approved = policyResult.missing.length === 0;
+
+    res.json({
+      summary: { patientId: resolvedId, policyVariant: resolvedPolicy, approved, policyResult, bundleId: packetResult.bundle.id },
+      medrec: medrecResult,
+      evidence: evidenceResult,
+      policy: policyResult,
+      packet: packetResult,
+      clinicalEvidence: { hasT2D, hasRA, a1cValue, das28Value, hasMtxTrial },
+    });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
 });
 
-// ── Run denied + register appeal context (for demo flow) ─────────────────────
 app.post("/run/demo-denied-appeal", async (req, res) => {
   try {
     const { patientId = "patient-001" } = req.body ?? {};
-    const denied = await executeTool(store, "alice_run_full_prior_auth", { patientId, policyVariant: "denied" });
-    const denialReasons = denied.policy?.missing ?? ["Step therapy criteria not met"];
-    const appeal = await executeTool(store, "aria_draft_appeal", {
-      patientId,
-      denialReasons,
-      claimId: denied.packet?.claim?.id,
-      policyVariant: "denied",
-    });
-    res.json({ denied, appeal, denialReasons });
+    // Use the same clean pipeline as full-prior-auth but with denied variant
+    store.clear();
+    seedSynthetic(store, { scenario: "complete" });
+    const resolvedId = LEGACY_PATIENT_ID;
+    const medrecResult = await runMedRec(store, resolvedId);
+    let medReq = store.search("MedicationRequest", { subject: resolvedId })[0];
+    if (!medReq) medReq = store.create({ resourceType: "MedicationRequest", status: "active", intent: "order", subject: { reference: `Patient/${resolvedId}` }, medicationCodeableConcept: { text: "Semaglutide (GLP-1)" }, authoredOn: new Date().toISOString() });
+    const evidenceResult = await runEvidence(store, resolvedId, medrecResult.bpmh.id);
+    const conditions = store.search("Condition", { subject: resolvedId });
+    const observations = store.search("Observation", { subject: resolvedId });
+    const statements = store.search("MedicationStatement", { subject: resolvedId });
+    const hasT2D = conditions.some((c: any) => JSON.stringify(c).toLowerCase().includes("type 2"));
+    const a1cObs = observations.find((o: any) => JSON.stringify(o).toLowerCase().includes("a1c"));
+    const a1cValue = (a1cObs as any)?.valueQuantity?.value ?? null;
+    const hasMetforminTrial = statements.some((s: any) => (s.medicationCodeableConcept?.text ?? "").toLowerCase().includes("metformin"));
+    const hasMetforminIntolerance = statements.some((s: any) => (s.note?.[0]?.text ?? "").toLowerCase().includes("intoler"));
+    const policyResult = checkPolicy({ hasT2D, a1cValue, hasMetforminTrial, hasMetforminIntolerance, policyVariant: "denied" } as any);
+    const packetResult = await runComposePacket(store, { patientId: resolvedId, coverageId: "coverage-001", medicationRequestId: medReq.id!, evidenceDocId: evidenceResult.evidenceDoc.id, bpmhListId: medrecResult.bpmh.id });
+    const denialReasons = policyResult.missing.length ? policyResult.missing : ["Step therapy criteria not met under strict policy"];
+    const appeal = await executeTool(store, "aria_draft_appeal", { patientId: resolvedId, denialReasons, claimId: packetResult.claim?.id, policyVariant: "denied" });
+    res.json({ denied: { summary: { approved: false, policyResult }, policy: policyResult, packet: packetResult, evidence: { derived: { hasT2D, a1cValue } }, medrec: medrecResult }, appeal, denialReasons });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }

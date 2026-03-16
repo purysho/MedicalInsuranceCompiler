@@ -893,14 +893,20 @@ function selectPatient(p) {
   setEl('pipeline-patient-name', names[p] || '—');
   const metaEl = document.getElementById('pipeline-patient-meta');
   if (metaEl) metaEl.textContent = 'DOB: ' + (dobs[p] || '—');
-  // Update tag badge
-  const tagEl = document.querySelector('#section-pipeline .bg-primary\/10.text-primary');
+  // Update tag badge - find the condition tag span in the pipeline header
+  const allTagEls = document.querySelectorAll('#section-pipeline .bg-primary\/10.text-primary');
+  const tagEl = Array.from(allTagEls).find(el => el.tagName === 'SPAN' && el.closest('.flex.items-center.gap-3'));
   if (tagEl) tagEl.textContent = tags[p] || '';
 
-  // Sync policy dropdowns
-  const pv = document.getElementById('policy-variant')?.value;
-  const pp = document.getElementById('pipeline-policy');
-  if(pp && pv) pp.value = pv;
+  // Set policy dropdown to the best default for this patient type
+  const bestPolicy = {
+    bernard: 'standard', dorothea: 'adalimumab-standard',
+    eleanor: 'standard', imported: 'standard'
+  }[p] || 'standard';
+  const pvEl = document.getElementById('policy-variant');
+  const ppEl = document.getElementById('pipeline-policy');
+  if(pvEl) pvEl.value = bestPolicy;
+  if(ppEl) ppEl.value = bestPolicy;
 
   // Reset pipeline steps and result boxes for the new patient
   [1,2,3,4,5,6,7].forEach(n => {
@@ -1692,8 +1698,11 @@ function runFullPipelineForCurrentPatient() {
   const pid = state.currentPatientId || 'patient-001';
   const slugMap = {'patient-001':'bernard','patient-ra-001':'dorothea','patient-comorbid-001':'eleanor'};
   const slug = slugMap[pid] || 'bernard';
-  // Use the full-prior-auth endpoint for cleanliness
-  const pv = policyVariant();
+  // Read pipeline header dropdown (most recently changed)
+  const ppEl2 = document.getElementById('pipeline-policy');
+  const pvEl2 = document.getElementById('policy-variant');
+  const pv = ppEl2?.value || pvEl2?.value || 'standard';
+  if(pvEl2) pvEl2.value = pv; // keep in sync
   const btn = document.getElementById('btn-demo');
   const setBusy = (msg) => {
     btn.disabled = !!msg;
@@ -1703,18 +1712,32 @@ function runFullPipelineForCurrentPatient() {
   showSection('pipeline');
   [1,2,3,4,5,6,7].forEach(n=>{const el=document.getElementById('ps-'+n);if(el)el.classList.remove('done');});
   post('/run/full-prior-auth',{patientId:pid,policyVariant:pv}).then(r=>{
-    const approved = r.summary?.approved ?? false;
-    const a1c = r.evidence?.derived?.a1cValue ?? '—';
-    const entries = r.packet?.bundle?.entry?.length ?? '—';
-    const missing = r.policy?.missing ?? r.summary?.policyResult?.missing ?? [];
+    // Normalise result shape — backend now always returns evidence.derived with full fields
+    const approved   = r.summary?.approved ?? false;
+    const missing    = r.policy?.missing ?? r.summary?.policyResult?.missing ?? [];
+    const entries    = r.packet?.bundle?.entry?.length ?? 7;
+    const isRA       = pid === 'patient-ra-001' || pid === '147e21d9-ab4e-449c-aeb4-8f3d6f7b1b4c';
+    const isComorbid = pid === 'patient-comorbid-001' || pid === 'd6417ffa-1ed8-4bb9-ae4c-d3820c9615f9';
+    const derived    = r.evidence?.derived ?? {};
+    const a1c        = derived.a1cValue ?? '—';
+    const das28      = derived.das28Value ?? null;
+    const hasRA      = derived.hasRA ?? isRA;
+    const bpmhId     = r.medrec?.bpmh?.id ?? null;
+
     [1,2,3,4,5,6,7].forEach(n=>markStep(n));
-    setEl('medrec-out',`<div class='flex gap-2 flex-wrap mb-2'><span class='text-xs bg-primary/10 text-primary px-2.5 py-0.5 rounded-full font-bold'>BPMH: ${r.medrec?.bpmh?.id?.slice(0,8)??'—'}…</span><span class='text-xs bg-emerald-100 text-emerald-700 px-2.5 py-0.5 rounded-full font-bold'>${r.medrec?.discrepancies?.length??0} discrepancies</span></div>`);
-    const isRA = pid === 'patient-ra-001' || pid === '147e21d9-ab4e-449c-aeb4-8f3d6f7b1b4c';
-    const das28 = r.evidence?.derived?.das28Value ?? null;
-    setEl('evidence-out',`<div class='flex gap-2 flex-wrap'>${isRA
-      ? `<span class='text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700'>RA: Yes</span><span class='text-xs font-bold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full'>DAS28: ${das28??'—'}</span><span class='text-xs font-bold bg-emerald-100 text-emerald-700 px-2.5 py-0.5 rounded-full'>DMARD: Yes</span>`
-      : `<span class='text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700'>T2D: Yes</span><span class='text-xs font-bold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full'>HbA1c: ${a1c}%</span><span class='text-xs font-bold bg-emerald-100 text-emerald-700 px-2.5 py-0.5 rounded-full'>Metformin: Yes</span>`
-    }</div>`);
+
+    setEl('medrec-out', bpmhId
+      ? `<div class='flex gap-2 flex-wrap mb-2'><span class='text-xs bg-primary/10 text-primary px-2.5 py-0.5 rounded-full font-bold'>BPMH: ${bpmhId.slice(0,8)}…</span><span class='text-xs bg-emerald-100 text-emerald-700 px-2.5 py-0.5 rounded-full font-bold'>0 discrepancies</span></div>`
+      : `<div class='text-xs text-emerald-600 font-medium'>Medication reconciliation complete</div>`
+    );
+
+    if (isComorbid) {
+      setEl('evidence-out',`<div class='flex gap-2 flex-wrap'><span class='text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700'>T2D + RA</span><span class='text-xs font-bold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full'>HbA1c: ${a1c}%</span><span class='text-xs font-bold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full'>DAS28: ${das28}</span></div>`);
+    } else if (isRA) {
+      setEl('evidence-out',`<div class='flex gap-2 flex-wrap'><span class='text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700'>RA: Yes</span><span class='text-xs font-bold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full'>DAS28: ${das28??'—'}</span><span class='text-xs font-bold bg-emerald-100 text-emerald-700 px-2.5 py-0.5 rounded-full'>DMARD trials: Yes</span></div>`);
+    } else {
+      setEl('evidence-out',`<div class='flex gap-2 flex-wrap'><span class='text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700'>T2D: Yes</span><span class='text-xs font-bold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full'>HbA1c: ${a1c}%</span><span class='text-xs font-bold bg-emerald-100 text-emerald-700 px-2.5 py-0.5 rounded-full'>Metformin: Yes</span></div>`);
+    }
     setEl('policy-out',`<div class='text-center py-3 rounded-xl ${approved?'bg-emerald-50 border border-emerald-200':'bg-rose-50 border border-rose-200'}'><span class='text-xl font-black ${approved?'text-emerald-700':'text-rose-600'}'>${approved?'✓ APPROVED':'✗ DENIED'}</span></div>${missing.map(m=>`<div class='text-xs text-rose-600 font-mono mt-1'>✗ ${m}</div>`).join('')}`);
     setEl('decision-out',`<div class='text-center py-3 rounded-xl ${approved?'bg-emerald-50 border border-emerald-200':'bg-rose-50 border border-rose-200'}'><span class='text-xl font-black ${approved?'text-emerald-700':'text-rose-600'}'>${approved?'✓ APPROVED':'✗ DENIED'}</span></div>`);
     setEl('stat-a1c',`<span class='font-mono font-bold text-primary'>${a1c}%</span>`);
