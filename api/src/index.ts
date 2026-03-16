@@ -465,6 +465,12 @@ app.post("/run/full-prior-auth", async (req, res) => {
     const isRA = patientId === "patient-ra-001" || patientId === "147e21d9-ab4e-449c-aeb4-8f3d6f7b1b4c";
     const isComorbid = patientId === "patient-comorbid-001" || patientId === "d6417ffa-1ed8-4bb9-ae4c-d3820c9615f9";
 
+    // Auto-select appropriate policy variant if caller sent a mismatched one
+    let resolvedPolicy = policyVariant;
+    if (isRA && !policyVariant.startsWith("adalimumab")) resolvedPolicy = "adalimumab-standard";
+    if (isComorbid && policyVariant === "standard") resolvedPolicy = "standard"; // GLP-1 leg for comorbid
+    if (!isRA && !isComorbid && policyVariant.startsWith("adalimumab")) resolvedPolicy = "standard";
+
     // Clear store and seed the correct patient data fresh
     store.clear();
     if (isComorbid) { seedComorbid(store); }
@@ -514,7 +520,7 @@ app.post("/run/full-prior-auth", async (req, res) => {
     const policyResult = checkPolicy({
       hasT2D, hasRA, a1cValue, das28Value,
       hasMetforminTrial, hasMetforminIntolerance, hasMtxTrial,
-      policyVariant,
+      policyVariant: resolvedPolicy,
     } as any);
 
     const packetResult = await runComposePacket(store, {
@@ -525,7 +531,7 @@ app.post("/run/full-prior-auth", async (req, res) => {
     const approved = policyResult.missing.length === 0;
 
     res.json({
-      summary: { patientId: resolvedId, policyVariant, approved, policyResult, bundleId: packetResult.bundle.id },
+      summary: { patientId: resolvedId, policyVariant: resolvedPolicy, approved, policyResult, bundleId: packetResult.bundle.id },
       medrec: medrecResult,
       evidence: evidenceResult,
       policy: policyResult,
