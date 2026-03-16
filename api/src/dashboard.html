@@ -858,6 +858,7 @@ let state = {
   auditTrail: null, auditView: 'timeline',
   smartResults: [], smartImported: null,
   autoSync: false, syncInterval: null, lastSyncHash: null,
+  activeRunPatientId: null, // track which patient the current run is for
   currentPatientId: 'patient-001',
 };
 
@@ -893,15 +894,20 @@ function selectPatient(p) {
   setEl('pipeline-patient-name', names[p] || '—');
   const metaEl = document.getElementById('pipeline-patient-meta');
   if (metaEl) metaEl.textContent = 'DOB: ' + (dobs[p] || '—');
-  // Update tag badge
-  const tagEl = document.querySelector('#section-pipeline .bg-primary\/10.text-primary');
+  // Update tag badge - find the condition tag span in the pipeline header
+  const allTagEls = document.querySelectorAll('#section-pipeline .bg-primary\/10.text-primary');
+  const tagEl = Array.from(allTagEls).find(el => el.tagName === 'SPAN' && el.closest('.flex.items-center.gap-3'));
   if (tagEl) tagEl.textContent = tags[p] || '';
 
-  // Reset both policy dropdowns to standard on patient switch
+  // Set policy dropdown to the best default for this patient type
+  const bestPolicy = {
+    bernard: 'standard', dorothea: 'adalimumab-standard',
+    eleanor: 'standard', imported: 'standard'
+  }[p] || 'standard';
   const pvEl = document.getElementById('policy-variant');
   const ppEl = document.getElementById('pipeline-policy');
-  if(pvEl) pvEl.value = 'standard';
-  if(ppEl) ppEl.value = 'standard';
+  if(pvEl) pvEl.value = bestPolicy;
+  if(ppEl) ppEl.value = bestPolicy;
 
   // Reset pipeline steps and result boxes for the new patient
   [1,2,3,4,5,6,7].forEach(n => {
@@ -919,7 +925,8 @@ function selectPatient(p) {
   setEl('stat-a1c',    '<span class="font-mono text-deep-brown/40 dark:text-cream/40">—</span>');
   setEl('stat-bundle', '<span class="font-mono text-deep-brown/40 dark:text-cream/40">—</span>');
 
-  // Clear per-patient state
+  // Clear per-patient state and cancel any pending run
+  state.activeRunPatientId = null;
   state.medrec = null; state.medReq = null; state.evidence = null;
   state.policy = null; state.packet = null; state.decision = null;
 }
@@ -1013,6 +1020,7 @@ showSubmissionResult({approved,patientName:resolvePatientName(state.currentPatie
 
 // ── Run Prior Auth (quick, any patient) ───────────────────────────────────
 async function runQuickAuth(patientId, slug) {
+  state.activeRunPatientId = patientId;
   if (!patientId) { err('No patient ID — import a patient first'); return; }
   const pv = document.getElementById('run-policy').value;
   const card = document.getElementById('rc-'+slug);
@@ -1691,6 +1699,7 @@ function renderPolicyTable() {
 
 function runFullPipelineForCurrentPatient() {
   const pid = state.currentPatientId || 'patient-001';
+  state.activeRunPatientId = pid; // mark this patient as the active run
   const slugMap = {'patient-001':'bernard','patient-ra-001':'dorothea','patient-comorbid-001':'eleanor'};
   const slug = slugMap[pid] || 'bernard';
   // Read pipeline header dropdown (most recently changed)
@@ -1707,6 +1716,8 @@ function runFullPipelineForCurrentPatient() {
   showSection('pipeline');
   [1,2,3,4,5,6,7].forEach(n=>{const el=document.getElementById('ps-'+n);if(el)el.classList.remove('done');});
   post('/run/full-prior-auth',{patientId:pid,policyVariant:pv}).then(r=>{
+    // Discard if patient switched while request was in flight
+    if (state.activeRunPatientId !== pid) { setBusy(null); return; }
     // Normalise result shape — backend now always returns evidence.derived with full fields
     const approved   = r.summary?.approved ?? false;
     const missing    = r.policy?.missing ?? r.summary?.policyResult?.missing ?? [];
