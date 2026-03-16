@@ -870,6 +870,8 @@ function showSection(name) {
   if(name==='patients' && !allPatients.length) loadPatientDirectory();
   if(name==='payers') loadPolicyPayers().then(()=>runPolicyDiff());
   if(name==='auditlogs' && !allAuditEvents.length) loadAllAuditLogs();
+  // Sync run-auth section to currently selected patient
+  if(name==='run-auth') syncRunAuthSection();
   document.querySelectorAll('#main-nav .nav-item').forEach((el,i) => { if(i<SECTIONS.length){el.classList.toggle('active', SECTIONS[i]===name);} });
   if (name==='audit' && !state.auditTrail) loadAudit();
 }
@@ -924,6 +926,7 @@ function selectPatient(p) {
   setEl('stat-status', '<span class="font-mono text-deep-brown/40 dark:text-cream/40">—</span>');
   setEl('stat-a1c',    '<span class="font-mono text-deep-brown/40 dark:text-cream/40">—</span>');
   setEl('stat-bundle', '<span class="font-mono text-deep-brown/40 dark:text-cream/40">—</span>');
+  setEl('stat-policy', bestPolicy);
 
   // Clear per-patient state and cancel any pending run
   state.activeRunPatientId = null;
@@ -1758,10 +1761,25 @@ function runFullPipelineForCurrentPatient() {
 }
 
 function selectPolicyAndRun(variant) {
-  document.getElementById('policy-variant').value = variant;
-  showSection('run-auth');
-  // Highlight bernard by default and trigger run
-  runQuickAuth('patient-001', 'bernard');
+  // Set policy on all dropdowns
+  const pvEl = document.getElementById('policy-variant');
+  const ppEl = document.getElementById('pipeline-policy');
+  if (pvEl) pvEl.value = variant;
+  if (ppEl) ppEl.value = variant;
+
+  // Use whichever patient is currently selected, not hardcoded bernard
+  const pid = state.currentPatientId || 'patient-001';
+  const slugMap = {'patient-001':'bernard','patient-ra-001':'dorothea','patient-comorbid-001':'eleanor'};
+  const slug = slugMap[pid] || 'bernard';
+
+  // Highlight the correct patient button
+  document.querySelectorAll('.patient-btn').forEach(b => b.classList.remove('bg-primary/10'));
+  const activeBtn = document.getElementById('pt-' + slug);
+  if (activeBtn) activeBtn.classList.add('bg-primary/10');
+
+  // Navigate to pipeline and run
+  showSection('pipeline');
+  runFullPipelineForCurrentPatient();
 }
 
 // ── Live Eligibility Checker ───────────────────────────────────────────────
@@ -2371,6 +2389,22 @@ async function runDeniedAndOpenARIA() {
     err(e.message);
   }
   if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px">gavel</span> Deny + ARIA'; }
+}
+
+// ── Sync Run Auth section to current patient ──────────────────────────────
+function syncRunAuthSection() {
+  const pid = state.currentPatientId || 'patient-001';
+  const slugMap = {'patient-001':'bernard','patient-ra-001':'dorothea','patient-comorbid-001':'eleanor'};
+  const slug = slugMap[pid] || 'bernard';
+  // Highlight the matching card in run-auth
+  document.querySelectorAll('.pat-run-card').forEach(c => {
+    const isActive = c.dataset.slug === slug;
+    c.classList.toggle('ring-2', isActive);
+    c.classList.toggle('ring-primary', isActive);
+  });
+  // Scroll active card into view
+  const active = document.querySelector(`.pat-run-card[data-slug="${slug}"]`);
+  if (active) active.scrollIntoView({behavior:'smooth', block:'nearest'});
 }
 
 function toggleTheme() {
