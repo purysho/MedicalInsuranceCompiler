@@ -203,7 +203,7 @@ body { font-family: 'Lexend', sans-serif; }
             <div>
               <h3 class="text-2xl font-bold text-deep-brown dark:text-cream tracking-tight" id="pipeline-patient-name">Bernard Rieux</h3>
               <div class="flex items-center gap-3 mt-1">
-                <span class="bg-primary/10 text-primary px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider">T2D · GLP-1</span>
+                <span id="pipeline-condition-tag" class="bg-primary/10 text-primary px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider">T2D · GLP-1</span>
                 <span class="text-deep-brown/50 dark:text-cream/50 text-xs" id="pipeline-patient-meta">DOB: 01/03/1947</span>
               </div>
             </div>
@@ -897,8 +897,7 @@ function selectPatient(p) {
   const metaEl = document.getElementById('pipeline-patient-meta');
   if (metaEl) metaEl.textContent = 'DOB: ' + (dobs[p] || '—');
   // Update tag badge - find the condition tag span in the pipeline header
-  const allTagEls = document.querySelectorAll('#section-pipeline .bg-primary\/10.text-primary');
-  const tagEl = Array.from(allTagEls).find(el => el.tagName === 'SPAN' && el.closest('.flex.items-center.gap-3'));
+  const tagEl = document.getElementById('pipeline-condition-tag');
   if (tagEl) tagEl.textContent = tags[p] || '';
 
   // Set policy dropdown to the best default for this patient type
