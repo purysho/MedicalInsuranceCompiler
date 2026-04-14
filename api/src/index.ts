@@ -1,7 +1,9 @@
 import express from "express";
 import cors from "cors";
 import { FhirStore } from "./fhirStore.js";
-import { seedSynthetic, seedRA, seedComorbid, PO_PATIENT_ID, LEGACY_PATIENT_ID, RA_PATIENT_ID, COMORBID_PATIENT_ID } from "./seed.js";
+import { seedSynthetic, seedRA, seedComorbid, seedIncomplete, seedExpired, seedPaediatric, seedUrgent,
+         PO_PATIENT_ID, LEGACY_PATIENT_ID, RA_PATIENT_ID, COMORBID_PATIENT_ID,
+         INCOMPLETE_PATIENT_ID, EXPIRED_PATIENT_ID, PAEDIATRIC_PATIENT_ID, URGENT_PATIENT_ID } from "./seed.js";
 import { checkPolicy } from "./policy.js";
 import { A2ABus } from "./a2a.js";
 import { runMedRec } from "./agents/medrecAgent.js";
@@ -155,6 +157,10 @@ app.post("/api/smart/import", async (req, res) => {
 registerIdAliases("patient-001", "79f8fd18-5044-452d-b9bd-428b1e35e579");
 registerIdAliases("patient-ra-001", "147e21d9-ab4e-449c-aeb4-8f3d6f7b1b4c");
 registerIdAliases("patient-comorbid-001", "d6417ffa-1ed8-4bb9-ae4c-d3820c9615f9");
+registerIdAliases("patient-incomplete-001", "");
+registerIdAliases("patient-expired-001", "");
+registerIdAliases("patient-paediatric-001", "");
+registerIdAliases("patient-urgent-001", "");
 
 app.get("/api/audit/:patientId", (req, res) => {
   const trail = getLatestTrailForPatient(req.params.patientId);
@@ -462,75 +468,117 @@ app.post("/run/full-prior-auth", async (req, res) => {
   try {
     const { patientId = "patient-001", policyVariant = "standard" } = req.body ?? {};
 
-    const isRA = patientId === "patient-ra-001" || patientId === "147e21d9-ab4e-449c-aeb4-8f3d6f7b1b4c";
+    const isRA       = patientId === "patient-ra-001"       || patientId === "147e21d9-ab4e-449c-aeb4-8f3d6f7b1b4c";
     const isComorbid = patientId === "patient-comorbid-001" || patientId === "d6417ffa-1ed8-4bb9-ae4c-d3820c9615f9";
 
-    // Auto-select appropriate policy variant if caller sent a mismatched one
-    let resolvedPolicy = policyVariant;
-    if (isRA && !policyVariant.startsWith("adalimumab")) resolvedPolicy = "adalimumab-standard";
-    if (isComorbid && policyVariant === "standard") resolvedPolicy = "standard"; // GLP-1 leg for comorbid
-    if (!isRA && !isComorbid && policyVariant.startsWith("adalimumab")) resolvedPolicy = "standard";
+    const isIncomplete  = patientId === "patient-incomplete-001";
+    const isExpired     = patientId === "patient-expired-001";
+    const isPaediatric  = patientId === "patient-paediatric-001";
+    const isUrgent      = patientId === "patient-urgent-001";
 
-    // Clear store and seed the correct patient data fresh
+    // Clear and seed correct patient
     store.clear();
-    if (isComorbid) { seedComorbid(store); }
-    else if (isRA)  { seedRA(store); }
-    else            { seedSynthetic(store, { scenario: "complete" }); }
+    if      (isComorbid)   seedComorbid(store);
+    else if (isRA)         seedRA(store);
+    else if (isIncomplete) seedIncomplete(store);
+    else if (isExpired)    seedExpired(store);
+    else if (isPaediatric) seedPaediatric(store);
+    else if (isUrgent)     seedUrgent(store);
+    else                   seedSynthetic(store, { scenario: "complete" });
 
-    // Resolve actual patient ID to the seeded one
-    const resolvedId = isComorbid ? COMORBID_PATIENT_ID : isRA ? RA_PATIENT_ID : LEGACY_PATIENT_ID;
+    const resolvedId = isComorbid   ? COMORBID_PATIENT_ID
+                     : isRA         ? RA_PATIENT_ID
+                     : isIncomplete ? INCOMPLETE_PATIENT_ID
+                     : isExpired    ? EXPIRED_PATIENT_ID
+                     : isPaediatric ? PAEDIATRIC_PATIENT_ID
+                     : isUrgent     ? URGENT_PATIENT_ID
+                     : LEGACY_PATIENT_ID;
 
-    // Run pipeline directly using low-level agents (bypasses tool hardcoded ID mapping)
-    const medrecResult = await runMedRec(store, resolvedId);
-    const bpmhListId = medrecResult.bpmh.id;
+    // ── Eleanor (comorbid) — dual pipeline ───────────────────────────────────
+    if (isComorbid) {
+      const glp1Variant = policyVariant.startsWith("adalimumab") ? "standard" : policyVariant;
+      const adaVariant  = policyVariant.startsWith("adalimumab") ? policyVariant : "adalimumab-strict";
 
-    // Ensure a medication request exists
-    let medReqs = store.search("MedicationRequest", { subject: resolvedId });
-    let medReq = medReqs[0];
-    if (!medReq) {
-      const med = isRA ? "Adalimumab 40mg (Humira)" : isComorbid ? "Semaglutide (GLP-1) + Adalimumab" : "Semaglutide (GLP-1)";
-      medReq = store.create({ resourceType: "MedicationRequest", status: "active", intent: "order", subject: { reference: `Patient/${resolvedId}` }, medicationCodeableConcept: { text: med }, authoredOn: new Date().toISOString() });
+      const conditions  = store.search("Condition",          { subject: resolvedId });
+      const observations= store.search("Observation",        { subject: resolvedId });
+      const statements  = store.search("MedicationStatement",{ subject: resolvedId });
+
+      const a1cObs    = observations.find((o: any) => JSON.stringify(o).toLowerCase().includes("a1c"));
+      const das28Obs  = observations.find((o: any) => JSON.stringify(o).toLowerCase().includes("das28"));
+      const a1cValue  = (a1cObs  as any)?.valueQuantity?.value ?? 9.1;
+      const das28Value= (das28Obs as any)?.valueQuantity?.value ?? 5.6;
+      const hasT2D    = conditions.some((c: any) => JSON.stringify(c).toLowerCase().includes("type 2"));
+      const hasRA     = conditions.some((c: any) => JSON.stringify(c).toLowerCase().includes("rheumatoid"));
+      const hasMetforminTrial = statements.some((s: any) => (s.medicationCodeableConcept?.text ?? "").toLowerCase().includes("metformin"));
+      const hasMetforminIntolerance = statements.some((s: any) => (s.note?.[0]?.text ?? "").toLowerCase().includes("intoler"));
+      const hasMtxTrial = statements.some((s: any) => JSON.stringify(s).toLowerCase().includes("methotrexate"));
+      const dmardFailures = statements.filter((s: any) => {
+        const t = (s.medicationCodeableConcept?.text ?? "").toLowerCase();
+        return (t.includes("methotrexate") || t.includes("leflunomide") || t.includes("hydroxychloroquine")) && s.status === "stopped";
+      }).length;
+
+      const glp1Policy= checkPolicy({ hasT2D, a1cValue, hasMetforminTrial, hasMetforminIntolerance, policyVariant: glp1Variant } as any);
+      const adaPolicy = checkPolicy({ hasRA, das28Value, hasMtxTrial, dmardFailures, policyVariant: adaVariant } as any);
+
+      const medrecResult = await runMedRec(store, resolvedId);
+      let medReq = store.search("MedicationRequest", { subject: resolvedId })[0];
+      if (!medReq) medReq = store.create({ resourceType: "MedicationRequest", status: "active", intent: "order", subject: { reference: `Patient/${resolvedId}` }, medicationCodeableConcept: { text: "Semaglutide (GLP-1) + Adalimumab" }, authoredOn: new Date().toISOString() });
+      const evidenceResult = await runEvidence(store, resolvedId, medrecResult.bpmh.id);
+      (evidenceResult as any).derived = { hasT2D, hasRA, a1cValue, das28Value, hasMetforminTrial, hasMetforminIntolerance, hasMtxTrial };
+
+      const overallApproved = glp1Policy.missing.length === 0 && adaPolicy.missing.length === 0;
+      const overallDecision = glp1Policy.missing.length === 0 && adaPolicy.missing.length === 0 ? "APPROVED"
+        : glp1Policy.missing.length > 0  && adaPolicy.missing.length > 0  ? "DENIED" : "PARTIAL";
+
+      return res.json({
+        patientType: "comorbid",
+        summary: { patientId: resolvedId, approved: overallApproved, overallDecision, bundleId: null },
+        medrec: medrecResult,
+        evidence: evidenceResult,
+        dualPriorAuth: {
+          glp1:      { approved: glp1Policy.missing.length === 0, missing: glp1Policy.missing, met: glp1Policy.met, medication: "Semaglutide (GLP-1)", policyVariant: glp1Variant, a1cValue },
+          adalimumab:{ approved: adaPolicy.missing.length  === 0, missing: adaPolicy.missing,  met: adaPolicy.met,  medication: "Adalimumab (Humira)",  policyVariant: adaVariant,  das28Value },
+        },
+        overallDecision,
+        policy: { missing: [...glp1Policy.missing, ...adaPolicy.missing], met: [...glp1Policy.met, ...adaPolicy.met] },
+        clinicalEvidence: { hasT2D, hasRA, a1cValue, das28Value, hasMtxTrial },
+      });
     }
 
-    const evidenceResult = await runEvidence(store, resolvedId, bpmhListId);
+    // ── Dorothea (RA) or Bernard (GLP-1) / SMART patient ────────────────────
+    let resolvedPolicy = policyVariant;
+    if (isRA && !policyVariant.startsWith("adalimumab")) resolvedPolicy = "adalimumab-standard";
+    if (!isRA && policyVariant.startsWith("adalimumab")) resolvedPolicy = "standard";
 
-    // Build policy context from FHIR data — runEvidence only handles GLP-1 fields,
-    // so we extract RA/DAS28 fields directly here for all patient types
-    const conditions = store.search("Condition", { subject: resolvedId });
-    const observations = store.search("Observation", { subject: resolvedId });
-    const statements = store.search("MedicationStatement", { subject: resolvedId });
+    const medrecResult = await runMedRec(store, resolvedId);
+    let medReq = store.search("MedicationRequest", { subject: resolvedId })[0];
+    if (!medReq) {
+      medReq = store.create({ resourceType: "MedicationRequest", status: "active", intent: "order", subject: { reference: `Patient/${resolvedId}` }, medicationCodeableConcept: { text: isRA ? "Adalimumab 40mg (Humira)" : "Semaglutide (GLP-1)" }, authoredOn: new Date().toISOString() });
+    }
+
+    const evidenceResult = await runEvidence(store, resolvedId, medrecResult.bpmh.id);
+    const conditions  = store.search("Condition",          { subject: resolvedId });
+    const observations= store.search("Observation",        { subject: resolvedId });
+    const statements  = store.search("MedicationStatement",{ subject: resolvedId });
 
     const hasT2D = conditions.some((c: any) => JSON.stringify(c).toLowerCase().includes("type 2"));
     const hasRA  = conditions.some((c: any) => JSON.stringify(c).toLowerCase().includes("rheumatoid") || JSON.stringify(c).toLowerCase().includes("arthritis"));
     const a1cObs   = observations.find((o: any) => JSON.stringify(o).toLowerCase().includes("a1c"));
     const das28Obs = observations.find((o: any) => JSON.stringify(o).toLowerCase().includes("das28"));
-    const a1cValue   = (a1cObs as any)?.valueQuantity?.value ?? null;
+    const a1cValue   = (a1cObs   as any)?.valueQuantity?.value ?? null;
     const das28Value = (das28Obs as any)?.valueQuantity?.value ?? null;
     const hasMetforminTrial       = statements.some((s: any) => (s.medicationCodeableConcept?.text ?? "").toLowerCase().includes("metformin"));
     const hasMetforminIntolerance = statements.some((s: any) => (s.note?.[0]?.text ?? "").toLowerCase().includes("intoler"));
     const hasMtxTrial = statements.some((s: any) => JSON.stringify(s).toLowerCase().includes("methotrexate"));
 
-    // Augment evidenceResult.derived with RA fields so the dashboard gets the full picture
-    (evidenceResult as any).derived = {
-      ...evidenceResult.derived,
-      hasT2D, hasRA, a1cValue, das28Value,
-      hasMetforminTrial, hasMetforminIntolerance, hasMtxTrial,
-    };
+    (evidenceResult as any).derived = { hasT2D, hasRA, a1cValue, das28Value, hasMetforminTrial, hasMetforminIntolerance, hasMtxTrial };
 
-    const policyResult = checkPolicy({
-      hasT2D, hasRA, a1cValue, das28Value,
-      hasMetforminTrial, hasMetforminIntolerance, hasMtxTrial,
-      policyVariant: resolvedPolicy,
-    } as any);
-
-    const packetResult = await runComposePacket(store, {
-      patientId: resolvedId, coverageId: isRA ? "coverage-ra-001" : "coverage-001",
-      medicationRequestId: medReq.id!, evidenceDocId: evidenceResult.evidenceDoc.id, bpmhListId,
-    });
-
+    const policyResult = checkPolicy({ hasT2D, hasRA, a1cValue, das28Value, hasMetforminTrial, hasMetforminIntolerance, hasMtxTrial, policyVariant: resolvedPolicy } as any);
+    const packetResult = await runComposePacket(store, { patientId: resolvedId, coverageId: isRA ? "coverage-ra-001" : "coverage-001", medicationRequestId: medReq.id!, evidenceDocId: evidenceResult.evidenceDoc.id, bpmhListId: medrecResult.bpmh.id });
     const approved = policyResult.missing.length === 0;
 
     res.json({
+      patientType: isRA ? "ra" : "glp1",
       summary: { patientId: resolvedId, policyVariant: resolvedPolicy, approved, policyResult, bundleId: packetResult.bundle.id },
       medrec: medrecResult,
       evidence: evidenceResult,
