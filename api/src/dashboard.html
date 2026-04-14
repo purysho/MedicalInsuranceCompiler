@@ -137,6 +137,24 @@ body { font-family: 'Lexend', sans-serif; }
           <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:#39d0d8"></span>
           <div><div class="text-deep-brown dark:text-cream text-sm font-medium leading-tight" id="imported-name">SMART Patient</div><div class="text-deep-brown/40 dark:text-cream/40 text-xs font-mono">SMART import</div></div>
         </button>
+        <div class="h-px bg-primary/10 my-1"></div>
+        <p class="text-xs font-semibold text-deep-brown/30 dark:text-cream/20 uppercase tracking-widest px-1 mb-1">Edge Cases</p>
+        <button onclick="selectPatient('marcus')" id="pt-marcus" class="patient-btn flex items-center gap-2.5 px-3 py-2 rounded-xl text-left hover:bg-primary/10 transition-colors w-full text-sm font-medium">
+          <span class="w-2 h-2 rounded-full flex-shrink-0 bg-amber-400"></span>
+          <div><div class="text-deep-brown dark:text-cream text-sm font-medium leading-tight">Marcus Webb</div><div class="text-deep-brown/40 dark:text-cream/40 text-xs font-mono">T2D · Incomplete</div></div>
+        </button>
+        <button onclick="selectPatient('sandra')" id="pt-sandra" class="patient-btn flex items-center gap-2.5 px-3 py-2 rounded-xl text-left hover:bg-primary/10 transition-colors w-full text-sm font-medium">
+          <span class="w-2 h-2 rounded-full flex-shrink-0 bg-orange-400"></span>
+          <div><div class="text-deep-brown dark:text-cream text-sm font-medium leading-tight">Sandra Okonkwo</div><div class="text-deep-brown/40 dark:text-cream/40 text-xs font-mono">T2D · Expired Auth</div></div>
+        </button>
+        <button onclick="selectPatient('jamie')" id="pt-jamie" class="patient-btn flex items-center gap-2.5 px-3 py-2 rounded-xl text-left hover:bg-primary/10 transition-colors w-full text-sm font-medium">
+          <span class="w-2 h-2 rounded-full flex-shrink-0 bg-sky-400"></span>
+          <div><div class="text-deep-brown dark:text-cream text-sm font-medium leading-tight">Jamie Chen</div><div class="text-deep-brown/40 dark:text-cream/40 text-xs font-mono">T1D · Paediatric</div></div>
+        </button>
+        <button onclick="selectPatient('rosa')" id="pt-rosa" class="patient-btn flex items-center gap-2.5 px-3 py-2 rounded-xl text-left hover:bg-primary/10 transition-colors w-full text-sm font-medium">
+          <span class="w-2 h-2 rounded-full flex-shrink-0 bg-rose-500"></span>
+          <div><div class="text-deep-brown dark:text-cream text-sm font-medium leading-tight">Rosa Martinez</div><div class="text-deep-brown/40 dark:text-cream/40 text-xs font-mono">T2D · Urgent/DKA</div></div>
+        </button>
       </div>
     </div>
     <!-- Policy -->
@@ -871,6 +889,18 @@ function showSection(name) {
   if(name==='patients' && !allPatients.length) loadPatientDirectory();
   if(name==='payers') loadPolicyPayers().then(()=>runPolicyDiff());
   if(name==='auditlogs' && !allAuditEvents.length) loadAllAuditLogs();
+  if(name==='submission') {
+    const pid = state.currentPatientId || 'patient-001';
+    const cached = state.patientResults[pid];
+    if (cached) {
+      showSubmissionResult({approved:cached.approved,patientName:resolvePatientName(pid),
+        policyVariant:cached.pv,claimId:cached.packet?.claim?.id,policyResult:{missing:cached.missing??[]}});
+    } else {
+      document.getElementById('submission-empty')?.classList.remove('hidden');
+      document.getElementById('submission-result')?.classList.add('hidden');
+    }
+  }
+  if(name==='audit') { const pid = state.currentPatientId || 'patient-001'; loadAudit(pid); }
   // Sync run-auth section to currently selected patient
   if(name==='run-auth') syncRunAuthSection();
   document.querySelectorAll('#main-nav .nav-item').forEach((el,i) => { if(i<SECTIONS.length){el.classList.toggle('active', SECTIONS[i]===name);} });
@@ -886,10 +916,10 @@ function selectPatient(p) {
   const importedName = state.smartImported?.patientName ?? state.smartImported?.patient?.name?.[0]?.text ?? 'SMART Patient';
   const importedDob  = state.smartImported?.patient?.birthDate ?? '—';
   const importedTag  = 'SMART Import · T2D';
-  const names = {bernard:'Bernard Rieux',    dorothea:'Dorothea Brooke',      eleanor:'Eleanor Vance',    imported:importedName};
-  const dobs  = {bernard:'01/03/1947',       dorothea:'22/04/1968',           eleanor:'14/09/1971',       imported:importedDob};
+  const names = {bernard:'Bernard Rieux', dorothea:'Dorothea Brooke', eleanor:'Eleanor Vance', imported:importedName, marcus:'Marcus Webb', sandra:'Sandra Okonkwo', jamie:'Jamie Chen', rosa:'Rosa Martinez'};
+  const dobs  = {bernard:'01/03/1947', dorothea:'22/04/1968', eleanor:'14/09/1971', imported:importedDob, marcus:'14/08/1965', sandra:'02/11/1958', jamie:'19/03/2012', rosa:'30/07/1971'};
   const tags  = {bernard:'T2D · GLP-1',      dorothea:'RA · Adalimumab',      eleanor:'T2D+RA · Dual',    imported:importedTag};
-  const ids   = {bernard:'patient-001',       dorothea:'patient-ra-001',       eleanor:'patient-comorbid-001', imported:state.smartImported?.patientId};
+  const ids   = {bernard:'patient-001', dorothea:'patient-ra-001', eleanor:'patient-comorbid-001', imported:state.smartImported?.patientId, marcus:'patient-incomplete-001', sandra:'patient-expired-001', jamie:'patient-paediatric-001', rosa:'patient-urgent-001'};
 
   state.currentPatientId = ids[p] || 'patient-001';
 
@@ -903,8 +933,9 @@ function selectPatient(p) {
 
   // Set policy dropdown to the best default for this patient type
   const bestPolicy = {
-    bernard: 'standard', dorothea: 'adalimumab-standard',
-    eleanor: 'standard', imported: 'standard'
+    bernard: 'standard', dorothea: 'adalimumab-standard', eleanor: 'standard',
+    imported: 'standard', marcus: 'standard', sandra: 'standard',
+    jamie: 'insulin-standard', rosa: 'standard'
   }[p] || 'standard';
   const pvEl = document.getElementById('policy-variant');
   const ppEl = document.getElementById('pipeline-policy');
@@ -1046,6 +1077,11 @@ async function runQuickAuth(patientId, slug) {
     const a1cLabel = isRA2 ? 'DAS28' : 'HbA1c';
     const missing = result.policy?.missing ?? result.summary?.policyResult?.missing ?? [];
     const entries = result.packet?.bundle?.entry?.length ?? '—';
+
+    // Save to per-patient cache so switching back restores results
+    state.patientResults[patientId] = { approved, a1c, das28: isRA2 ? a1c : null,
+      entries, missing, pv, medrec: result.medrec, evidence: result.evidence,
+      policy: result.policy, packet: result.packet };
 
     card.className = `pat-run-card ${approved?'done-approved':'done-denied'}`;
     out.innerHTML = `
@@ -1727,17 +1763,21 @@ function runFullPipelineForCurrentPatient() {
   post('/run/full-prior-auth',{patientId:pid,policyVariant:pv}).then(r=>{
     // Discard if patient switched while request was in flight
     if (state.activeRunPatientId !== pid) { setBusy(null); return; }
-    // Normalise result shape — backend now always returns evidence.derived with full fields
-    const approved   = r.summary?.approved ?? false;
-    const missing    = r.policy?.missing ?? r.summary?.policyResult?.missing ?? [];
-    const entries    = r.packet?.bundle?.entry?.length ?? 7;
+    // Normalise result shape — handles GLP-1, RA, and dual comorbid
     const isRA       = pid === 'patient-ra-001' || pid === '147e21d9-ab4e-449c-aeb4-8f3d6f7b1b4c';
     const isComorbid = pid === 'patient-comorbid-001' || pid === 'd6417ffa-1ed8-4bb9-ae4c-d3820c9615f9';
+    const isDual     = r.patientType === 'comorbid' || !!r.dualPriorAuth;
     const derived    = r.evidence?.derived ?? {};
-    const a1c        = derived.a1cValue ?? '—';
-    const das28      = derived.das28Value ?? null;
-    const hasRA      = derived.hasRA ?? isRA;
+    const a1c        = derived.a1cValue ?? (isDual ? 9.1 : '—');
+    const das28      = derived.das28Value ?? (isDual ? 5.6 : null);
     const bpmhId     = r.medrec?.bpmh?.id ?? null;
+    const missing    = isDual
+      ? [...(r.dualPriorAuth?.glp1?.missing??[]), ...(r.dualPriorAuth?.adalimumab?.missing??[])]
+      : (r.policy?.missing ?? []);
+    const approved   = isDual
+      ? (r.dualPriorAuth?.glp1?.approved && r.dualPriorAuth?.adalimumab?.approved)
+      : (r.summary?.approved ?? false);
+    const entries    = r.packet?.bundle?.entry?.length ?? (isDual ? 8 : 7);
 
     [1,2,3,4,5,6,7].forEach(n=>markStep(n));
 
@@ -1746,14 +1786,36 @@ function runFullPipelineForCurrentPatient() {
       : `<div class='text-xs text-emerald-600 font-medium'>Medication reconciliation complete</div>`
     );
 
-    if (isComorbid) {
-      setEl('evidence-out',`<div class='flex gap-2 flex-wrap'><span class='text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700'>T2D + RA</span><span class='text-xs font-bold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full'>HbA1c: ${a1c}%</span><span class='text-xs font-bold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full'>DAS28: ${das28}</span></div>`);
+    if (isDual || isComorbid) {
+      const glp1Dec  = r.dualPriorAuth?.glp1?.approved;
+      const adaDec   = r.dualPriorAuth?.adalimumab?.approved;
+      setEl('evidence-out',`<div class='space-y-2'>
+        <div class='flex gap-2 flex-wrap items-center'>
+          <span class='text-xs font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-700'>GLP-1</span>
+          <span class='text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700'>T2D: Yes</span>
+          <span class='text-xs font-bold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full'>HbA1c: ${a1c}%</span>
+          <span class='text-xs font-bold px-2 py-0.5 rounded-full ${glp1Dec===false?'bg-rose-100 text-rose-600':'bg-emerald-100 text-emerald-700'}'>${glp1Dec===false?'✗ DENIED':'✓ APPROVED'}</span>
+        </div>
+        <div class='flex gap-2 flex-wrap items-center'>
+          <span class='text-xs font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-700'>Adalimumab</span>
+          <span class='text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700'>RA: Yes</span>
+          <span class='text-xs font-bold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full'>DAS28: ${das28}</span>
+          <span class='text-xs font-bold px-2 py-0.5 rounded-full ${adaDec===false?'bg-rose-100 text-rose-600':'bg-emerald-100 text-emerald-700'}'>${adaDec===false?'✗ DENIED':'✓ APPROVED'}</span>
+        </div></div>`);
+      // Dual policy box
+      const overallDec = r.overallDecision ?? (approved?'APPROVED':'DENIED');
+      setEl('policy-out',`<div class='text-center py-2 rounded-xl mb-2 ${approved?'bg-emerald-50 border border-emerald-200':'bg-rose-50 border border-rose-200'}'><span class='text-lg font-black ${approved?'text-emerald-700':'text-rose-600'}'>${overallDec}</span></div>
+        <div class='grid grid-cols-2 gap-2'>
+          <div class='text-xs p-2 rounded ${r.dualPriorAuth?.glp1?.approved?'bg-emerald-50 text-emerald-700':'bg-rose-50 text-rose-600'}'>GLP-1: ${r.dualPriorAuth?.glp1?.approved?'✓ Approved':'✗ Denied'}</div>
+          <div class='text-xs p-2 rounded ${r.dualPriorAuth?.adalimumab?.approved?'bg-emerald-50 text-emerald-700':'bg-rose-50 text-rose-600'}'>Adalimumab: ${r.dualPriorAuth?.adalimumab?.approved?'✓ Approved':'✗ Denied'}</div>
+        </div>
+        ${missing.map(m=>`<div class='text-xs text-rose-600 font-mono mt-1'>✗ ${m}</div>`).join('')}`);
     } else if (isRA) {
       setEl('evidence-out',`<div class='flex gap-2 flex-wrap'><span class='text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700'>RA: Yes</span><span class='text-xs font-bold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full'>DAS28: ${das28??'—'}</span><span class='text-xs font-bold bg-emerald-100 text-emerald-700 px-2.5 py-0.5 rounded-full'>DMARD trials: Yes</span></div>`);
     } else {
       setEl('evidence-out',`<div class='flex gap-2 flex-wrap'><span class='text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700'>T2D: Yes</span><span class='text-xs font-bold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full'>HbA1c: ${a1c}%</span><span class='text-xs font-bold bg-emerald-100 text-emerald-700 px-2.5 py-0.5 rounded-full'>Metformin: Yes</span></div>`);
     }
-    setEl('policy-out',`<div class='text-center py-3 rounded-xl ${approved?'bg-emerald-50 border border-emerald-200':'bg-rose-50 border border-rose-200'}'><span class='text-xl font-black ${approved?'text-emerald-700':'text-rose-600'}'>${approved?'✓ APPROVED':'✗ DENIED'}</span></div>${missing.map(m=>`<div class='text-xs text-rose-600 font-mono mt-1'>✗ ${m}</div>`).join('')}`);
+    if (!isDual && !isComorbid) setEl('policy-out',`<div class='text-center py-3 rounded-xl ${approved?'bg-emerald-50 border border-emerald-200':'bg-rose-50 border border-rose-200'}'><span class='text-xl font-black ${approved?'text-emerald-700':'text-rose-600'}'>${approved?'✓ APPROVED':'✗ DENIED'}</span></div>${missing.map(m=>`<div class='text-xs text-rose-600 font-mono mt-1'>✗ ${m}</div>`).join('')}`);
     setEl('decision-out',`<div class='text-center py-3 rounded-xl ${approved?'bg-emerald-50 border border-emerald-200':'bg-rose-50 border border-rose-200'}'><span class='text-xl font-black ${approved?'text-emerald-700':'text-rose-600'}'>${approved?'✓ APPROVED':'✗ DENIED'}</span></div>`);
     setEl('stat-a1c',`<span class='font-mono font-bold text-primary'>${a1c}%</span>`);
     setEl('stat-a1c-card',`${a1c}% Controlled`);
@@ -2434,7 +2496,7 @@ function restorePatientResults(pid, cached) {
 
   // Restore evidence box
   if (isComorbid) {
-    setEl('evidence-out',`<div class='flex gap-2 flex-wrap'><span class='text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700'>T2D + RA</span><span class='text-xs font-bold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full'>HbA1c: ${a1c}%</span><span class='text-xs font-bold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full'>DAS28: ${das28}</span></div>`);
+    setEl('evidence-out',`<div class='space-y-1'><div class='flex gap-2 flex-wrap'><span class='text-xs font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-700'>GLP-1</span><span class='text-xs font-bold bg-emerald-100 text-emerald-700 px-2.5 py-0.5 rounded-full'>T2D: Yes</span><span class='text-xs font-bold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full'>HbA1c: ${a1c}%</span></div><div class='flex gap-2 flex-wrap'><span class='text-xs font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-700'>Adalimumab</span><span class='text-xs font-bold bg-emerald-100 text-emerald-700 px-2.5 py-0.5 rounded-full'>RA: Yes</span><span class='text-xs font-bold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full'>DAS28: ${das28}</span></div></div>`);
   } else if (isRA) {
     setEl('evidence-out',`<div class='flex gap-2 flex-wrap'><span class='text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700'>RA: Yes</span><span class='text-xs font-bold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full'>DAS28: ${das28??'—'}</span><span class='text-xs font-bold bg-emerald-100 text-emerald-700 px-2.5 py-0.5 rounded-full'>DMARD trials: Yes</span></div>`);
   } else {
