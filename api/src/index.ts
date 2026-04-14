@@ -536,11 +536,11 @@ app.post("/run/full-prior-auth", async (req, res) => {
         medrec: medrecResult,
         evidence: evidenceResult,
         dualPriorAuth: {
-          glp1:      { approved: glp1Policy.missing.length === 0, missing: glp1Policy.missing, met: glp1Policy.met, medication: "Semaglutide (GLP-1)", policyVariant: glp1Variant, a1cValue },
-          adalimumab:{ approved: adaPolicy.missing.length  === 0, missing: adaPolicy.missing,  met: adaPolicy.met,  medication: "Adalimumab (Humira)",  policyVariant: adaVariant,  das28Value },
+          glp1:      { approved: glp1Policy.missing.length === 0, missing: glp1Policy.missing, medication: "Semaglutide (GLP-1)", policyVariant: glp1Variant, a1cValue },
+          adalimumab:{ approved: adaPolicy.missing.length  === 0, missing: adaPolicy.missing,  medication: "Adalimumab (Humira)",  policyVariant: adaVariant,  das28Value },
         },
         overallDecision,
-        policy: { missing: [...glp1Policy.missing, ...adaPolicy.missing], met: [...glp1Policy.met, ...adaPolicy.met] },
+        policy: { missing: [...glp1Policy.missing, ...adaPolicy.missing] },
         clinicalEvidence: { hasT2D, hasRA, a1cValue, das28Value, hasMtxTrial },
       });
     }
