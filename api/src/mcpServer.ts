@@ -16,23 +16,66 @@ import { draftAppealLetter, buildAppealContext } from "./agents/appealAgent.js";
 import { searchSmartPatients, searchDiabetesPatients, importPatientFromSmart, LOCAL_SYNTHETIC_IDS } from "./fhirClient.js";
 import { checkPolicy } from "./policy.js";
 
-// ── Seed correct patient data based on any patient ID format ─────────────────
-function seedForPatient(store: FhirStore, patientId: string): string {
+// ── Seed correct patient data based on any patient ID, name, or DOB ──────────
+// PO UUIDs for patients registered in Prompt Opinion workspace
+const PO_ELEANOR_ID   = "d6417ffa-1ed8-4bb9-ae4c-d3820c9615f9";
+
+// Name + DOB fingerprints for matching PO patients by demographics
+const PATIENT_FINGERPRINTS: Array<{ names: string[]; dobs: string[]; seed: (s: FhirStore) => void; id: string }> = [
+  { names: ["bernard", "rieux"],         dobs: ["1947-01-03","01/03/1947","1947-03-01"], seed: s => seedSynthetic(s, { scenario: "complete" }), id: LEGACY_PATIENT_ID },
+  { names: ["dorothea", "brooke"],       dobs: ["1968-04-22","04/22/1968","1968-22-04"], seed: seedRA,          id: RA_PATIENT_ID },
+  { names: ["eleanor", "vance"],         dobs: ["1971-09-14","09/14/1971","1971-14-09"], seed: seedComorbid,    id: COMORBID_PATIENT_ID },
+  { names: ["marcus", "webb"],           dobs: ["1965-08-14","08/14/1965","1965-14-08"], seed: seedIncomplete,  id: INCOMPLETE_PATIENT_ID },
+  { names: ["sandra", "okonkwo"],        dobs: ["1958-11-02","11/02/1958","1958-02-11"], seed: seedExpired,     id: EXPIRED_PATIENT_ID },
+  { names: ["jamie", "chen"],            dobs: ["2012-03-19","03/19/2012","2012-19-03"], seed: seedPaediatric,  id: PAEDIATRIC_PATIENT_ID },
+  { names: ["rosa", "martinez"],         dobs: ["1971-07-30","07/30/1971","1971-30-07"], seed: seedUrgent,      id: URGENT_PATIENT_ID },
+];
+
+function seedForPatient(store: FhirStore, patientId: string, patientName?: string, dob?: string): string {
   const id = patientId ?? LEGACY_PATIENT_ID;
-  const isRA       = id === RA_PATIENT_ID       || id === PO_RA_PATIENT_ID;
-  const isComorbid = id === COMORBID_PATIENT_ID  || id === PO_COMORBID_PATIENT_ID;
-  const isIncomplete = id === INCOMPLETE_PATIENT_ID;
-  const isExpired    = id === EXPIRED_PATIENT_ID;
-  const isPaediatric = id === PAEDIATRIC_PATIENT_ID;
-  const isUrgent     = id === URGENT_PATIENT_ID;
+
+  // Match by known internal or PO IDs first
+  if (id === LEGACY_PATIENT_ID    || id === PO_PATIENT_ID)      { store.clear(); seedSynthetic(store, { scenario: "complete" }); return LEGACY_PATIENT_ID; }
+  if (id === RA_PATIENT_ID        || id === PO_RA_PATIENT_ID)   { store.clear(); seedRA(store);         return RA_PATIENT_ID; }
+  if (id === COMORBID_PATIENT_ID  || id === PO_ELEANOR_ID)      { store.clear(); seedComorbid(store);   return COMORBID_PATIENT_ID; }
+  if (id === INCOMPLETE_PATIENT_ID)  { store.clear(); seedIncomplete(store);  return INCOMPLETE_PATIENT_ID; }
+  if (id === EXPIRED_PATIENT_ID)     { store.clear(); seedExpired(store);     return EXPIRED_PATIENT_ID; }
+  if (id === PAEDIATRIC_PATIENT_ID)  { store.clear(); seedPaediatric(store);  return PAEDIATRIC_PATIENT_ID; }
+  if (id === URGENT_PATIENT_ID)      { store.clear(); seedUrgent(store);      return URGENT_PATIENT_ID; }
+
+  // Unknown ID — try to match by name or DOB (handles Prompt Opinion UUIDs for new patients)
+  const nameLower = (patientName ?? "").toLowerCase();
+  const dobStr    = dob ?? "";
+  for (const fp of PATIENT_FINGERPRINTS) {
+    const nameMatch = fp.names.some(n => nameLower.includes(n));
+    const dobMatch  = fp.dobs.some(d => dobStr.includes(d) || d.includes(dobStr.slice(0, 7)));
+    if (nameMatch || dobMatch) {
+      store.clear();
+      fp.seed(store);
+      // Register this PO UUID as an alias so audit trail resolves correctly
+      registerIdAliases(fp.id, id);
+      return fp.id;
+    }
+  }
+
+  // Fallback — if we can read the patient from the store to get name/DOB
+  const existing = store.read("Patient", id);
+  if (existing) {
+    const existName = (existing.name?.[0]?.text ?? existing.name?.[0]?.family ?? "").toLowerCase();
+    const existDob  = existing.birthDate ?? "";
+    for (const fp of PATIENT_FINGERPRINTS) {
+      if (fp.names.some(n => existName.includes(n)) || fp.dobs.some(d => existDob.includes(d.slice(0,7)))) {
+        fp.seed(store);
+        registerIdAliases(fp.id, id);
+        return fp.id;
+      }
+    }
+  }
+
+  // Last resort — seed Bernard (GLP-1 standard)
   store.clear();
-  if      (isComorbid)   { seedComorbid(store);   return COMORBID_PATIENT_ID; }
-  else if (isRA)         { seedRA(store);          return RA_PATIENT_ID; }
-  else if (isIncomplete) { seedIncomplete(store);  return INCOMPLETE_PATIENT_ID; }
-  else if (isExpired)    { seedExpired(store);     return EXPIRED_PATIENT_ID; }
-  else if (isPaediatric) { seedPaediatric(store);  return PAEDIATRIC_PATIENT_ID; }
-  else if (isUrgent)     { seedUrgent(store);      return URGENT_PATIENT_ID; }
-  else                   { seedSynthetic(store, { scenario: "complete" }); return LEGACY_PATIENT_ID; }
+  seedSynthetic(store, { scenario: "complete" });
+  return LEGACY_PATIENT_ID;
 }
 import {
   getOrStartSession, startSession, getActiveSession, appendEvent, completeSession,
@@ -466,7 +509,7 @@ async function executeTool(
     case "alice_run_full_prior_auth": {
       const rawId = args.patientId ?? args.patient_id ?? LEGACY_PATIENT_ID;
       // Seed the correct patient and resolve their canonical ID
-      const patientId = seedForPatient(store, rawId);
+      const patientId = seedForPatient(store, rawId, args.patientName ?? args.patient_name, args.dob ?? args.birthDate);
 
       // Get or start audit session (catch-all may have already created one)
       const sessionId = getOrStartSession(patientId, "Semaglutide (GLP-1)");
