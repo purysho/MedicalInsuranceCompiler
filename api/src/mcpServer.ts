@@ -8,12 +8,32 @@
 
 import { Request, Response } from "express";
 import { FhirStore } from "./fhirStore.js";
-import { seedSynthetic, seedRA, seedComorbid, PO_PATIENT_ID, LEGACY_PATIENT_ID, RA_PATIENT_ID, PO_RA_PATIENT_ID, COMORBID_PATIENT_ID, PO_COMORBID_PATIENT_ID } from "./seed.js";
+import { seedSynthetic, seedRA, seedComorbid, seedIncomplete, seedExpired, seedPaediatric, seedUrgent,
+         PO_PATIENT_ID, LEGACY_PATIENT_ID, RA_PATIENT_ID, PO_RA_PATIENT_ID, COMORBID_PATIENT_ID, PO_COMORBID_PATIENT_ID,
+         INCOMPLETE_PATIENT_ID, EXPIRED_PATIENT_ID, PAEDIATRIC_PATIENT_ID, URGENT_PATIENT_ID } from "./seed.js";
 import { extractClinicalNote, mergeWithFhirContext } from "./agents/noteExtractorAgent.js";
 import { draftAppealLetter, buildAppealContext } from "./agents/appealAgent.js";
 import { searchSmartPatients, searchDiabetesPatients, importPatientFromSmart, LOCAL_SYNTHETIC_IDS } from "./fhirClient.js";
 import { checkPolicy } from "./policy.js";
-import { getPolicyDefinition, diffPolicies } from "./policies.js";
+
+// ── Seed correct patient data based on any patient ID format ─────────────────
+function seedForPatient(store: FhirStore, patientId: string): string {
+  const id = patientId ?? LEGACY_PATIENT_ID;
+  const isRA       = id === RA_PATIENT_ID       || id === PO_RA_PATIENT_ID;
+  const isComorbid = id === COMORBID_PATIENT_ID  || id === PO_COMORBID_PATIENT_ID;
+  const isIncomplete = id === INCOMPLETE_PATIENT_ID;
+  const isExpired    = id === EXPIRED_PATIENT_ID;
+  const isPaediatric = id === PAEDIATRIC_PATIENT_ID;
+  const isUrgent     = id === URGENT_PATIENT_ID;
+  store.clear();
+  if      (isComorbid)   { seedComorbid(store);   return COMORBID_PATIENT_ID; }
+  else if (isRA)         { seedRA(store);          return RA_PATIENT_ID; }
+  else if (isIncomplete) { seedIncomplete(store);  return INCOMPLETE_PATIENT_ID; }
+  else if (isExpired)    { seedExpired(store);     return EXPIRED_PATIENT_ID; }
+  else if (isPaediatric) { seedPaediatric(store);  return PAEDIATRIC_PATIENT_ID; }
+  else if (isUrgent)     { seedUrgent(store);      return URGENT_PATIENT_ID; }
+  else                   { seedSynthetic(store, { scenario: "complete" }); return LEGACY_PATIENT_ID; }
+}
 import {
   getOrStartSession, startSession, getActiveSession, appendEvent, completeSession,
   getTrail, getLatestTrailForPatient, getAllTrailsForPatient, getAllTrails,
@@ -351,41 +371,15 @@ const TOOLS = [
   },
   {
     name: "aria_get_appeal_status",
-    description: "ARIA: Check the status of a prior authorization appeal — returns all appeal documents for a patient.",
-    inputSchema: { type: "object", properties: { patientId: { type: "string", description: "FHIR Patient ID" } }, required: ["patientId"] },
-  },
-  {
-    name: "alice_run_prior_auth_comorbid",
-    description: "Run DUAL parallel prior authorizations for Eleanor Vance — a patient with BOTH Type 2 Diabetes (needs GLP-1/Semaglutide) AND Rheumatoid Arthritis (needs Adalimumab/Humira). Runs both pipelines simultaneously and returns combined results. Both may be approved, both denied, or one of each — demonstrating ALICE handling real clinical complexity.",
+    description:
+      "ARIA: Check the status of a prior authorization appeal — returns the drafted appeal letter and any stored appeal documents for a patient.",
     inputSchema: {
       type: "object",
       properties: {
-        patientId: { type: "string", description: "FHIR Patient ID (default: patient-comorbid-001 for Eleanor Vance)" },
-        glp1PolicyVariant: { type: "string", enum: ["standard", "strict", "denied"], description: "GLP-1 policy variant (default: standard)" },
-        adalimumabPolicyVariant: { type: "string", enum: ["adalimumab-standard", "adalimumab-strict"], description: "Adalimumab policy variant (default: adalimumab-strict)" },
-      },
-    },
-  },
-  {
-    name: "payer_counter_deny",
-    description: "Simulate a payer issuing a counter-denial after ARIA's initial appeal. Returns new objections. Call after aria_draft_appeal. ARIA should then call aria_submit_rebuttal.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        patientId: { type: "string", description: "FHIR Patient ID" },
-        counterReasons: { type: "array", items: { type: "string" }, description: "Custom counter-denial reasons (optional)" },
-      },
-      required: ["patientId"],
-    },
-  },
-  {
-    name: "aria_submit_rebuttal",
-    description: "ARIA: Draft a formal rebuttal to a payer counter-denial (Round 2+ appeal). Provide counterReasons from payer_counter_deny. ARIA writes the rebuttal letter directly, citing literature and FHIR evidence with escalating urgency.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        patientId: { type: "string", description: "FHIR Patient ID" },
-        counterReasons: { type: "array", items: { type: "string" }, description: "Payer counter-objections to address" },
+        patientId: {
+          type: "string",
+          description: "FHIR Patient ID",
+        },
       },
       required: ["patientId"],
     },
@@ -394,7 +388,7 @@ const TOOLS = [
 
 // ── Tool execution ────────────────────────────────────────────────────────────
 
-export async function executeTool(
+async function executeTool(
   store: FhirStore,
   name: string,
   args: Record<string, any>
@@ -470,12 +464,9 @@ export async function executeTool(
     }
 
     case "alice_run_full_prior_auth": {
-      // Accept any patient ID format - map PO UUID to our seeded data
       const rawId = args.patientId ?? args.patient_id ?? LEGACY_PATIENT_ID;
-      // Always seed on full_prior_auth to ensure data exists
-      seedSynthetic(store, { scenario: "complete" });
-      // Use the PO patient ID if provided, otherwise use legacy
-      const patientId = rawId === PO_PATIENT_ID ? PO_PATIENT_ID : LEGACY_PATIENT_ID;
+      // Seed the correct patient and resolve their canonical ID
+      const patientId = seedForPatient(store, rawId);
 
       // Get or start audit session (catch-all may have already created one)
       const sessionId = getOrStartSession(patientId, "Semaglutide (GLP-1)");
@@ -761,9 +752,8 @@ export async function executeTool(
     }
 
     case "alice_detect_medication": {
-      const patientId = args.patientId ?? LEGACY_PATIENT_ID;
-      seedSynthetic(store, { scenario: "complete" });
-      seedRA(store);
+      const _rawDetectId2 = args.patientId ?? LEGACY_PATIENT_ID;
+      const patientId = seedForPatient(store, _rawDetectId2);
 
       const conditions = store.search("Condition", { subject: patientId });
       const observations = store.search("Observation", { subject: patientId });
@@ -820,9 +810,9 @@ export async function executeTool(
     }
 
     case "alice_run_prior_auth_insulin": {
-      const patientId = args.patientId ?? LEGACY_PATIENT_ID;
+      const rawInsulinId = args.patientId ?? LEGACY_PATIENT_ID;
+      const patientId = seedForPatient(store, rawInsulinId);
       const policyVariant = args.policyVariant ?? "insulin-standard";
-      seedSynthetic(store, { scenario: "complete" });
       const insulinSessionId = getOrStartSession(patientId, "Basal Insulin");
       appendEvent(insulinSessionId, {
         type: "tool_called", agent: "ALICE", action: "alice_run_prior_auth_insulin",
@@ -1073,40 +1063,7 @@ export async function executeTool(
       });
       completeSession(existingSession, "appealed");
 
-      // Generate real letter via Claude
-      let letterResult: any = null;
-      try {
-        const { generateAppealLetter } = await import("./agents/appealAgent.js");
-        const a1cObs = store.search("Observation", { subject: args.patientId })
-          .find((o: any) => JSON.stringify(o).toLowerCase().includes("a1c"));
-        const conditions = store.search("Condition", { subject: args.patientId });
-        const t2d = conditions.find((c: any) => JSON.stringify(c).toLowerCase().includes("type 2"));
-        const metHistory = store.search("MedicationStatement", { subject: args.patientId })
-          .filter((s: any) => (s.medicationCodeableConcept?.text ?? "").toLowerCase().includes("metformin"))
-          .map((s: any) => ({ status: s.status, note: s.note?.[0]?.text ?? null }));
-        const patientRec = store.search("Patient", { id: args.patientId })[0]
-          ?? store.search("Patient", {})[0];
-        const patientName = patientRec?.name?.[0]?.text
-          ?? patientRec?.name?.[0]?.family
-          ?? "the patient";
-        letterResult = await generateAppealLetter({
-          patientName,
-          patientId: args.patientId,
-          medication: "Semaglutide (GLP-1 Agonist)",
-          denialReasons,
-          a1cValue: a1cObs?.valueQuantity?.value ?? null,
-          a1cDate: a1cObs?.effectiveDateTime ?? null,
-          t2dDiagnosis: t2d?.code?.text ?? "Type 2 Diabetes Mellitus",
-          metforminHistory: metHistory,
-          policyVariant: args.policyVariant ?? "standard",
-          appealRound: 1,
-          noteExtractionSummary: args.noteExtractionSummary ?? null,
-        });
-      } catch (letterErr: any) {
-        console.warn("Letter generation failed, storing placeholder:", letterErr.message);
-      }
-
-      // Store DocumentReference with letter content
+      // Register a placeholder DocumentReference so the appeal has a FHIR ID
       const appealDoc = store.create({
         resourceType: "DocumentReference",
         status: "current",
@@ -1114,24 +1071,6 @@ export async function executeTool(
         subject: { reference: `Patient/${args.patientId}` },
         date: new Date().toISOString(),
         description: `Appeal — ${denialReasons.join("; ")}`,
-        content: letterResult ? [{
-          attachment: {
-            contentType: "text/plain",
-            title: letterResult.subject,
-            data: Buffer.from(letterResult.letterText).toString("base64"),
-          }
-        }] : [],
-        extension: [{
-          url: "https://alice.health/appeal-metadata",
-          valueString: JSON.stringify({
-            appealRound: 1,
-            denialReasons,
-            citations: letterResult?.citations ?? [],
-            model: letterResult?.model ?? null,
-            durationMs: letterResult?.durationMs ?? null,
-            subject: letterResult?.subject ?? null,
-          }),
-        }],
       });
 
       // Return full structured context for ARIA to write the letter herself
@@ -1242,276 +1181,6 @@ export async function executeTool(
             } catch { return "unknown"; }
           })(),
         })),
-      };
-    }
-
-    case "alice_run_prior_auth_comorbid": {
-      const pid = args.patientId ?? COMORBID_PATIENT_ID;
-
-      // Seed Eleanor if not already present
-      seedComorbid(store);
-      registerIdAliases(COMORBID_PATIENT_ID, PO_COMORBID_PATIENT_ID);
-
-      const glp1Variant = args.glp1PolicyVariant ?? "standard";
-      const adaVariant = args.adalimumabPolicyVariant ?? "adalimumab-strict";
-
-      const session = getOrStartSession(pid, "DualPriorAuth");
-      appendEvent(session, {
-        type: "pipeline_start", agent: "ALICE", action: "dual_prior_auth_start",
-        description: `Starting DUAL prior auth pipeline for comorbid patient — GLP-1 (${glp1Variant}) + Adalimumab (${adaVariant})`,
-        dataSources: ["fhir-local"],
-        resourcesCreated: [], resourcesRead: [],
-        patientId: pid,
-      });
-
-      // ── GLP-1 pipeline ──────────────────────────────────────────────────────
-      const glp1Results: any = {};
-
-      const t2dConds = store.search("Condition", { subject: pid })
-        .filter((c: any) => JSON.stringify(c).toLowerCase().includes("type 2"));
-      const a1cObs = store.search("Observation", { subject: pid })
-        .filter((o: any) => JSON.stringify(o).toLowerCase().includes("a1c"));
-      const metforminStmts = store.search("MedicationStatement", { subject: pid })
-        .filter((s: any) => (s.medicationCodeableConcept?.text ?? "").toLowerCase().includes("metformin"));
-      const sglt2Stmts = store.search("MedicationStatement", { subject: pid })
-        .filter((s: any) => (s.medicationCodeableConcept?.text ?? "").toLowerCase().includes("sglt") || (s.medicationCodeableConcept?.text ?? "").toLowerCase().includes("empagliflozin"));
-
-      const a1cValue = a1cObs[0]?.valueQuantity?.value ?? 0;
-      const hasMetforminTrial = metforminStmts.some((s: any) => s.status === "stopped");
-      const hasSglt2Trial = sglt2Stmts.some((s: any) => s.status === "stopped");
-      const hasOralAgentTrial = hasMetforminTrial || hasSglt2Trial;
-      const hasT2D = t2dConds.length > 0;
-
-      const glp1Policy = getPolicyDefinition(glp1Variant);
-      const glp1A1cRule = glp1Policy.rules.find((r: any) => r.key === "a1c");
-      const glp1A1cThreshold = glp1A1cRule?.threshold ?? 7.0;
-      const glp1Met: string[] = [];
-      const glp1Missing: string[] = [];
-
-      if (hasT2D) glp1Met.push("Type 2 Diabetes Mellitus diagnosis confirmed");
-      else glp1Missing.push("Type 2 Diabetes diagnosis required");
-
-      if (a1cValue >= glp1A1cThreshold) glp1Met.push(`HbA1c ${a1cValue}% meets threshold (≥${glp1A1cThreshold}%)`);
-      else glp1Missing.push(`HbA1c ${a1cValue}% below required threshold of ${glp1A1cThreshold}%`);
-
-      if (hasOralAgentTrial) glp1Met.push("Step therapy met: prior oral antidiabetic agent trial documented (Metformin + SGLT-2 inhibitor)");
-      else glp1Missing.push("Step therapy required: must document adequate trial of oral antidiabetic agent");
-
-      glp1Results.approved = glp1Missing.length === 0;
-      glp1Results.met = glp1Met;
-      glp1Results.missing = glp1Missing;
-      glp1Results.medication = "Semaglutide (GLP-1 receptor agonist)";
-      glp1Results.policyVariant = glp1Variant;
-      glp1Results.a1cValue = a1cValue;
-
-      appendEvent(session, {
-        type: "ai_decision", agent: "ALICE", action: "glp1_policy_check",
-        description: `GLP-1 prior auth: ${glp1Results.approved ? "APPROVED" : "DENIED"} — HbA1c ${a1cValue}%, ${glp1Met.length} criteria met`,
-        dataSources: ["fhir-local", "ai-policy-check"],
-        resourcesCreated: [], resourcesRead: a1cObs.slice(0,1).map((o: any) => ({ resourceType: "Observation", id: o.id })),
-        aiDecision: {
-          decision: glp1Results.approved ? "APPROVED" : "DENIED",
-          confidence: "high",
-          reasoning: glp1Results.approved ? glp1Met.join("; ") : glp1Missing.join("; "),
-        },
-        patientId: pid,
-      });
-
-      // ── Adalimumab pipeline ─────────────────────────────────────────────────
-      const adaResults: any = {};
-
-      const raConds = store.search("Condition", { subject: pid })
-        .filter((c: any) => JSON.stringify(c).toLowerCase().includes("rheumatoid"));
-      const das28Obs = store.search("Observation", { subject: pid })
-        .filter((o: any) => JSON.stringify(o).toLowerCase().includes("das28"));
-      const dmardStmts = store.search("MedicationStatement", { subject: pid })
-        .filter((s: any) => {
-          const text = (s.medicationCodeableConcept?.text ?? "").toLowerCase();
-          return text.includes("methotrexate") || text.includes("leflunomide") || text.includes("hydroxychloroquine") || text.includes("sulfasalazine");
-        });
-
-      const das28Value = das28Obs[0]?.valueQuantity?.value ?? 0;
-      const hasRA = raConds.length > 0;
-      const dmardFailures = dmardStmts.filter((s: any) => s.status === "stopped");
-      const adaPolicy = getPolicyDefinition(adaVariant);
-      const adaDas28Rule = adaPolicy.rules.find((r: any) => r.key === "das28");
-      const adaDas28Threshold = adaDas28Rule?.threshold ?? 3.2;
-      const adaDmardRule = adaPolicy.rules.find((r: any) => r.key === "dmard_failure" || r.key === "dmard");
-      const requiredDmards = adaDmardRule ? 2 : 1;
-
-      const adaMet: string[] = [];
-      const adaMissing: string[] = [];
-
-      if (hasRA) adaMet.push("Rheumatoid arthritis diagnosis confirmed");
-      else adaMissing.push("Rheumatoid arthritis diagnosis required");
-
-      if (das28Value >= adaDas28Threshold) adaMet.push(`DAS28 ${das28Value} meets threshold (≥${adaDas28Threshold})`);
-      else adaMissing.push(`DAS28 ${das28Value} below required threshold of ${adaDas28Threshold}`);
-      if (dmardFailures.length >= requiredDmards) adaMet.push(`Step therapy met: ${dmardFailures.length} DMARD failure(s) documented (MTX + Leflunomide)`);
-      else adaMissing.push(`Step therapy insufficient: ${dmardFailures.length} DMARD failure(s) documented, ${requiredDmards} required`);
-
-      adaResults.approved = adaMissing.length === 0;
-      adaResults.met = adaMet;
-      adaResults.missing = adaMissing;
-      adaResults.medication = "Adalimumab (Humira)";
-      adaResults.policyVariant = adaVariant;
-      adaResults.das28Value = das28Value;
-      adaResults.dmardFailures = dmardFailures.length;
-
-      appendEvent(session, {
-        type: "ai_decision", agent: "ALICE", action: "adalimumab_policy_check",
-        description: `Adalimumab prior auth: ${adaResults.approved ? "APPROVED" : "DENIED"} — DAS28 ${das28Value}, ${dmardFailures.length} DMARD failures`,
-        dataSources: ["fhir-local", "ai-policy-check"],
-        resourcesCreated: [], resourcesRead: das28Obs.slice(0,1).map((o: any) => ({ resourceType: "Observation", id: o.id })),
-        aiDecision: {
-          decision: adaResults.approved ? "APPROVED" : "DENIED",
-          confidence: "high",
-          reasoning: adaResults.approved ? adaMet.join("; ") : adaMissing.join("; "),
-        },
-        patientId: pid,
-      });
-
-      // ── Combined summary ────────────────────────────────────────────────────
-      const bothApproved = glp1Results.approved && adaResults.approved;
-      const bothDenied = !glp1Results.approved && !adaResults.approved;
-      const finalDecision = bothApproved ? "approved" : bothDenied ? "denied" : "partial";
-
-      completeSession(session, finalDecision as any);
-
-      const deniedMeds: string[] = [];
-      if (!glp1Results.approved) deniedMeds.push("Semaglutide (GLP-1)");
-      if (!adaResults.approved) deniedMeds.push("Adalimumab (Humira)");
-
-      return {
-        patientId: pid,
-        patientName: "Dr. Eleanor Vance",
-        conditions: ["Type 2 Diabetes Mellitus (HbA1c 9.1%)", "Rheumatoid Arthritis (DAS28 5.6)"],
-        dualPriorAuth: {
-          glp1: glp1Results,
-          adalimumab: adaResults,
-        },
-        overallDecision: finalDecision.toUpperCase(),
-        summary: bothApproved
-          ? "Both prior authorizations APPROVED. Eleanor Vance may begin Semaglutide and Adalimumab therapy."
-          : bothDenied
-          ? "Both prior authorizations DENIED. ARIA should draft dual appeals addressing GLP-1 and Adalimumab denials."
-          : `Partial approval — ${glp1Results.approved ? "GLP-1 APPROVED" : "GLP-1 DENIED"}, ${adaResults.approved ? "Adalimumab APPROVED" : "Adalimumab DENIED"}.`,
-        nextSteps: deniedMeds.length
-          ? [`Call aria_draft_appeal for denied medications: ${deniedMeds.join(", ")}`, "Provide denial reasons from this result to aria_draft_appeal"]
-          : ["Both approved — no appeals required. Patient may begin dual therapy."],
-        auditSessionId: session,
-      };
-    }
-
-    case "payer_counter_deny": {
-      if (!args.patientId) throw new Error("patientId is required");
-      const appealDocs = store.search("DocumentReference", { subject: args.patientId })
-        .filter((d: any) => d.type?.text === "Prior Authorization Appeal Letter");
-      if (!appealDocs.length) {
-        return { error: "No appeal found for this patient. Run aria_draft_appeal first." };
-      }
-      const latestAppeal = appealDocs[appealDocs.length - 1];
-      const counterReasons: string[] = args.counterReasons ?? [
-        "Appeal letter insufficient: no peer-reviewed literature cited demonstrating superiority over oral antidiabetic agents",
-        "Step therapy documentation incomplete: records do not confirm adequate trial duration (minimum 90 days) at therapeutic dose",
-        "Cost-effectiveness not established: patient has not attempted a generic SGLT-2 inhibitor prior to requesting branded GLP-1 therapy",
-      ];
-      const counterDoc = store.create({
-        resourceType: "DocumentReference",
-        status: "current",
-        type: { text: "Payer Counter-Denial" },
-        subject: { reference: `Patient/${args.patientId}` },
-        date: new Date().toISOString(),
-        description: `Counter-denial to appeal ${latestAppeal.id}`,
-        relatesTo: [{ code: "replaces", target: { reference: `DocumentReference/${latestAppeal.id}` } }],
-      });
-      const session = getOrStartSession(args.patientId, "CounterDenial");
-      appendEvent(session, {
-        type: "agent_handoff", agent: "ALICE", action: "counter_denial_received",
-        description: `Payer issued counter-denial with ${counterReasons.length} new objection(s)`,
-        dataSources: ["payer-system"],
-        resourcesCreated: [{ resourceType: "DocumentReference", id: counterDoc.id }],
-        resourcesRead: [],
-        aiDecision: { decision: "COUNTER_DENIED", confidence: "high", reasoning: counterReasons.join("; ") },
-        patientId: args.patientId,
-      });
-      return {
-        instruction: "ARIA: The payer has counter-denied the appeal. Use aria_submit_rebuttal to draft a targeted rebuttal addressing each new objection.",
-        counterDenialId: counterDoc.id,
-        originalAppealId: latestAppeal.id,
-        patientId: args.patientId,
-        counterReasons,
-        appealRound: appealDocs.length + 1,
-        nextStep: "Call aria_submit_rebuttal with these counterReasons to draft a rebuttal",
-      };
-    }
-
-    case "aria_submit_rebuttal": {
-      if (!args.patientId) throw new Error("patientId is required");
-      const counterReasons: string[] = Array.isArray(args.counterReasons)
-        ? args.counterReasons
-        : [args.counterReasons ?? "Payer counter-denial"];
-      const appealDocs = store.search("DocumentReference", { subject: args.patientId })
-        .filter((d: any) => d.type?.text === "Prior Authorization Appeal Letter");
-      const counterDocs = store.search("DocumentReference", { subject: args.patientId })
-        .filter((d: any) => d.type?.text === "Payer Counter-Denial");
-      const appealRound = appealDocs.length + 1;
-      const observations = store.search("Observation", { subject: args.patientId });
-      const conditions = store.search("Condition", { subject: args.patientId });
-      const a1c = observations.find((o: any) => JSON.stringify(o).toLowerCase().includes("a1c"));
-      const t2d = conditions.find((c: any) => JSON.stringify(c).toLowerCase().includes("type 2"));
-      const rebuttalDoc = store.create({
-        resourceType: "DocumentReference",
-        status: "current",
-        type: { text: "Prior Authorization Appeal Letter" },
-        subject: { reference: `Patient/${args.patientId}` },
-        date: new Date().toISOString(),
-        description: `Rebuttal Round ${appealRound} — ${counterReasons.length} counter-objection(s)`,
-      });
-      const session = getOrStartSession(args.patientId, "Rebuttal");
-      appendEvent(session, {
-        type: "appeal_drafted", agent: "ARIA", action: `rebuttal_round_${appealRound}`,
-        description: `ARIA drafted rebuttal Round ${appealRound} addressing ${counterReasons.length} payer counter-objection(s)`,
-        dataSources: ["fhir-local", "ai-appeal", "payer-system"],
-        resourcesCreated: [{ resourceType: "DocumentReference", id: rebuttalDoc.id }],
-        resourcesRead: [],
-        handoff: { from: "ALICE", to: "ARIA", reason: `Payer counter-denial Round ${appealRound - 1}`, context: { counterReasons } },
-        aiDecision: {
-          decision: "REBUTTAL_DRAFTED", confidence: "high",
-          reasoning: `Round ${appealRound} rebuttal with literature + FHIR evidence`,
-        },
-        patientId: args.patientId,
-      });
-      completeSession(session, "appealed");
-      return {
-        instruction: `ARIA: This is Appeal Round ${appealRound}. Draft a formal rebuttal letter addressing EACH counter-objection below with clinical literature and FHIR evidence. Write the letter directly — do not call another tool.`,
-        rebuttalDocumentId: rebuttalDoc.id,
-        appealRound,
-        patientId: args.patientId,
-        counterObjections: counterReasons,
-        escalationContext: {
-          counterDenialCount: counterDocs.length,
-          recommendedUrgency: appealRound >= 3 ? "urgent" : "expedited",
-          escalationPath: appealRound >= 3
-            ? ["File complaint with state insurance commissioner", "Request peer-to-peer review with payer Medical Director", "Initiate external IRO process"]
-            : ["Request peer-to-peer review", "Submit additional clinical documentation"],
-        },
-        clinicalEvidence: {
-          a1cObservation: a1c ? { id: a1c.id, value: a1c.valueQuantity?.value, date: a1c.effectiveDateTime } : null,
-          t2dDiagnosis: t2d ? { id: t2d.id, text: t2d.code?.text } : null,
-          supportingLiterature: [
-            "Marso SP et al. Semaglutide and Cardiovascular Outcomes — NEJM 2016;375:1834-1844 (SUSTAIN-6)",
-            "ADA Standards of Medical Care in Diabetes 2024 — Section 9: Pharmacologic Approaches",
-            "Davies MJ et al. ADA/EASD Consensus Report on Management of Hyperglycaemia. Diabetologia 2022",
-          ],
-        },
-        rebuttalGuidance: {
-          subject: `Re: Rebuttal Round ${appealRound} — Appeal of Prior Authorization Denial — Semaglutide`,
-          opening: "Dear Medical Director and Appeals Committee,",
-          closing: `Respectfully submitted,\nARIA — Appeal & Rebuttal Intelligence Agent\nRound ${appealRound} of ${Math.max(appealRound, 3)} permitted appeal rounds`,
-          mustAddress: counterReasons,
-          tone: appealRound >= 3 ? "firm and escalatory — reference patient harm from delay" : "professional and evidence-based",
-        },
       };
     }
 
