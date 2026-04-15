@@ -157,10 +157,10 @@ app.post("/api/smart/import", async (req, res) => {
 registerIdAliases("patient-001", "79f8fd18-5044-452d-b9bd-428b1e35e579");
 registerIdAliases("patient-ra-001", "147e21d9-ab4e-449c-aeb4-8f3d6f7b1b4c");
 registerIdAliases("patient-comorbid-001", "d6417ffa-1ed8-4bb9-ae4c-d3820c9615f9");
-registerIdAliases("patient-incomplete-001", "");
-registerIdAliases("patient-expired-001", "");
-registerIdAliases("patient-paediatric-001", "");
-registerIdAliases("patient-urgent-001", "");
+registerIdAliases("patient-incomplete-001", "c03971b6-de14-485c-b8c5-e6a12a6c7978");
+registerIdAliases("patient-expired-001", "b3966c57-148b-4027-bac9-1bffe6a95a2d");
+registerIdAliases("patient-paediatric-001", "2ff631a2-7c7a-43db-8f34-75fbd7938450");
+registerIdAliases("patient-urgent-001", "776a2088-fe38-4a36-9478-101fbeb0b8b3");
 
 app.get("/api/audit/:patientId", (req, res) => {
   const trail = getLatestTrailForPatient(req.params.patientId);

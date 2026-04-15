@@ -18,7 +18,11 @@ import { checkPolicy } from "./policy.js";
 
 // ── Seed correct patient data based on any patient ID, name, or DOB ──────────
 // PO UUIDs for patients registered in Prompt Opinion workspace
-const PO_ELEANOR_ID   = "d6417ffa-1ed8-4bb9-ae4c-d3820c9615f9";
+const PO_ELEANOR_ID    = "d6417ffa-1ed8-4bb9-ae4c-d3820c9615f9";
+const PO_MARCUS_ID     = "c03971b6-de14-485c-b8c5-e6a12a6c7978";
+const PO_SANDRA_ID     = "b3966c57-148b-4027-bac9-1bffe6a95a2d";
+const PO_JAMIE_ID      = "2ff631a2-7c7a-43db-8f34-75fbd7938450";
+const PO_ROSA_ID       = "776a2088-fe38-4a36-9478-101fbeb0b8b3";
 
 // Name + DOB fingerprints for matching PO patients by demographics
 const PATIENT_FINGERPRINTS: Array<{ names: string[]; dobs: string[]; seed: (s: FhirStore) => void; id: string }> = [
@@ -38,10 +42,10 @@ function seedForPatient(store: FhirStore, patientId: string, patientName?: strin
   if (id === LEGACY_PATIENT_ID    || id === PO_PATIENT_ID)      { store.clear(); seedSynthetic(store, { scenario: "complete" }); return LEGACY_PATIENT_ID; }
   if (id === RA_PATIENT_ID        || id === PO_RA_PATIENT_ID)   { store.clear(); seedRA(store);         return RA_PATIENT_ID; }
   if (id === COMORBID_PATIENT_ID  || id === PO_ELEANOR_ID)      { store.clear(); seedComorbid(store);   return COMORBID_PATIENT_ID; }
-  if (id === INCOMPLETE_PATIENT_ID)  { store.clear(); seedIncomplete(store);  return INCOMPLETE_PATIENT_ID; }
-  if (id === EXPIRED_PATIENT_ID)     { store.clear(); seedExpired(store);     return EXPIRED_PATIENT_ID; }
-  if (id === PAEDIATRIC_PATIENT_ID)  { store.clear(); seedPaediatric(store);  return PAEDIATRIC_PATIENT_ID; }
-  if (id === URGENT_PATIENT_ID)      { store.clear(); seedUrgent(store);      return URGENT_PATIENT_ID; }
+  if (id === INCOMPLETE_PATIENT_ID  || id === PO_MARCUS_ID)  { store.clear(); seedIncomplete(store);  return INCOMPLETE_PATIENT_ID; }
+  if (id === EXPIRED_PATIENT_ID     || id === PO_SANDRA_ID)  { store.clear(); seedExpired(store);     return EXPIRED_PATIENT_ID; }
+  if (id === PAEDIATRIC_PATIENT_ID  || id === PO_JAMIE_ID)   { store.clear(); seedPaediatric(store);  return PAEDIATRIC_PATIENT_ID; }
+  if (id === URGENT_PATIENT_ID      || id === PO_ROSA_ID)    { store.clear(); seedUrgent(store);      return URGENT_PATIENT_ID; }
 
   // Unknown ID — try to match by name or DOB (handles Prompt Opinion UUIDs for new patients)
   const nameLower = (patientName ?? "").toLowerCase();
