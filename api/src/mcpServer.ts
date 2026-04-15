@@ -35,6 +35,81 @@ const PATIENT_FINGERPRINTS: Array<{ names: string[]; dobs: string[]; seed: (s: F
   { names: ["rosa", "martinez"],         dobs: ["1971-07-30","07/30/1971","1971-30-07"], seed: seedUrgent,      id: URGENT_PATIENT_ID },
 ];
 
+
+function resourceText(resource: any): string {
+  return JSON.stringify(resource ?? {}).toLowerCase();
+}
+
+function findCoverageId(store: FhirStore, patientId: string): string {
+  const coverage =
+    store.search("Coverage", { patient: patientId })[0] ??
+    store.search("Coverage", { subject: patientId })[0];
+
+  return coverage?.id ?? `coverage-${patientId}`;
+}
+
+function getClinicalProfile(store: FhirStore, patientId: string) {
+  const conditions = store.search("Condition", { subject: patientId });
+  const observations = store.search("Observation", { subject: patientId });
+  const statements = store.search("MedicationStatement", { subject: patientId });
+
+  const condText = resourceText(conditions);
+
+  const hasRA =
+    condText.includes("rheumatoid") ||
+    condText.includes("69896004");
+
+  const hasT1D =
+    condText.includes("type 1") ||
+    condText.includes('"e10"') ||
+    condText.includes("type 1 diabetes mellitus");
+
+  const hasT2D =
+    condText.includes("type 2") ||
+    condText.includes('"e11"') ||
+    condText.includes("type 2 diabetes mellitus") ||
+    (!!condText.includes("diabetes") && !hasT1D);
+
+  const hasDKA =
+    condText.includes("ketoacidosis") ||
+    condText.includes("dka");
+
+  const a1cObs = observations.find((o: any) =>
+    resourceText(o).includes("a1c") ||
+    resourceText(o).includes("glycat")
+  );
+  const das28Obs = observations.find((o: any) =>
+    resourceText(o).includes("das28")
+  );
+
+  const hasMetforminTrial = statements.some((s: any) =>
+    resourceText(s).includes("metformin")
+  );
+
+  const hasMetforminIntolerance = statements.some((s: any) =>
+    resourceText(s).includes("metformin") &&
+    (resourceText(s).includes("intoler") ||
+      resourceText(s).includes("contraind") ||
+      resourceText(s).includes("gi side") ||
+      resourceText(s).includes("nausea") ||
+      resourceText(s).includes("vomit"))
+  );
+
+  return {
+    conditions,
+    observations,
+    statements,
+    hasRA,
+    hasT1D,
+    hasT2D,
+    hasDKA,
+    a1cValue: a1cObs?.valueQuantity?.value ?? null,
+    das28Value: das28Obs?.valueQuantity?.value ?? null,
+    hasMetforminTrial,
+    hasMetforminIntolerance,
+  };
+}
+
 function seedForPatient(store: FhirStore, patientId: string, patientName?: string, dob?: string): string {
   const id = patientId ?? LEGACY_PATIENT_ID;
 
@@ -503,7 +578,7 @@ async function executeTool(
         );
       return runComposePacket(store, {
         patientId: args.patientId ?? "patient-001",
-        coverageId: args.coverageId ?? "coverage-001",
+        coverageId: args.coverageId ?? findCoverageId(store, args.patientId ?? "patient-001"),
         medicationRequestId: args.medicationRequestId,
         evidenceDocId: args.evidenceDocId,
         bpmhListId: args.bpmhListId,
@@ -512,8 +587,42 @@ async function executeTool(
 
     case "alice_run_full_prior_auth": {
       const rawId = args.patientId ?? args.patient_id ?? LEGACY_PATIENT_ID;
-      // Seed the correct patient and resolve their canonical ID
-      const patientId = seedForPatient(store, rawId, args.patientName ?? args.patient_name, args.dob ?? args.birthDate);
+      const patientId = seedForPatient(
+        store,
+        rawId,
+        args.patientName ?? args.patient_name,
+        args.dob ?? args.birthDate
+      );
+
+      const initialProfile = getClinicalProfile(store, patientId);
+
+      if (initialProfile.hasRA && !initialProfile.hasT1D && !initialProfile.hasT2D) {
+        return executeTool(store, "alice_run_prior_auth_adalimumab", {
+          ...args,
+          patientId,
+          policyVariant:
+            args.policyVariant?.startsWith("adalimumab")
+              ? args.policyVariant
+              : "adalimumab-standard",
+        });
+      }
+
+      if (
+        initialProfile.hasT1D ||
+        initialProfile.hasDKA ||
+        (initialProfile.hasT2D &&
+          typeof initialProfile.a1cValue === "number" &&
+          initialProfile.a1cValue >= 9.0)
+      ) {
+        return executeTool(store, "alice_run_prior_auth_insulin", {
+          ...args,
+          patientId,
+          policyVariant:
+            args.policyVariant?.startsWith("insulin")
+              ? args.policyVariant
+              : "insulin-standard",
+        });
+      }
 
       // Get or start audit session (catch-all may have already created one)
       const sessionId = getOrStartSession(patientId, "Semaglutide (GLP-1)");
@@ -573,26 +682,16 @@ async function executeTool(
       const evidenceDocId = evidenceResult.evidenceDoc.id;
 
       // Step 4: Policy check
-      const conditions = store.search("Condition", { subject: patientId });
-      const observations = store.search("Observation", { subject: patientId });
-      const statements = store.search("MedicationStatement", {
-        subject: patientId,
-      });
-      const hasT2D = conditions.some((c: any) =>
-        JSON.stringify(c).toLowerCase().includes("type 2")
-      );
-      const a1cObs = observations.find((o: any) =>
-        JSON.stringify(o).toLowerCase().includes("a1c")
-      );
-      const a1cValue = (a1cObs as any)?.valueQuantity?.value ?? null;
-      const hasMetforminTrial = statements.some((s: any) =>
-        (s.medicationCodeableConcept?.text ?? "")
-          .toLowerCase()
-          .includes("metformin")
-      );
-      const hasMetforminIntolerance = statements.some((s: any) =>
-        (s.note?.[0]?.text ?? "").toLowerCase().includes("intolerance")
-      );
+      const profile = getClinicalProfile(store, patientId);
+      const {
+        conditions,
+        observations,
+        statements,
+        hasT2D,
+        a1cValue,
+        hasMetforminTrial,
+        hasMetforminIntolerance,
+      } = profile;
       // Merge FHIR data with note extraction if available
       let mergedContext = { hasT2D, a1cValue, hasMetforminTrial, hasMetforminIntolerance,
         sources: {} as Record<string, "fhir"|"note"|"both">, ambiguities: [] as string[] };
@@ -614,7 +713,7 @@ async function executeTool(
       // Step 5: Compose packet
       const packetResult = await runComposePacket(store, {
         patientId,
-        coverageId: "coverage-001",
+        coverageId: findCoverageId(store, patientId),
         medicationRequestId: medReq.id!,
         evidenceDocId,
         bpmhListId,
@@ -799,41 +898,35 @@ async function executeTool(
     }
 
     case "alice_detect_medication": {
-      const _rawDetectId2 = args.patientId ?? LEGACY_PATIENT_ID;
-      const patientId = seedForPatient(store, _rawDetectId2);
-
-      const conditions = store.search("Condition", { subject: patientId });
-      const observations = store.search("Observation", { subject: patientId });
-      const condText = JSON.stringify(conditions).toLowerCase();
-      const obsText = JSON.stringify(observations).toLowerCase();
-
-      const hasRA = condText.includes("rheumatoid") || condText.includes("69896004");
-      const hasT2D = condText.includes("type 2") || condText.includes("diabetes mellitus");
-
-      const a1cObs = observations.find((o: any) =>
-        JSON.stringify(o).toLowerCase().includes("a1c") ||
-        JSON.stringify(o).toLowerCase().includes("glycat")
+      const rawDetectId = args.patientId ?? args.patient_id ?? LEGACY_PATIENT_ID;
+      const patientId = seedForPatient(
+        store,
+        rawDetectId,
+        args.patientName ?? args.patient_name,
+        args.dob ?? args.birthDate
       );
-      const a1cValue = a1cObs?.valueQuantity?.value ?? null;
 
-      const das28Obs = observations.find((o: any) =>
-        JSON.stringify(o).toLowerCase().includes("das28")
-      );
-      const das28Value = das28Obs?.valueQuantity?.value ?? null;
+      const profile = getClinicalProfile(store, patientId);
+      const { hasT1D, hasT2D, hasRA, hasDKA, a1cValue, das28Value } = profile;
 
-      // Determine best medication class
       let recommended: string;
       let policyVariant: string;
       let rationale: string;
 
-      if (hasRA) {
+      if (hasRA && !hasT1D && !hasT2D) {
         recommended = "adalimumab";
         policyVariant = "adalimumab-standard";
-        rationale = `Rheumatoid Arthritis detected. DAS28: ${das28Value ?? "not found"}. Recommended: Adalimumab prior auth.`;
-      } else if (hasT2D && a1cValue !== null && a1cValue >= 9.0) {
+        rationale = `Rheumatoid arthritis detected. DAS28: ${das28Value ?? "not found"}. Recommended prior auth: Adalimumab.`;
+      } else if (hasT1D) {
         recommended = "insulin";
         policyVariant = "insulin-standard";
-        rationale = `T2D detected with HbA1c ${a1cValue}% (>= 9.0). Poor control — Basal Insulin prior auth recommended.`;
+        rationale = `Type 1 diabetes detected. Basal insulin prior auth is the best fit for this patient.`;
+      } else if (hasDKA || (hasT2D && a1cValue !== null && a1cValue >= 9.0)) {
+        recommended = "insulin";
+        policyVariant = "insulin-standard";
+        rationale = hasDKA
+          ? `Recent DKA/urgent diabetic instability detected. Basal insulin prior auth recommended.`
+          : `T2D detected with HbA1c ${a1cValue}% (>= 9.0). Poor control — basal insulin prior auth recommended.`;
       } else if (hasT2D) {
         recommended = "semaglutide";
         policyVariant = "standard";
@@ -846,7 +939,7 @@ async function executeTool(
 
       return {
         patientId,
-        detected: { hasT2D, hasRA, a1cValue, das28Value },
+        detected: { hasT1D, hasT2D, hasRA, hasDKA, a1cValue, das28Value },
         recommendation: { medication: recommended, policyVariant, rationale },
         availableTools: {
           glp1: "alice_run_full_prior_auth",
@@ -868,31 +961,27 @@ async function executeTool(
         patientId, policyVariant,
       });
 
-      const conditions = store.search("Condition", { subject: patientId });
-      const observations = store.search("Observation", { subject: patientId });
-      const statements = store.search("MedicationStatement", { subject: patientId });
-
-      const hasT2D = conditions.some((c: any) =>
-        JSON.stringify(c).toLowerCase().includes("type 2") ||
-        JSON.stringify(c).toLowerCase().includes("diabetes")
-      );
-      const a1cObs = observations.find((o: any) =>
-        JSON.stringify(o).toLowerCase().includes("a1c")
-      );
-      const a1cValue = a1cObs?.valueQuantity?.value ?? null;
-      const hasMetforminTrial = statements.some((s: any) =>
-        JSON.stringify(s).toLowerCase().includes("metformin") && s.status !== "active"
-      );
-      const hasMetforminIntolerance = statements.some((s: any) =>
-        JSON.stringify(s).toLowerCase().includes("metformin") &&
-        JSON.stringify(s).toLowerCase().includes("intoler")
-      );
+      const profile = getClinicalProfile(store, patientId);
+      const {
+        hasT1D,
+        hasT2D,
+        hasDKA,
+        a1cValue,
+        hasMetforminTrial,
+        hasMetforminIntolerance,
+      } = profile;
 
       const policyResult = checkPolicy({
         hasT2D, a1cValue, hasMetforminTrial, hasMetforminIntolerance, policyVariant,
       });
 
-      const insulinApproved = policyResult.missing.length === 0;
+      const insulinThreshold = policyVariant === "insulin-strict" ? 10.0 : 9.0;
+      const urgentOrT1DApproved =
+        (hasT1D || hasDKA) &&
+        typeof a1cValue === "number" &&
+        a1cValue >= insulinThreshold;
+
+      const insulinApproved = urgentOrT1DApproved || policyResult.missing.length === 0;
       appendEvent(insulinSessionId, {
         type: "ai_decision", agent: "ALICE", action: "policy_check",
         description: `Insulin policy evaluation: ${insulinApproved ? "APPROVED" : "DENIED"} — ${policyResult.policyName}`,
@@ -906,7 +995,13 @@ async function executeTool(
           decision: insulinApproved ? "APPROVED" : "DENIED",
           confidence: "high",
           reasoning: insulinApproved
-            ? "All insulin policy criteria met"
+            ? (
+                hasT1D
+                  ? "Type 1 diabetes detected with elevated HbA1c; insulin prior auth approved."
+                  : hasDKA
+                    ? "Recent DKA/urgent diabetic instability detected with elevated HbA1c; insulin prior auth approved."
+                    : "All insulin policy criteria met"
+              )
             : `Missing: ${policyResult.missing.join("; ")}`,
         },
         patientId, policyVariant,
@@ -924,8 +1019,12 @@ async function executeTool(
           threshold: policyVariant === "insulin-strict" ? 10.0 : 9.0,
           auditSessionId: insulinSessionId,
           note: !insulinApproved
-            ? `DENIED — HbA1c (${a1cValue}%) does not meet insulin threshold. ARIA appeal recommended.`
-            : "APPROVED",
+            ? `DENIED — HbA1c (${a1cValue}%) does not meet insulin threshold or clinical criteria are incomplete. ARIA appeal recommended.`
+            : hasT1D
+              ? "APPROVED — Type 1 diabetes workflow"
+              : hasDKA
+                ? "APPROVED — expedited DKA workflow"
+                : "APPROVED",
         },
         policy: policyResult,
       };
@@ -987,7 +1086,7 @@ async function executeTool(
         status: "active",
         type: { coding: [{ code: "pharmacy" }] },
         patient: { reference: `Patient/${patientId}` },
-        insurance: [{ sequence: 1, focal: true, coverage: { reference: "Coverage/coverage-ra-001" } }],
+        insurance: [{ sequence: 1, focal: true, coverage: { reference: `Coverage/${findCoverageId(store, patientId)}` } }],
         item: [{ sequence: 1, productOrService: { text: "Adalimumab 40mg/0.4mL injection (Humira)" } }],
       });
 
