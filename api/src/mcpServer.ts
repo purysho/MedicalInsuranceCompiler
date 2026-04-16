@@ -516,18 +516,47 @@ async function executeTool(
   args: Record<string, any>
 ): Promise<any> {
   switch (name) {
-    case "alice_fhir_search":
-      return store.search(args.resourceType, args.parameters ?? {});
+    case "alice_fhir_search": {
+      // Auto-seed if a patient ID is in parameters and store has no data for them
+      const searchParams = args.parameters ?? {};
+      const searchPatientId = searchParams.subject
+        ? String(searchParams.subject).replace("Patient/", "")
+        : (args.patientId ?? null);
+      if (searchPatientId) {
+        const existing = store.search("Patient", { id: searchPatientId });
+        if (existing.length === 0) {
+          // Store is empty for this patient — seed them
+          seedForPatient(store, searchPatientId, args.patientName, args.dob);
+        }
+      } else {
+        // No patient ID specified — ensure at least the current patient is seeded
+        const allPatients = store.search("Patient", {});
+        if (allPatients.length === 0) {
+          seedSynthetic(store, { scenario: "complete" });
+        }
+      }
+      return store.search(args.resourceType, searchParams);
+    }
 
     case "alice_fhir_read": {
-      const resource = store.read(args.resourceType, args.id);
+      // Auto-seed if resource not found
+      let resource = store.read(args.resourceType, args.id);
+      if (!resource && args.patientId) {
+        seedForPatient(store, args.patientId, args.patientName, args.dob);
+        resource = store.read(args.resourceType, args.id);
+      }
       if (!resource)
         throw new Error(`Resource ${args.resourceType}/${args.id} not found`);
       return resource;
     }
 
     case "alice_policy_check": {
-      const patientId = args.patientId ?? "patient-001";
+      const rawPolicyId = args.patientId ?? "patient-001";
+      const patientId = (() => {
+        const existing = store.search("Patient", {}).find((p: any) => p.id === rawPolicyId);
+        if (!existing) return seedForPatient(store, rawPolicyId, args.patientName, args.dob);
+        return rawPolicyId;
+      })();
       const conditions = store.search("Condition", { subject: patientId });
       const observations = store.search("Observation", { subject: patientId });
       const statements = store.search("MedicationStatement", {
@@ -876,6 +905,10 @@ async function executeTool(
     }
 
     case "alice_list_patients": {
+      // Ensure at least Bernard is seeded so the list isn't empty
+      if (store.search("Patient", {}).length === 0) {
+        seedSynthetic(store, { scenario: "complete" });
+      }
       const patients = store.listPatients();
       return {
         totalPatients: patients.length,
