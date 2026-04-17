@@ -114,13 +114,13 @@ function seedForPatient(store: FhirStore, patientId: string, patientName?: strin
   const id = patientId ?? LEGACY_PATIENT_ID;
 
   // Match by known internal or PO IDs first
-  if (id === LEGACY_PATIENT_ID    || id === PO_PATIENT_ID)      { store.clear(); seedSynthetic(store, { scenario: "complete" }); return LEGACY_PATIENT_ID; }
-  if (id === RA_PATIENT_ID        || id === PO_RA_PATIENT_ID)   { store.clear(); seedRA(store);         return RA_PATIENT_ID; }
-  if (id === COMORBID_PATIENT_ID  || id === PO_ELEANOR_ID)      { store.clear(); seedComorbid(store);   return COMORBID_PATIENT_ID; }
-  if (id === INCOMPLETE_PATIENT_ID  || id === PO_MARCUS_ID)  { store.clear(); seedIncomplete(store);  return INCOMPLETE_PATIENT_ID; }
-  if (id === EXPIRED_PATIENT_ID     || id === PO_SANDRA_ID)  { store.clear(); seedExpired(store);     return EXPIRED_PATIENT_ID; }
-  if (id === PAEDIATRIC_PATIENT_ID  || id === PO_JAMIE_ID)   { store.clear(); seedPaediatric(store);  return PAEDIATRIC_PATIENT_ID; }
-  if (id === URGENT_PATIENT_ID      || id === PO_ROSA_ID)    { store.clear(); seedUrgent(store);      return URGENT_PATIENT_ID; }
+  if (id === LEGACY_PATIENT_ID    || id === PO_PATIENT_ID)      { seedSynthetic(store, { scenario: "complete" }); return LEGACY_PATIENT_ID; }
+  if (id === RA_PATIENT_ID        || id === PO_RA_PATIENT_ID)   { seedRA(store); return RA_PATIENT_ID; }
+  if (id === COMORBID_PATIENT_ID  || id === PO_ELEANOR_ID)      { seedComorbid(store); return COMORBID_PATIENT_ID; }
+  if (id === INCOMPLETE_PATIENT_ID  || id === PO_MARCUS_ID)  { seedIncomplete(store); return INCOMPLETE_PATIENT_ID; }
+  if (id === EXPIRED_PATIENT_ID     || id === PO_SANDRA_ID)  { seedExpired(store); return EXPIRED_PATIENT_ID; }
+  if (id === PAEDIATRIC_PATIENT_ID  || id === PO_JAMIE_ID)   { seedPaediatric(store); return PAEDIATRIC_PATIENT_ID; }
+  if (id === URGENT_PATIENT_ID      || id === PO_ROSA_ID)    { seedUrgent(store); return URGENT_PATIENT_ID; }
 
   // Unknown ID — try to match by name or DOB (handles Prompt Opinion UUIDs for new patients)
   const nameLower = (patientName ?? "").toLowerCase();
@@ -129,7 +129,6 @@ function seedForPatient(store: FhirStore, patientId: string, patientName?: strin
     const nameMatch = fp.names.some(n => nameLower.includes(n));
     const dobMatch  = fp.dobs.some(d => dobStr.includes(d) || d.includes(dobStr.slice(0, 7)));
     if (nameMatch || dobMatch) {
-      store.clear();
       fp.seed(store);
       // Register this PO UUID as an alias so audit trail resolves correctly
       registerIdAliases(fp.id, id);
@@ -152,7 +151,6 @@ function seedForPatient(store: FhirStore, patientId: string, patientName?: strin
   }
 
   // Last resort — seed Bernard (GLP-1 standard)
-  store.clear();
   seedSynthetic(store, { scenario: "complete" });
   return LEGACY_PATIENT_ID;
 }
@@ -516,41 +514,18 @@ async function executeTool(
   args: Record<string, any>
 ): Promise<any> {
   switch (name) {
-    case "alice_fhir_search": {
-      // Auto-seed if a patient ID is in parameters and store has no data for them
-      const searchParams = args.parameters ?? {};
-      const searchPatientId = searchParams.subject
-        ? String(searchParams.subject).replace("Patient/", "")
-        : (args.patientId ?? null);
-      if (searchPatientId) {
-        const existing = store.search("Patient", {}).find((p: any) => p.id === searchPatientId);
-        if (!existing) {
-          // This patient isn't in the store — ensure all patients are seeded
-          ensureAllPatients(store);
-        }
-      }
-      return store.search(args.resourceType, searchParams);
-    }
+    case "alice_fhir_search":
+      return store.search(args.resourceType, args.parameters ?? {});
 
     case "alice_fhir_read": {
-      // Auto-seed if resource not found
-      let resource = store.read(args.resourceType, args.id);
-      if (!resource && args.patientId) {
-        seedForPatient(store, args.patientId, args.patientName, args.dob);
-        resource = store.read(args.resourceType, args.id);
-      }
+      const resource = store.read(args.resourceType, args.id);
       if (!resource)
         throw new Error(`Resource ${args.resourceType}/${args.id} not found`);
       return resource;
     }
 
     case "alice_policy_check": {
-      const rawPolicyId = args.patientId ?? "patient-001";
-      const patientId = (() => {
-        const existing = store.search("Patient", {}).find((p: any) => p.id === rawPolicyId);
-        if (!existing) return seedForPatient(store, rawPolicyId, args.patientName, args.dob);
-        return rawPolicyId;
-      })();
+      const patientId = args.patientId ?? "patient-001";
       const conditions = store.search("Condition", { subject: patientId });
       const observations = store.search("Observation", { subject: patientId });
       const statements = store.search("MedicationStatement", {
@@ -899,10 +874,6 @@ async function executeTool(
     }
 
     case "alice_list_patients": {
-      // Ensure at least Bernard is seeded so the list isn't empty
-      if (store.search("Patient", {}).length === 0) {
-        seedSynthetic(store, { scenario: "complete" });
-      }
       const patients = store.listPatients();
       return {
         totalPatients: patients.length,
@@ -1374,12 +1345,12 @@ function rpcErr(id: any, code: number, message: string, data?: any) {
 
 // ── Main handler ──────────────────────────────────────────────────────────────
 
-// Seed all known patients into the store on first MCP request
-let _allPatientsSeed = false;
+
+// ── Seed all patients on first MCP request so Po can find any patient by name ─
+let _allSeeded = false;
 function ensureAllPatients(store: FhirStore) {
-  if (_allPatientsSeed) return;
-  _allPatientsSeed = true;
-  // Seed each patient under their own ID without clearing — additive seeding
+  if (_allSeeded) return;
+  _allSeeded = true;
   seedSynthetic(store, { scenario: "complete" });
   seedRA(store);
   seedComorbid(store);
@@ -1387,12 +1358,11 @@ function ensureAllPatients(store: FhirStore) {
   seedExpired(store);
   seedPaediatric(store);
   seedUrgent(store);
-  console.log("[ALICE] All 7 patients seeded into FHIR store");
+  console.log("[ALICE] All 7 patients seeded");
 }
 
 export function createMcpHandler(store: FhirStore) {
   return async function mcpHandler(req: Request, res: Response) {
-    // Ensure all synthetic patients are in the store before any tool runs
     ensureAllPatients(store);
     console.log("MCP request:", req.method, "headers:", JSON.stringify(Object.keys(req.headers)));
 
