@@ -523,16 +523,10 @@ async function executeTool(
         ? String(searchParams.subject).replace("Patient/", "")
         : (args.patientId ?? null);
       if (searchPatientId) {
-        const existing = store.search("Patient", { id: searchPatientId });
-        if (existing.length === 0) {
-          // Store is empty for this patient — seed them
-          seedForPatient(store, searchPatientId, args.patientName, args.dob);
-        }
-      } else {
-        // No patient ID specified — ensure at least the current patient is seeded
-        const allPatients = store.search("Patient", {});
-        if (allPatients.length === 0) {
-          seedSynthetic(store, { scenario: "complete" });
+        const existing = store.search("Patient", {}).find((p: any) => p.id === searchPatientId);
+        if (!existing) {
+          // This patient isn't in the store — ensure all patients are seeded
+          ensureAllPatients(store);
         }
       }
       return store.search(args.resourceType, searchParams);
@@ -1380,9 +1374,26 @@ function rpcErr(id: any, code: number, message: string, data?: any) {
 
 // ── Main handler ──────────────────────────────────────────────────────────────
 
+// Seed all known patients into the store on first MCP request
+let _allPatientsSeed = false;
+function ensureAllPatients(store: FhirStore) {
+  if (_allPatientsSeed) return;
+  _allPatientsSeed = true;
+  // Seed each patient under their own ID without clearing — additive seeding
+  seedSynthetic(store, { scenario: "complete" });
+  seedRA(store);
+  seedComorbid(store);
+  seedIncomplete(store);
+  seedExpired(store);
+  seedPaediatric(store);
+  seedUrgent(store);
+  console.log("[ALICE] All 7 patients seeded into FHIR store");
+}
+
 export function createMcpHandler(store: FhirStore) {
   return async function mcpHandler(req: Request, res: Response) {
-    // Log all incoming MCP requests for debugging
+    // Ensure all synthetic patients are in the store before any tool runs
+    ensureAllPatients(store);
     console.log("MCP request:", req.method, "headers:", JSON.stringify(Object.keys(req.headers)));
 
     const body = req.body;
