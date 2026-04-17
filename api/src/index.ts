@@ -44,6 +44,7 @@ console.log(`[UI] Dashboard: ${dashboardPath} — exists: ${hasDashboard}`);
 
 const store = new FhirStore();
 
+
 // ── Pre-seed all 7 patients at startup so Po/MCP can find any patient immediately ──
 // This runs ONCE when the server starts — all patients are always available
 seedSynthetic(store, { scenario: "complete" });
