@@ -4,6 +4,22 @@ export type FhirResource = Record<string, any> & { resourceType: string; id?: st
 
 type Store = Record<string, Record<string, FhirResource>>;
 
+// Global alias map — maps any PO UUID to the canonical internal patient ID
+const _patientAliases = new Map<string, string>([
+  ["79f8fd18-5044-452d-b9bd-428b1e35e579", "patient-001"],
+  ["147e21d9-ab4e-449c-aeb4-8f3d6f7b1b4c", "patient-ra-001"],
+  ["d6417ffa-1ed8-4bb9-ae4c-d3820c9615f9", "patient-comorbid-001"],
+  ["c03971b6-de14-485c-b8c5-e6a12a6c7978", "patient-incomplete-001"],
+  ["b3966c57-148b-4027-bac9-1bffe6a95a2d", "patient-expired-001"],
+  ["2ff631a2-7c7a-43db-8f34-75fbd7938450", "patient-paediatric-001"],
+  ["776a2088-fe38-4a36-9478-101fbeb0b8b3", "patient-urgent-001"],
+]);
+
+/** Resolve a Prompt Opinion UUID to its internal patient ID, or return as-is */
+export function resolvePatientAlias(id: string): string {
+  return _patientAliases.get(id) ?? id;
+}
+
 export class FhirStore {
   private store: Store = {};
 
@@ -52,19 +68,22 @@ export class FhirStore {
         return null;
       };
 
-      const wantPatient = patient ? (Array.isArray(patient) ? patient[0] : patient) : null;
-      const wantSubject = subject ? (Array.isArray(subject) ? subject[0] : subject) : null;
+      // Resolve PO UUIDs to internal IDs before matching
+      const wantPatientRaw = patient ? (Array.isArray(patient) ? patient[0] : patient) : null;
+      const wantSubjectRaw = subject ? (Array.isArray(subject) ? subject[0] : subject) : null;
+      const wantPatient = wantPatientRaw ? resolvePatientAlias(wantPatientRaw.replace(/^Patient\//, "")) : null;
+      const wantSubject = wantSubjectRaw ? resolvePatientAlias(wantSubjectRaw.replace(/^Patient\//, "")) : null;
 
       if (wantPatient) {
         const rp = pid(r.patient) ?? pid(r.subject) ?? pid(r.for);
         if (!rp) return false;
-        if (rp !== wantPatient.replace(/^Patient\//, "")) return false;
+        if (resolvePatientAlias(rp) !== wantPatient) return false;
       }
 
       if (wantSubject) {
         const rs = pid(r.subject) ?? pid(r.patient);
         if (!rs) return false;
-        if (rs !== wantSubject.replace(/^Patient\//, "")) return false;
+        if (resolvePatientAlias(rs) !== wantSubject) return false;
       }
 
       if (code) {
