@@ -43,6 +43,18 @@ const hasDashboard = fs.existsSync(dashboardPath);
 console.log(`[UI] Dashboard: ${dashboardPath} — exists: ${hasDashboard}`);
 
 const store = new FhirStore();
+
+// ── Pre-seed all 7 patients at startup so Po/MCP can find any patient immediately ──
+// This runs ONCE when the server starts — all patients are always available
+seedSynthetic(store, { scenario: "complete" });
+seedRA(store);
+seedComorbid(store);
+seedIncomplete(store);
+seedExpired(store);
+seedPaediatric(store);
+seedUrgent(store);
+console.log("[ALICE] All 7 patients pre-seeded at startup");
+
 const bus = new A2ABus();
 
 bus.register("MedicationReconciliationAgent", async (msg) => msg.payload);
