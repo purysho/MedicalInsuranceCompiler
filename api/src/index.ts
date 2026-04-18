@@ -329,7 +329,14 @@ app.post("/seed", async (req, res) => {
   store.clear();
   clearMcpLog();
   const scenario = (req.body?.scenario ?? "complete") as ("complete"|"missing");
+  // Seed all patients so MCP/PO always has full data available
   seedSynthetic(store, { scenario });
+  seedRA(store);
+  seedComorbid(store);
+  seedIncomplete(store);
+  seedExpired(store);
+  seedPaediatric(store);
+  seedUrgent(store);
   writeProvenance(store, { activityText: "Seed synthetic FHIR data", targetRefs: [], usedRefs: [], agent: "Seeder" });
   res.json({ ok: true });
 });
@@ -488,8 +495,7 @@ app.post("/run/full-prior-auth", async (req, res) => {
     const isPaediatric  = patientId === "patient-paediatric-001";
     const isUrgent      = patientId === "patient-urgent-001";
 
-    // Clear and seed correct patient
-    store.clear();
+    // Seed the correct patient (no store.clear() — keeps all other patients accessible for MCP)
     if      (isComorbid)   seedComorbid(store);
     else if (isRA)         seedRA(store);
     else if (isIncomplete) seedIncomplete(store);
@@ -607,8 +613,8 @@ app.post("/run/demo-denied-appeal", async (req, res) => {
   try {
     const { patientId = "patient-001" } = req.body ?? {};
     // Use the same clean pipeline as full-prior-auth but with denied variant
-    store.clear();
     seedSynthetic(store, { scenario: "complete" });
+    seedRA(store); seedComorbid(store); seedIncomplete(store); seedExpired(store); seedPaediatric(store); seedUrgent(store);
     const resolvedId = LEGACY_PATIENT_ID;
     const medrecResult = await runMedRec(store, resolvedId);
     let medReq = store.search("MedicationRequest", { subject: resolvedId })[0];
