@@ -4,8 +4,8 @@ export type FhirResource = Record<string, any> & { resourceType: string; id?: st
 
 type Store = Record<string, Record<string, FhirResource>>;
 
-// Global alias map — maps any PO UUID to the canonical internal patient ID
-const _patientAliases = new Map<string, string>([
+// ── Prompt Opinion UUID → internal patient ID aliases ─────────────────────────
+const PO_ALIAS_MAP = new Map<string, string>([
   ["79f8fd18-5044-452d-b9bd-428b1e35e579", "patient-001"],
   ["147e21d9-ab4e-449c-aeb4-8f3d6f7b1b4c", "patient-ra-001"],
   ["d6417ffa-1ed8-4bb9-ae4c-d3820c9615f9", "patient-comorbid-001"],
@@ -15,9 +15,8 @@ const _patientAliases = new Map<string, string>([
   ["776a2088-fe38-4a36-9478-101fbeb0b8b3", "patient-urgent-001"],
 ]);
 
-/** Resolve a Prompt Opinion UUID to its internal patient ID, or return as-is */
-export function resolvePatientAlias(id: string): string {
-  return _patientAliases.get(id) ?? id;
+function resolveAlias(id: string): string {
+  return PO_ALIAS_MAP.get(id) ?? id;
 }
 
 export class FhirStore {
@@ -34,7 +33,9 @@ export class FhirStore {
   }
 
   read(resourceType: string, id: string): FhirResource | null {
-    return this.store?.[resourceType]?.[id] ?? null;
+    return this.store?.[resourceType]?.[id]
+        ?? this.store?.[resourceType]?.[resolveAlias(id)]
+        ?? null;
   }
 
   update(resourceType: string, id: string, resource: FhirResource): FhirResource {
@@ -68,22 +69,21 @@ export class FhirStore {
         return null;
       };
 
-      // Resolve PO UUIDs to internal IDs before matching
-      const wantPatientRaw = patient ? (Array.isArray(patient) ? patient[0] : patient) : null;
-      const wantSubjectRaw = subject ? (Array.isArray(subject) ? subject[0] : subject) : null;
-      const wantPatient = wantPatientRaw ? resolvePatientAlias(wantPatientRaw.replace(/^Patient\//, "")) : null;
-      const wantSubject = wantSubjectRaw ? resolvePatientAlias(wantSubjectRaw.replace(/^Patient\//, "")) : null;
+      const rawPatient = patient ? (Array.isArray(patient) ? patient[0] : patient) : null;
+      const rawSubject = subject ? (Array.isArray(subject) ? subject[0] : subject) : null;
+      const wantPatient = rawPatient ? resolveAlias(rawPatient.replace(/^Patient\//, "")) : null;
+      const wantSubject = rawSubject ? resolveAlias(rawSubject.replace(/^Patient\//, "")) : null;
 
       if (wantPatient) {
         const rp = pid(r.patient) ?? pid(r.subject) ?? pid(r.for);
         if (!rp) return false;
-        if (resolvePatientAlias(rp) !== wantPatient) return false;
+        if (resolveAlias(rp) !== wantPatient && rp !== wantPatient) return false;
       }
 
       if (wantSubject) {
         const rs = pid(r.subject) ?? pid(r.patient);
         if (!rs) return false;
-        if (resolvePatientAlias(rs) !== wantSubject) return false;
+        if (resolveAlias(rs) !== wantSubject && rs !== wantSubject) return false;
       }
 
       if (code) {
@@ -96,8 +96,6 @@ export class FhirStore {
     });
   }
 
-
-  /** Insert with a known ID — used when importing from external FHIR servers */
   upsert(resourceType: string, id: string, resource: any): FhirResource {
     const copy: FhirResource = { ...resource, resourceType, id };
     this.store[resourceType] ??= {};
@@ -105,7 +103,6 @@ export class FhirStore {
     return copy;
   }
 
-  /** List all patients currently in the store */
   listPatients(): FhirResource[] {
     return Object.values(this.store?.["Patient"] ?? {});
   }
