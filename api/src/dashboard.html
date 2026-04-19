@@ -142,6 +142,24 @@ body { font-family: 'Lexend', sans-serif; }
           <div><div class="text-deep-brown dark:text-cream text-sm font-medium leading-tight" id="imported-name">SMART Patient</div><div class="text-deep-brown/40 dark:text-cream/40 text-xs font-mono">SMART import</div></div>
         </button>
         <div class="h-px bg-primary/10 my-1"></div>
+        <p class="text-[10px] font-bold uppercase tracking-widest text-deep-brown/25 dark:text-cream/20 px-1 mb-1">Edge Cases</p>
+        <button onclick="selectPatient('marcus')" id="pt-marcus" class="patient-btn flex items-center gap-2.5 px-3 py-2 rounded-xl text-left hover:bg-primary/10 transition-colors w-full">
+          <span class="w-2 h-2 rounded-full flex-shrink-0 bg-amber-400"></span>
+          <div><div class="text-deep-brown dark:text-cream text-sm font-medium leading-tight">Marcus Webb</div><div class="text-deep-brown/40 dark:text-cream/40 text-xs">T2D · Incomplete</div></div>
+        </button>
+        <button onclick="selectPatient('sandra')" id="pt-sandra" class="patient-btn flex items-center gap-2.5 px-3 py-2 rounded-xl text-left hover:bg-primary/10 transition-colors w-full">
+          <span class="w-2 h-2 rounded-full flex-shrink-0 bg-orange-400"></span>
+          <div><div class="text-deep-brown dark:text-cream text-sm font-medium leading-tight">Sandra Okonkwo</div><div class="text-deep-brown/40 dark:text-cream/40 text-xs">T2D · Expired Auth</div></div>
+        </button>
+        <button onclick="selectPatient('jamie')" id="pt-jamie" class="patient-btn flex items-center gap-2.5 px-3 py-2 rounded-xl text-left hover:bg-primary/10 transition-colors w-full">
+          <span class="w-2 h-2 rounded-full flex-shrink-0 bg-sky-400"></span>
+          <div><div class="text-deep-brown dark:text-cream text-sm font-medium leading-tight">Jamie Chen</div><div class="text-deep-brown/40 dark:text-cream/40 text-xs">T1D · Paediatric</div></div>
+        </button>
+        <button onclick="selectPatient('rosa')" id="pt-rosa" class="patient-btn flex items-center gap-2.5 px-3 py-2 rounded-xl text-left hover:bg-primary/10 transition-colors w-full">
+          <span class="w-2 h-2 rounded-full flex-shrink-0 bg-rose-500"></span>
+          <div><div class="text-deep-brown dark:text-cream text-sm font-medium leading-tight">Rosa Martinez</div><div class="text-deep-brown/40 dark:text-cream/40 text-xs">T2D · Urgent/DKA</div></div>
+        </button>
+        <div class="h-px bg-primary/10 my-1"></div>
         <p class="text-xs font-semibold text-deep-brown/30 dark:text-cream/20 uppercase tracking-widest px-1 mb-1">Edge Cases</p>
         <button onclick="selectPatient('marcus')" id="pt-marcus" class="patient-btn flex items-center gap-2.5 px-3 py-2 rounded-xl text-left hover:bg-primary/10 transition-colors w-full text-sm font-medium">
           <span class="w-2 h-2 rounded-full flex-shrink-0 bg-amber-400"></span>
@@ -866,7 +884,7 @@ body { font-family: 'Lexend', sans-serif; }
         <div class="flex flex-wrap items-center justify-between gap-4 mb-5">
           <div>
             <h1 class="text-2xl font-black tracking-tight text-deep-brown dark:text-cream">Prompt Opinion</h1>
-            <p class="text-deep-brown/50 dark:text-cream/50 text-sm">Run ALICE via MCP — results sync back to the dashboard automatically</p>
+            <p class="text-deep-brown/50 dark:text-cream/50 text-sm">Run ALICE via MCP — results sync back to the dashboard automatically when Sync is ON</p>
           </div>
           <div class="flex gap-2 flex-wrap">
             <button onclick="openPoPatient()" class="flex items-center gap-2 text-sm font-bold px-4 py-2.5 bg-primary text-white rounded-xl hover:bg-primary/90">
@@ -877,52 +895,43 @@ body { font-family: 'Lexend', sans-serif; }
             </button>
           </div>
         </div>
-
         <!-- Quick action cards -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
-          <button onclick="copyAndOpenPo('auth')" class="bg-white dark:bg-zinc-900 border border-primary/15 rounded-xl p-4 text-left hover:border-primary hover:shadow-md transition-all group">
+          <button onclick="copyAndOpenPo('auth')" class="bg-white dark:bg-zinc-900 border border-primary/15 rounded-xl p-4 text-left hover:border-primary hover:shadow-md transition-all">
             <span class="material-symbols-outlined text-primary mb-2 block" style="font-size:22px">play_circle</span>
             <div class="font-bold text-sm text-deep-brown dark:text-cream mb-1">Run Full Auth</div>
             <p class="text-xs text-deep-brown/40 dark:text-cream/40">Copies prompt + opens PO</p>
           </button>
-          <button onclick="copyAndOpenPo('deny')" class="bg-white dark:bg-zinc-900 border border-terracotta/20 rounded-xl p-4 text-left hover:border-terracotta hover:shadow-md transition-all group">
+          <button onclick="copyAndOpenPo('deny')" class="bg-white dark:bg-zinc-900 border border-terracotta/20 rounded-xl p-4 text-left hover:border-terracotta hover:shadow-md transition-all">
             <span class="material-symbols-outlined text-terracotta mb-2 block" style="font-size:22px">gavel</span>
             <div class="font-bold text-sm text-deep-brown dark:text-cream mb-1">Deny + Appeal</div>
             <p class="text-xs text-deep-brown/40 dark:text-cream/40">Denied policy then ARIA letter</p>
           </button>
-          <button onclick="copyAndOpenPo('rebuttal')" class="bg-white dark:bg-zinc-900 border border-primary/15 rounded-xl p-4 text-left hover:border-primary hover:shadow-md transition-all group">
+          <button onclick="copyAndOpenPo('rebuttal')" class="bg-white dark:bg-zinc-900 border border-primary/15 rounded-xl p-4 text-left hover:border-primary hover:shadow-md transition-all">
             <span class="material-symbols-outlined text-primary mb-2 block" style="font-size:22px">replay</span>
             <div class="font-bold text-sm text-deep-brown dark:text-cream mb-1">Round 2 Rebuttal</div>
             <p class="text-xs text-deep-brown/40 dark:text-cream/40">Escalated payer rebuttal</p>
           </button>
-          <button onclick="copyAndOpenPo('note')" class="bg-white dark:bg-zinc-900 border border-primary/15 rounded-xl p-4 text-left hover:border-primary hover:shadow-md transition-all group">
+          <button onclick="copyAndOpenPo('note')" class="bg-white dark:bg-zinc-900 border border-primary/15 rounded-xl p-4 text-left hover:border-primary hover:shadow-md transition-all">
             <span class="material-symbols-outlined text-primary mb-2 block" style="font-size:22px">clinical_notes</span>
             <div class="font-bold text-sm text-deep-brown dark:text-cream mb-1">Clinical Note AI</div>
             <p class="text-xs text-deep-brown/40 dark:text-cream/40">Extract from free text</p>
           </button>
         </div>
-
-        <!-- Embed attempt with fallback -->
-        <div class="bg-white dark:bg-zinc-900 rounded-xl border border-primary/10 shadow-sm overflow-hidden" style="height:600px">
-          <iframe id="po-iframe"
-            src="https://app.promptopinion.ai/workspaces/019cc367-c42b-7a74-89c3-4cc91328aed0"
-            class="w-full h-full border-0"
-            allow="clipboard-write; clipboard-read"
-            title="Prompt Opinion ALICE workspace"
-            onload="this.dataset.loaded='1'"
-            onerror="document.getElementById('po-fallback').classList.remove('hidden');this.classList.add('hidden')">
-          </iframe>
-          <div id="po-fallback" class="hidden h-full flex flex-col items-center justify-center gap-4 p-8 text-center">
-            <span class="material-symbols-outlined text-primary/30 text-6xl">hub</span>
-            <p class="font-bold text-deep-brown dark:text-cream">Prompt Opinion blocked embed</p>
-            <p class="text-sm text-deep-brown/50 dark:text-cream/50 max-w-md">Some browsers block iframes from third-party sites. Use the buttons above to open Prompt Opinion in a new tab with your prompt pre-copied.</p>
+        <!-- Iframe with fallback -->
+        <div class="bg-white dark:bg-zinc-900 rounded-xl border border-primary/10 shadow-sm overflow-hidden relative" style="height:620px">
+          <iframe id="po-iframe" src="https://app.promptopinion.ai/workspaces/019cc367-c42b-7a74-89c3-4cc91328aed0" class="w-full h-full border-0" allow="clipboard-write" title="Prompt Opinion ALICE workspace"></iframe>
+          <div id="po-fallback" class="hidden absolute inset-0 flex flex-col items-center justify-center gap-4 p-8 text-center bg-cream/90 dark:bg-zinc-900/95">
+            <span class="material-symbols-outlined text-primary/30" style="font-size:64px">hub</span>
+            <p class="font-bold text-deep-brown dark:text-cream text-lg">Prompt Opinion cannot be embedded</p>
+            <p class="text-sm text-deep-brown/50 dark:text-cream/50 max-w-md">Prompt Opinion blocks iframe embedding. Use the buttons above — they copy your prompt to clipboard and open PO in a new tab simultaneously.</p>
             <button onclick="openPoPatient()" class="bg-primary text-white font-bold px-6 py-3 rounded-xl text-sm hover:bg-primary/90">
-              Open in New Tab →
+              Open Prompt Opinion →
             </button>
           </div>
         </div>
         <p class="text-xs text-deep-brown/30 dark:text-cream/30 mt-3 text-center">
-          Sync is <span id="sync-status-po" class="font-bold">ON</span> — auth results from Prompt Opinion appear on the dashboard within 10 seconds
+          Turn on <strong>Sync</strong> (top right) to see Prompt Opinion auth results appear on the dashboard automatically
         </p>
       </div>
 
@@ -1004,11 +1013,7 @@ function selectPatient(p) {
   if (tagEl) tagEl.textContent = tags[p] || '';
 
   // Set policy dropdown to the best default for this patient type
-  const bestPolicy = {
-    bernard: 'standard', dorothea: 'adalimumab-standard', eleanor: 'standard',
-    imported: 'standard', marcus: 'standard', sandra: 'standard',
-    jamie: 'insulin-standard', rosa: 'standard'
-  }[p] || 'standard';
+  const bestPolicy = {bernard:'standard', dorothea:'adalimumab-standard', eleanor:'standard', imported:'standard', marcus:'standard', sandra:'standard', jamie:'insulin-standard', rosa:'standard'}[p] || 'standard';
   const pvEl = document.getElementById('policy-variant');
   const ppEl = document.getElementById('pipeline-policy');
   if(pvEl) pvEl.value = bestPolicy;
@@ -1089,24 +1094,19 @@ function toggleAutoSync() {
 
 // ── Prompt Opinion integration ─────────────────────────────────────────────
 const PO_WORKSPACE_URL = 'https://app.promptopinion.ai/workspaces/019cc367-c42b-7a74-89c3-4cc91328aed0';
-const PO_PATIENT_MAP = {'patient-001':'79f8fd18-5044-452d-b9bd-428b1e35e579', 'patient-ra-001':'147e21d9-ab4e-449c-aeb4-8f3d6f7b1b4c', 'patient-comorbid-001':'d6417ffa-1ed8-4bb9-ae4c-d3820c9615f9', 'patient-incomplete-001':'c03971b6-de14-485c-b8c5-e6a12a6c7978', 'patient-expired-001':'b3966c57-148b-4027-bac9-1bffe6a95a2d', 'patient-paediatric-001':'2ff631a2-7c7a-43db-8f34-75fbd7938450', 'patient-urgent-001':'776a2088-fe38-4a36-9478-101fbeb0b8b3'};
-const PO_TO_INTERNAL = Object.fromEntries(Object.entries(PO_PATIENT_MAP).map(([k,v]) => [v,k]));
+const PO_PATIENT_MAP = {'patient-001':'79f8fd18-5044-452d-b9bd-428b1e35e579','patient-ra-001':'147e21d9-ab4e-449c-aeb4-8f3d6f7b1b4c','patient-comorbid-001':'d6417ffa-1ed8-4bb9-ae4c-d3820c9615f9','patient-incomplete-001':'c03971b6-de14-485c-b8c5-e6a12a6c7978','patient-expired-001':'b3966c57-148b-4027-bac9-1bffe6a95a2d','patient-paediatric-001':'2ff631a2-7c7a-43db-8f34-75fbd7938450','patient-urgent-001':'776a2088-fe38-4a36-9478-101fbeb0b8b3'};
 
 const PO_PROMPTS = {
-  auth:     name => 'Run a full prior authorization for ' + name,
-  deny:     name => 'Run a prior authorization for ' + name + ' using the denied policy variant, then draft a formal clinical appeal letter citing ADA 2024 guidelines and SUSTAIN-6 trial data',
-  rebuttal: name => 'The payer has counter-denied the appeal for ' + name + '. Draft a Round 2 rebuttal letter with escalating urgency citing SUSTAIN-6, LEADER trial, and ADA/EASD consensus on GLP-1 therapy',
-  note:     name => 'Extract the clinical criteria from this note and run a prior authorization for ' + name + ': [paste clinical note here]',
+  auth:     n => 'Run a full prior authorization for ' + n,
+  deny:     n => 'Run a prior authorization for ' + n + ' using the denied policy variant, then draft a formal clinical appeal letter citing ADA 2024 guidelines and SUSTAIN-6 trial data',
+  rebuttal: n => 'The payer has counter-denied the appeal for ' + n + '. Draft a Round 2 rebuttal letter with escalating urgency citing SUSTAIN-6, LEADER trial, and ADA/EASD consensus on GLP-1 therapy',
+  note:     n => 'Extract the clinical criteria from this note and run a prior authorization for ' + n + ': [paste clinical note here]',
 };
 
-function getCurrentPatientName() {
-  return resolvePatientName(state.currentPatientId || 'patient-001');
-}
-
-function copyAndOpenPo(promptType) {
-  const name = getCurrentPatientName();
-  const prompt = (PO_PROMPTS[promptType] || PO_PROMPTS.auth)(name);
-  navigator.clipboard.writeText(prompt).catch(() => {});
+function copyAndOpenPo(type) {
+  const name = resolvePatientName(state.currentPatientId || 'patient-001');
+  const prompt = (PO_PROMPTS[type] || PO_PROMPTS.auth)(name);
+  navigator.clipboard.writeText(prompt).catch(()=>{});
   showSyncToast('Prompt copied — paste into Prompt Opinion', 'content_copy');
   window.open(PO_WORKSPACE_URL, '_blank');
 }
@@ -1117,37 +1117,54 @@ function openPoPatient() {
   window.open(PO_WORKSPACE_URL + '/patient-info/' + poId, '_blank');
 }
 
-function showSyncToast(message, icon) {
-  const toast = document.createElement('div');
-  toast.className = 'fixed bottom-6 right-6 bg-deep-brown dark:bg-zinc-800 text-cream text-sm font-bold px-5 py-3 rounded-xl shadow-xl z-50 flex items-center gap-2';
-  toast.innerHTML = '<span class="material-symbols-outlined text-primary" style="font-size:16px">' + (icon||'sync') + '</span>' + message;
-  document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), 4000);
+function showSyncToast(msg, icon) {
+  const t = document.createElement('div');
+  t.className = 'fixed bottom-6 right-6 bg-deep-brown dark:bg-zinc-800 text-cream text-sm font-bold px-5 py-3 rounded-xl shadow-xl z-50 flex items-center gap-2';
+  t.innerHTML = '<span class="material-symbols-outlined text-primary" style="font-size:16px">' + (icon||'sync') + '</span>' + msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 4000);
 }
+
+// Check if PO iframe loaded or was blocked
+document.addEventListener('DOMContentLoaded', () => {
+  const iframe = document.getElementById('po-iframe');
+  const fallback = document.getElementById('po-fallback');
+  if (iframe && fallback) {
+    iframe.addEventListener('error', () => { fallback.classList.remove('hidden'); });
+    // If we can't detect load after 3s, assume blocked
+    setTimeout(() => {
+      try {
+        const doc = iframe.contentDocument;
+        if (!doc || doc.URL === 'about:blank') fallback.classList.remove('hidden');
+      } catch(e) {
+        // Cross-origin — means it loaded but we can't read it, which is fine
+      }
+    }, 5000);
+  }
+});
 
 async function doSync() {
   try {
     const allTrails = await get('/api/audit');
     const trails = Array.isArray(allTrails) ? allTrails : (allTrails?.trails ?? []);
-    const hash = JSON.stringify({n: trails.length, last: trails[0]?.updatedAt});
+    const hash = JSON.stringify({n: trails.length});
 
     if (hash !== state.lastSyncHash) {
       state.lastSyncHash = hash;
       setEl('stat-sync', '<span class="font-mono font-bold text-primary">' + new Date().toLocaleTimeString() + '</span>');
 
-      // Check for new results from Prompt Opinion
+      // Check for new PO-run results not yet in our cache
       for (const trail of trails) {
         const pid = trail.patientId ?? trail.trail?.patientId;
         if (!pid || state.patientResults[pid]) continue;
         const decision = trail.finalDecision ?? trail.trail?.finalDecision;
         if (decision) {
           const approved = decision === 'approved' || decision === 'APPROVED';
-          state.patientResults[pid] = { approved, a1c: null, das28: null, entries: '—', missing: [], pv: 'standard' };
-          showSyncToast(resolvePatientName(pid) + ' — ' + (approved ? '✓ Approved' : '✗ Denied') + ' (via Prompt Opinion)', approved ? 'check_circle' : 'cancel');
+          state.patientResults[pid] = { approved, a1c: null, das28: null, entries: 7, missing: [], pv: 'standard' };
+          showSyncToast(resolvePatientName(pid) + ' — ' + (approved ? '✓ Approved' : '✗ Denied') + ' (Prompt Opinion)', approved ? 'check_circle' : 'cancel');
           if (pid === state.currentPatientId) restorePatientResults(pid, state.patientResults[pid]);
         }
       }
-
       // Refresh open sections
       if (!document.getElementById('section-audit')?.classList.contains('hidden')) loadAudit(state.currentPatientId || 'patient-001');
       if (!document.getElementById('section-appeals')?.classList.contains('hidden')) loadAppeals(state.currentPatientId || 'patient-001');
@@ -1159,7 +1176,6 @@ async function doSync() {
     setEl('stat-sync', '<span class="text-terracotta">Error</span>');
   }
 }
-
 
 // ── Pipeline steps (Bernard, step-by-step) ────────────────────────────────
 async function onSeed(){busy('Seeding FHIR data…');err(null);try{await post('/seed',{scenario:'complete'});state.seeded=true;markStep(1);busy(null);setEl('stat-status','<span style="color:var(--green)">Seeded</span>');}catch(e){err(e.message);busy(null);}}
