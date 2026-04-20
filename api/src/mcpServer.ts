@@ -308,7 +308,7 @@ const TOOLS = [
   {
     name: "alice_run_full_prior_auth",
     description:
-      "Run the complete ALICE prior authorization pipeline end-to-end for a patient: medication reconciliation → evidence gathering → policy check → packet composition. Returns a complete FHIR Bundle ready for payer submission.",
+      "Run the complete ALICE prior authorization pipeline end-to-end for a patient: medication reconciliation → evidence gathering → policy check → packet composition. Returns a complete FHIR Bundle ready for payer submission. IMPORTANT: If the result shows approved=false or any missing criteria, you MUST immediately call aria_draft_appeal with the denial reasons — do not wait for the user to ask. If clinicalNote is provided, call alice_extract_clinical_note first. Supported patients: Bernard Rieux (GLP-1/T2D), Dorothea Brooke (Adalimumab/RA), Eleanor Vance (dual T2D+RA), Marcus Webb (incomplete record), Sandra Okonkwo (expired auth), Jamie Chen (paediatric T1D), Rosa Martinez (urgent/DKA).",
     inputSchema: {
       type: "object",
       properties: {
@@ -350,7 +350,7 @@ const TOOLS = [
   {
     name: "alice_detect_medication",
     description:
-      "Auto-detect which medication class a patient needs prior authorization for, based on their FHIR conditions. Returns the recommended medication, appropriate policy variant, and patient eligibility summary. Use this when the user has not specified a medication — ALICE will detect it from the patient record. Supports: GLP-1/semaglutide (T2D), Basal Insulin (T2D severe), Adalimumab/Humira (Rheumatoid Arthritis).",
+      "Auto-detect which medication class a patient needs prior authorization for, based on their FHIR conditions. Returns the recommended medication, appropriate policy variant, and patient eligibility summary. Use this when the user has not specified a medication — ALICE will detect it from the patient record. Supports: GLP-1/semaglutide (T2D), Basal Insulin (T2D severe, HbA1c>=9.0), Adalimumab/Humira (Rheumatoid Arthritis), Insulin glargine (paediatric T1D). Patient roster: patient-001 Bernard Rieux (T2D, HbA1c 8.4%), patient-ra-001 Dorothea Brooke (RA, DAS28 4.8), patient-comorbid-001 Eleanor Vance (T2D+RA dual), patient-incomplete-001 Marcus Webb (T2D, missing HbA1c), patient-expired-001 Sandra Okonkwo (T2D, expired auth), patient-paediatric-001 Jamie Chen (T1D paediatric age 13), patient-urgent-001 Rosa Martinez (T2D urgent DKA HbA1c 11.2%).",
     inputSchema: {
       type: "object",
       properties: {
@@ -386,7 +386,7 @@ const TOOLS = [
   {
     name: "aria_draft_appeal",
     description:
-      "ARIA: Draft a formal clinical appeal letter after a prior authorization denial. Uses Claude AI to craft a persuasive, evidence-based appeal that directly addresses each denial reason, cites specific FHIR clinical evidence, and references ADA clinical guidelines. Call this immediately after a denial is returned by alice_run_full_prior_auth.",
+      "ARIA: Draft a formal clinical appeal letter after a prior authorization denial. Uses Claude AI to craft a persuasive, evidence-based appeal that directly addresses each denial reason, cites specific FHIR clinical evidence, and references ADA clinical guidelines and landmark clinical trials (SUSTAIN-6, LEADER, EMPA-REG). Call this immediately after a denial is returned by alice_run_full_prior_auth. After presenting the appeal letter, always ask the user if they want to simulate a payer counter-denial to trigger a Round 2 rebuttal.",
     inputSchema: {
       type: "object",
       properties: {
@@ -419,6 +419,109 @@ const TOOLS = [
       },
       required: ["patientId", "denialReasons"],
     },
+  },
+  {
+    name: "payer_counter_deny",
+    description: "Simulate a payer counter-denial response to an appeal letter. The payer rejects the appeal with specific clinical objections — e.g. 'step therapy not adequately documented', 'alternative therapies not trialed', 'HbA1c threshold not met under formulary criteria'. Call this after aria_draft_appeal when the user wants to see the full denial-appeal-rebuttal workflow. Returns the counter-denial letter and objection list for ARIA to rebut.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        patientId: { type: "string", description: "FHIR Patient ID" },
+        appealRound: { type: "number", description: "Which appeal round this counter-denial responds to (default: 1)" },
+        denialReasons: { type: "array", items: { type: "string" }, description: "Original denial reasons from alice_run_full_prior_auth" },
+      },
+      required: ["patientId"],
+    },
+  },
+  {
+    name: "aria_submit_rebuttal",
+    description: "ARIA: Draft a Round 2 (or higher) rebuttal letter responding to a payer counter-denial. Escalates in urgency and clinical specificity compared to the initial appeal. Cites SUSTAIN-6 trial, LEADER trial, EMPA-REG OUTCOME, and ADA/EASD consensus statement on GLP-1 therapy. Call this after payer_counter_deny when the user wants to escalate. Always cite the specific counter-denial objections and refute each one with clinical evidence.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        patientId: { type: "string", description: "FHIR Patient ID" },
+        counterDenialReasons: { type: "array", items: { type: "string" }, description: "Payer objections from payer_counter_deny" },
+        appealRound: { type: "number", description: "Round number for this rebuttal (default: 2)" },
+        claimId: { type: "string", description: "FHIR Claim ID" },
+      },
+      required: ["patientId", "counterDenialReasons"],
+    },
+  },
+  {
+    name: "alice_compare_policies",
+    description: "Compare how a patient's clinical data performs across ALL available policy variants simultaneously. Returns a table showing which policies approve vs deny, with the specific criteria gap for each denial. Extremely useful for showing how payer policy differences affect the same patient. Works for any patient — tries GLP-1, insulin, and adalimumab variants as appropriate for the patient's conditions.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        patientId: { type: "string", description: "FHIR Patient ID" },
+      },
+      required: ["patientId"],
+    },
+  },
+  {
+    name: "alice_explain_decision",
+    description: "Generate a plain-language explanation of ALICE's prior authorization decision for a patient — suitable for sharing with the patient, their GP, or a non-clinical administrator. Explains what was approved or denied and why, what it means clinically, and what the next steps are. Call this after alice_run_full_prior_auth to give the user a human-readable summary.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        patientId: { type: "string", description: "FHIR Patient ID" },
+        decision: { type: "string", enum: ["APPROVED", "DENIED"], description: "The prior auth decision" },
+        denialReasons: { type: "array", items: { type: "string" }, description: "Denial reasons if denied" },
+        medication: { type: "string", description: "The medication being requested" },
+      },
+      required: ["patientId", "decision"],
+    },
+  },
+  {
+    name: "alice_check_expiry",
+    description: "Check whether a patient has an existing prior authorization and whether it is approaching expiry or has already expired. Sandra Okonkwo (patient-expired-001) has an expired GLP-1 auth from 13 months ago — use this to surface the renewal workflow. Returns the auth status, expiry date, days remaining or days overdue, and whether urgent renewal is needed.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        patientId: { type: "string", description: "FHIR Patient ID" },
+      },
+      required: ["patientId"],
+    },
+  },
+  {
+    name: "alice_urgent_flag",
+    description: "Flag a prior authorization case for urgent/expedited review (24-hour turnaround instead of standard 72 hours). Use this for Rosa Martinez (patient-urgent-001) who has a critical HbA1c of 11.2%, active DKA hospitalisation, and a STAT priority Encounter. Generates an expedited review request with clinical justification. Returns the urgency classification, clinical justification, and the expedited submission packet.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        patientId: { type: "string", description: "FHIR Patient ID" },
+        urgencyReason: { type: "string", description: "Clinical reason for expedited review (e.g. active hospitalisation, critical HbA1c)" },
+      },
+      required: ["patientId"],
+    },
+  },
+  {
+    name: "alice_run_prior_auth_comorbid",
+    description: "Run the dual prior authorization pipeline for Eleanor Vance (patient-comorbid-001) — a patient with both Type 2 Diabetes AND Rheumatoid Arthritis requiring simultaneous GLP-1 (Semaglutide) and Adalimumab (Humira) authorization. Runs both pipelines in parallel and returns a combined decision. Eleanor has HbA1c 9.1% and DAS28 5.6 — both auths are expected to APPROVE under standard/strict policies.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        patientId: { type: "string", description: "FHIR Patient ID (default: patient-comorbid-001 for Eleanor Vance)" },
+        glp1PolicyVariant: { type: "string", enum: ["standard", "strict", "denied"], description: "GLP-1 policy variant (default: standard)" },
+        adalimumabPolicyVariant: { type: "string", enum: ["adalimumab-standard", "adalimumab-strict"], description: "Adalimumab policy variant (default: adalimumab-strict)" },
+      },
+    },
+  },
+  {
+    name: "alice_get_patient_summary",
+    description: "Get a full clinical summary for any patient in the ALICE system — demographics, conditions, lab values, medication history, and prior auth status. Use this to orient the user at the start of a conversation before running any auth. Returns a structured summary suitable for presenting to the user as a patient profile.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        patientId: { type: "string", description: "FHIR Patient ID" },
+      },
+      required: ["patientId"],
+    },
+  },
+  {
+    name: "alice_list_patients",
+    description: "List all patients currently in the ALICE system with their conditions and prior auth status. Returns Bernard Rieux (T2D, GLP-1), Dorothea Brooke (RA, Adalimumab), Eleanor Vance (T2D+RA, dual), Marcus Webb (T2D, incomplete record), Sandra Okonkwo (T2D, expired auth), Jamie Chen (T1D, paediatric), Rosa Martinez (T2D, urgent DKA). Use this at the start of any session to orient the user.",
+    inputSchema: { type: "object", properties: {} },
   },
   {
     name: "alice_smart_search",
