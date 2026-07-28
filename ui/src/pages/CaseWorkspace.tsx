@@ -34,12 +34,25 @@ async function defaultDraftWithAria(c: CaseData): Promise<AriaDraftData> {
         `by its bracket number.\n\nApproved evidence:\n${evidenceSummary}`,
     },
   ];
-  const resp = await apiPost<{ text?: string; content?: { text: string }[] }>("/api/aria-chat", {
+  const resp = await apiPost<{
+    text?: string;
+    content?: { text: string }[];
+    demo?: boolean;
+    uncertaintyFlags?: string[];
+  }>("/api/aria-chat", {
     messages,
     system:
       "You are ARIA, ALICE's source-cited appeal drafting capability. Draft only from the " +
       "approved evidence provided. Every factual assertion must cite an evidence item. Output an " +
       "editable appeal letter. A human reviewer must approve before submission.",
+    // Structured facts so the server can build a labelled sample draft when no
+    // model provider is configured (see api/src/ariaDemoDraft.ts).
+    demoContext: {
+      patientName: c.patientName,
+      requestedMedication: c.requestedMedication,
+      payer: c.payer,
+      evidence: c.evidence.map((e) => ({ source: e.source, date: e.date })),
+    },
   });
   const text = resp.text ?? resp.content?.[0]?.text ?? "";
   return {
@@ -50,7 +63,8 @@ async function defaultDraftWithAria(c: CaseData): Promise<AriaDraftData> {
       evidenceItemId: e.id,
       sourceUrl: e.sourceUrl,
     })),
-    uncertaintyFlags: [],
+    uncertaintyFlags: resp.uncertaintyFlags ?? [],
+    isDemo: resp.demo === true,
   };
 }
 
@@ -239,6 +253,7 @@ export function CaseWorkspace({ caseData, draftWithAria = defaultDraftWithAria }
                 uncertaintyFlags={aria?.uncertaintyFlags ?? []}
                 loading={drafting}
                 approveBlockedReason={aria?.approveBlockedReason}
+                isDemo={aria?.isDemo}
               />
             </div>
           )}

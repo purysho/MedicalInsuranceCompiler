@@ -121,6 +121,36 @@ describe("AriaPanel invariants", () => {
     const approve = Array.from(container.querySelectorAll("button")).find((b) => b.textContent === "Approve draft")!;
     expect(approve.disabled).toBe(true);
   });
+
+  // Regression: the panel mounts while loading (draft === ""), so seeding the
+  // textarea only from the initial useState left the reviewer with a blank
+  // editor once the draft arrived.
+  it("fills the editable textarea when the draft arrives after loading", () => {
+    const { container, rerender } = render(
+      <AriaPanel draft="" citations={[]} uncertaintyFlags={[]} loading />
+    );
+    rerender(<AriaPanel draft={MOCK_DRAFT} citations={MOCK_CITATIONS} uncertaintyFlags={[]} />);
+    const textarea = container.querySelector("textarea") as HTMLTextAreaElement;
+    expect(textarea.value).toBe(MOCK_DRAFT);
+  });
+
+  it("shows no sample-draft notice for a real model draft", () => {
+    const { container } = render(<AriaPanel draft={MOCK_DRAFT} citations={MOCK_CITATIONS} uncertaintyFlags={[]} />);
+    expect(container.querySelector(".alc-aria__demo-banner")).toBeNull();
+  });
+
+  it("labels a demo draft as a sample and still requires human review", () => {
+    const { container } = render(
+      <AriaPanel draft={MOCK_DRAFT} citations={MOCK_CITATIONS} uncertaintyFlags={[]} isDemo />
+    );
+    const demo = container.querySelector(".alc-aria__demo-banner")!;
+    expect(demo).toBeTruthy();
+    expect(demo.textContent).toContain("Sample draft");
+    expect(demo.textContent).toMatch(/no language model is configured/i);
+    // The safety banner is never replaced or softened by the demo notice.
+    expect(container.querySelector(".alc-aria__review-banner")!.textContent)
+      .toContain("Human review required before submission");
+  });
 });
 
 describe("story files mount with mock data", () => {

@@ -1,3 +1,12 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+#
+# Deploys with NO API key by default: ARIA falls back to a labelled sample
+# draft (see README "ARIA demo mode"), so the full review workflow is testable
+# without anyone attaching a key or paying for model calls.
+#
+# To enable real ARIA drafting, set OPENAI_BASE_URL and OPENAI_API_KEY in the
+# Render dashboard (Environment tab). Both are sync:false so they are never
+# stored in this repo and never travel with the code.
 services:
   - type: web
     name: alice-medicalinsurancecompiler
@@ -12,6 +21,7 @@ services:
         value: production
       - key: PORT
         value: 10000
+      # Optional — leave unset to run in ARIA demo mode (no key needed).
       - key: OPENAI_BASE_URL
         sync: false
       - key: OPENAI_API_KEY
