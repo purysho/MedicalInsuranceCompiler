@@ -133,10 +133,14 @@ export function CaseWorkspace({ caseData, draftWithAria = defaultDraftWithAria }
             </div>
           )}
 
-          <section aria-label="Evidence ledger">
+          <section aria-label="Evidence packet">
+            <div className="alc-ws__sectionhead">
+              <h2 className="alc-card__title" style={{ margin: 0 }}>Evidence packet</h2>
+              <span className="alc-evrow__meta">{caseData.evidence.length} records</span>
+            </div>
             <div className="alc-ledger">
               <div className="alc-ledger__head">
-                <span>Source</span><span>Confidence</span><span>Verification</span><span>Actions</span>
+                <span>Record</span><span>Confidence</span><span>Verification</span><span>Actions</span>
               </div>
               <div className="alc-ledger__body">
                 {caseData.evidence.map((e) => (

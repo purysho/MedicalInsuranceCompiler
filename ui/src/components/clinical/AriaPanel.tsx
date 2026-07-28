@@ -45,7 +45,10 @@ export function AriaPanel({
         <span className="alc-aria__badge">
           <span aria-hidden="true">◆</span> ARIA
         </span>
-        <span className="alc-aria__subtitle">ALICE&rsquo;s source-cited appeal drafting capability</span>
+        <span className="alc-aria__titleblock">
+          <span className="alc-aria__title">Appeal draft</span>
+          <span className="alc-aria__subtitle">ALICE&rsquo;s source-cited appeal drafting capability</span>
+        </span>
       </header>
 
       {/* Non-dismissable, non-hideable human-review banner. */}

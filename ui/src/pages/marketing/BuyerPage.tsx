@@ -49,18 +49,20 @@ export function BuyerPage({ slug }: { slug: string }) {
   if (!c) {
     return (
       <MarketingLayout>
-        <section className="mkt__hero"><h1 className="mkt__h1">Page not found</h1>
-          <a className="mkt__cta" href="/marketing/">Back to overview</a></section>
+        <section className="mkt__hero"><div className="mkt__hero-inner"><h1 className="mkt__h1">Page not found</h1>
+          <a className="mkt__cta" href="/marketing/">Back to overview</a></div></section>
       </MarketingLayout>
     );
   }
   return (
     <MarketingLayout>
       <section className="mkt__hero">
-        <span className="mkt__eyebrow">{c.eyebrow}</span>
-        <h1 className="mkt__h1">{c.title}</h1>
-        <p className="mkt__lede">{c.pain}</p>
-        <p className="mkt__tagline">ALICE prepares the work. Your team makes the decision.</p>
+        <div className="mkt__hero-inner">
+          <span className="mkt__eyebrow">{c.eyebrow}</span>
+          <h1 className="mkt__h1">{c.title}</h1>
+          <p className="mkt__lede">{c.pain}</p>
+          <p className="mkt__tagline">ALICE prepares the work. Your team makes the decision.</p>
+        </div>
       </section>
 
       <section className="mkt__section" aria-labelledby="addr-h">

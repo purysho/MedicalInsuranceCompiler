@@ -38,6 +38,7 @@ export default function App() {
   }
 
   let content: React.ReactNode;
+  let breadcrumb: React.ComponentProps<typeof AppShell>["breadcrumb"];
   switch (seg) {
     case "cases": {
       // cases -> list; cases/<id> -> workspace for that case.
@@ -52,6 +53,7 @@ export default function App() {
         );
       } else {
         const caseData = DEMO_CASES[id] || APPEAL_CASE;
+        breadcrumb = { tile: "PA", primary: `Case ${caseData.id}`, secondary: `${caseData.patientName} · Workspace` };
         content = <CaseWorkspace caseData={caseData} />;
       }
       break;
@@ -85,7 +87,7 @@ export default function App() {
   }
 
   return (
-    <AppShell activeNav={seg} onNavigate={navigate}>
+    <AppShell activeNav={seg} onNavigate={navigate} breadcrumb={breadcrumb}>
       {content}
     </AppShell>
   );

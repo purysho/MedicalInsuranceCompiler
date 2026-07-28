@@ -10,7 +10,7 @@ export interface PageLayoutProps {
 export function PageLayout({ title, children }: PageLayoutProps) {
   return (
     <main className="alc-page">
-      {title && <h1 style={{ fontSize: "var(--text-lg)", margin: "0 0 var(--space-4)" }}>{title}</h1>}
+      {title && <h1 className="alc-page__title">{title}</h1>}
       {children}
     </main>
   );

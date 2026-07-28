@@ -18,10 +18,18 @@ export const NAV_ITEMS: NavItem[] = [
   { id: "settings", label: "Settings", icon: "⚙" },
 ];
 
+export interface Breadcrumb {
+  tile?: string;
+  primary: string;
+  secondary?: string;
+}
+
 export interface AppShellProps {
   activeNav: string;
   onNavigate: (id: string) => void;
   workspace?: string;
+  /** Optional breadcrumb shown in the top bar (case id + context). */
+  breadcrumb?: Breadcrumb;
   userName?: string;
   userRole?: string;
   children: React.ReactNode;
@@ -31,6 +39,7 @@ export function AppShell({
   activeNav,
   onNavigate,
   workspace = "Prior-auth workspace",
+  breadcrumb,
   userName = "Dr. Reviewer",
   userRole = "Clinician reviewer",
   children,
@@ -39,12 +48,15 @@ export function AppShell({
     <div className="alc-shell">
       <nav className="alc-sidebar" aria-label="Primary">
         <a
-          className="alc-wordmark"
+          className="alc-brand"
           href="#/cases"
           onClick={(e) => { e.preventDefault(); onNavigate("cases"); }}
+          aria-label="ALICE — home"
         >
-          <span className="alc-wordmark__full">ALICE</span>
+          <span className="alc-brand__mark" aria-hidden="true">A</span>
+          <span className="alc-wordmark">ALICE</span>
         </a>
+        <div className="alc-nav__section" aria-hidden="true">Workspace</div>
         <ul className="alc-nav">
           {NAV_ITEMS.map((item) => (
             <li key={item.id}>
@@ -60,11 +72,22 @@ export function AppShell({
             </li>
           ))}
         </ul>
+        <div className="alc-sidebar__foot">ALICE prepares the work.<br />Your team makes the decision.</div>
       </nav>
 
       <div className="alc-main">
         <header className="alc-topbar">
-          <span className="alc-topbar__workspace">{workspace}</span>
+          {breadcrumb ? (
+            <div className="alc-crumb">
+              {breadcrumb.tile && <span className="alc-crumb__tile" aria-hidden="true">{breadcrumb.tile}</span>}
+              <span className="alc-crumb__text">
+                <span className="alc-crumb__primary">{breadcrumb.primary}</span>
+                {breadcrumb.secondary && <span className="alc-crumb__secondary">{breadcrumb.secondary}</span>}
+              </span>
+            </div>
+          ) : (
+            <span className="alc-topbar__workspace">{workspace}</span>
+          )}
           <input
             className="alc-topbar__search"
             type="search"

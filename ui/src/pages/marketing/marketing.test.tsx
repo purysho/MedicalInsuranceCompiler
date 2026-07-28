@@ -30,10 +30,16 @@ describe("Marketing landing", () => {
     expect(container.querySelectorAll(".mkt__step").length).toBe(7);
   });
 
-  it("does not use the ARIA token chip styling on marketing", () => {
+  it("does not reuse the clinical ARIA chrome; --aria appears only as the ARIA intro badge", () => {
     const { container } = render(<Landing />);
+    // The in-app clinical ARIA panel chrome must not leak into marketing.
     expect(container.querySelector(".alc-aria__chip")).toBeNull();
     expect(container.querySelector(".alc-aria__badge")).toBeNull();
+    // The single ARIA-introduction badge is allowed (PLAN 2: --aria for ARIA
+    // badges); it must appear exactly once and never as an h1/h2 heading.
+    const badges = container.querySelectorAll(".mkt__aria-badge");
+    expect(badges.length).toBe(1);
+    expect(badges[0].textContent).toBe("ARIA");
   });
 });
 
