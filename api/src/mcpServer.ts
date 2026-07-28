@@ -736,7 +736,7 @@ const TOOLS = [
 
 // ── Tool execution ────────────────────────────────────────────────────────────
 
-async function executeTool(
+export async function executeTool(
   store: FhirStore,
   name: string,
   args: Record<string, any>
@@ -1386,8 +1386,7 @@ async function executeTool(
         const time = new Date(ev.timestamp).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
         const agent = ev.agent === "ARIA" ? "ARIA (Appeal Agent)" : ev.agent === "ALICE" ? "ALICE (Prior Auth Agent)" : ev.agent;
         return `[${time}] ${agent}: ${ev.description}`;
-      }).join("
-");
+      }).join("\n");
       const decision = trail.finalDecision?.toUpperCase() ?? "PENDING";
       const narrative = `COMPLIANCE AUDIT NARRATIVE — ${name}
 ${"─".repeat(50)}

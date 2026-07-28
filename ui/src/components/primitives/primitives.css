@@ -1,0 +1,170 @@
+/* ALICE primitive components — styling from design tokens only.
+ * Every interactive control: >=44px touch target where it is a primary control,
+ * visible --focus ring (from tokens.css), text labels, and non-color status. */
+
+/* ── Button ─────────────────────────────────────────────────────────────── */
+.alc-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  font-family: var(--font-sans);
+  font-weight: 600;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+  white-space: nowrap;
+}
+.alc-btn:disabled,
+.alc-btn[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+/* sizes */
+.alc-btn--sm { min-height: 32px; padding: 0 var(--space-3); font-size: var(--text-xs); }
+.alc-btn--md { min-height: var(--min-touch); padding: 0 var(--space-4); font-size: var(--text-sm); }
+.alc-btn--lg { min-height: 52px; padding: 0 var(--space-5); font-size: var(--text-md); }
+/* variants */
+.alc-btn--primary { background: var(--primary); color: #fff; }
+.alc-btn--primary:hover:not(:disabled) { background: var(--primary-hover); }
+.alc-btn--secondary { background: var(--surface); color: var(--primary); border-color: var(--border); }
+.alc-btn--secondary:hover:not(:disabled) { background: var(--surface-subtle); }
+.alc-btn--ghost { background: transparent; color: var(--ink); }
+.alc-btn--ghost:hover:not(:disabled) { background: var(--surface-subtle); }
+.alc-btn--danger { background: var(--danger); color: #fff; }
+.alc-btn--danger:hover:not(:disabled) { background: #92130b; }
+
+.alc-btn__spinner {
+  width: 14px; height: 14px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: alc-spin 0.7s linear infinite;
+}
+@keyframes alc-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .alc-btn__spinner { animation-duration: 2s; } }
+
+/* ── IconButton ─────────────────────────────────────────────────────────── */
+.alc-iconbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--min-touch);
+  min-height: var(--min-touch);
+  padding: var(--space-2);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  color: var(--ink);
+  cursor: pointer;
+}
+.alc-iconbtn:hover:not(:disabled) { background: var(--surface-subtle); }
+.alc-iconbtn:disabled { cursor: not-allowed; opacity: 0.55; }
+
+/* ── Form fields ────────────────────────────────────────────────────────── */
+.alc-field { display: flex; flex-direction: column; gap: var(--space-1); margin-bottom: var(--space-3); }
+.alc-field__label { font-size: var(--text-sm); font-weight: 600; color: var(--ink); }
+.alc-field__req { color: var(--danger); margin-left: 2px; }
+.alc-field__helper { font-size: var(--text-xs); color: var(--muted); }
+.alc-field__error { font-size: var(--text-xs); color: var(--danger); display: flex; align-items: center; gap: var(--space-1); }
+
+.alc-input, .alc-textarea, .alc-select {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  padding: 0 var(--space-3);
+  min-height: var(--min-touch);
+  width: 100%;
+}
+.alc-textarea { padding: var(--space-2) var(--space-3); min-height: 96px; resize: vertical; line-height: 1.5; }
+.alc-input:hover, .alc-textarea:hover, .alc-select:hover { border-color: var(--muted); }
+.alc-input:disabled, .alc-textarea:disabled, .alc-select:disabled {
+  background: var(--surface-subtle); cursor: not-allowed; color: var(--muted);
+}
+.alc-input--invalid, .alc-textarea--invalid, .alc-select--invalid { border-color: var(--danger); }
+
+/* ── Checkbox / Radio ───────────────────────────────────────────────────── */
+.alc-choice { display: inline-flex; align-items: center; gap: var(--space-2); min-height: var(--min-touch); cursor: pointer; }
+.alc-choice input { width: 20px; height: 20px; accent-color: var(--primary); cursor: pointer; }
+.alc-choice input:disabled { cursor: not-allowed; }
+.alc-choice__label { font-size: var(--text-sm); color: var(--ink); }
+
+/* ── Tabs ───────────────────────────────────────────────────────────────── */
+.alc-tabs__list { display: flex; gap: var(--space-1); border-bottom: 1px solid var(--border); }
+.alc-tab {
+  appearance: none; background: transparent; border: none;
+  padding: var(--space-2) var(--space-3); min-height: var(--min-touch);
+  font-family: var(--font-sans); font-size: var(--text-sm); font-weight: 600;
+  color: var(--muted); cursor: pointer;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.alc-tab:hover { color: var(--ink); }
+.alc-tab[aria-selected="true"] { color: var(--primary); border-bottom-color: var(--primary); }
+.alc-tab:disabled { color: var(--border); cursor: not-allowed; }
+.alc-tabs__panel { padding: var(--space-3) 0; }
+
+/* ── Avatar ─────────────────────────────────────────────────────────────── */
+.alc-avatar {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--surface-subtle); color: var(--ink);
+  font-size: var(--text-xs); font-weight: 600; overflow: hidden; flex: none;
+}
+.alc-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+/* ── Tooltip ────────────────────────────────────────────────────────────── */
+.alc-tooltip { position: relative; display: inline-flex; }
+.alc-tooltip__bubble {
+  position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+  background: var(--ink); color: #fff; font-size: var(--text-xs);
+  padding: var(--space-1) var(--space-2); border-radius: var(--radius-control);
+  white-space: nowrap; z-index: 40; box-shadow: var(--shadow-raised);
+}
+
+/* ── Toast ──────────────────────────────────────────────────────────────── */
+.alc-toast {
+  display: flex; align-items: flex-start; gap: var(--space-2);
+  background: var(--surface); border: 1px solid var(--border);
+  border-left-width: 4px; border-radius: var(--radius-control);
+  padding: var(--space-3); box-shadow: var(--shadow-raised);
+  max-width: 420px;
+}
+.alc-toast--success { border-left-color: var(--success); }
+.alc-toast--warning { border-left-color: var(--warning); }
+.alc-toast--danger  { border-left-color: var(--danger); }
+.alc-toast--info    { border-left-color: var(--info); }
+.alc-toast__icon { flex: none; font-weight: 700; }
+.alc-toast--success .alc-toast__icon { color: var(--success); }
+.alc-toast--warning .alc-toast__icon { color: var(--warning); }
+.alc-toast--danger  .alc-toast__icon { color: var(--danger); }
+.alc-toast--info    .alc-toast__icon { color: var(--info); }
+.alc-toast__body { flex: 1; font-size: var(--text-sm); }
+.alc-toast__title { font-weight: 600; }
+
+/* ── EmptyState ─────────────────────────────────────────────────────────── */
+.alc-empty {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  gap: var(--space-2); padding: var(--space-6) var(--space-4); color: var(--muted);
+}
+.alc-empty__icon { font-size: 32px; }
+.alc-empty__heading { font-size: var(--text-md); font-weight: 600; color: var(--ink); }
+.alc-empty__action { margin-top: var(--space-2); }
+
+/* ── ConfirmDialog (modal) ──────────────────────────────────────────────── */
+.alc-modal__overlay {
+  position: fixed; inset: 0; background: rgba(22, 49, 55, 0.45);
+  display: flex; align-items: center; justify-content: center; z-index: 100; padding: var(--space-4);
+}
+.alc-modal {
+  background: var(--surface); border-radius: var(--radius-card);
+  box-shadow: var(--shadow-raised); max-width: 480px; width: 100%;
+  padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3);
+}
+.alc-modal__title { font-size: var(--text-lg); font-weight: 600; margin: 0; }
+.alc-modal__body { font-size: var(--text-sm); color: var(--ink); }
+.alc-modal__actions { display: flex; justify-content: flex-end; gap: var(--space-2); }

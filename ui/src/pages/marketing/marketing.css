@@ -1,0 +1,119 @@
+/* ALICE marketing — restrained, fully responsive. --primary is the sole accent;
+ * --aria appears only on the single ARIA-introduction badge/chips (PLAN 2 permits
+ * --aria for ARIA badges), never as a general marketing accent. */
+
+.mkt { background: var(--surface); color: var(--ink); min-height: 100vh; }
+.mkt__wrap { max-width: var(--content-max); margin: 0 auto; padding: 0 var(--space-4); }
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+.mkt__header {
+  display: flex; align-items: center; gap: var(--space-4);
+  max-width: var(--content-max); margin: 0 auto;
+  padding: var(--space-3) var(--space-4);
+}
+.mkt__brand { display: flex; align-items: center; gap: var(--space-2); text-decoration: none; }
+.mkt__brand-mark {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 8px; background: var(--primary); color: #fff;
+  font-weight: 700; font-size: 16px;
+}
+.mkt__wordmark { font-weight: 700; font-size: 22px; color: var(--primary); letter-spacing: 0.02em; }
+.mkt__nav { display: flex; gap: var(--space-4); align-items: center; margin-left: auto; }
+.mkt__nav a { color: var(--ink); text-decoration: none; font-size: var(--text-sm); font-weight: 500; }
+.mkt__nav a:hover { color: var(--primary); }
+.mkt__nav .mkt__cta { color: #fff; }
+
+/* ── Hero ───────────────────────────────────────────────────────────────── */
+.mkt__hero {
+  background: linear-gradient(180deg, #EEF5F4 0%, var(--surface) 100%);
+  border-bottom: 1px solid var(--border);
+}
+.mkt__hero-inner { max-width: var(--content-max); margin: 0 auto; padding: var(--space-6) var(--space-4); text-align: center; }
+.mkt__eyebrow { font-size: var(--text-xs); font-weight: 700; letter-spacing: 0.10em; text-transform: uppercase; color: var(--primary); }
+.mkt__h1 { font-size: var(--text-xl); line-height: 1.12; margin: var(--space-3) auto var(--space-3); max-width: 16ch; color: var(--ink); }
+.mkt__lede { font-size: var(--text-md); color: var(--muted); max-width: 60ch; margin: 0 auto var(--space-4); line-height: 1.55; }
+.mkt__hero-cta { display: flex; gap: var(--space-2); justify-content: center; flex-wrap: wrap; }
+.mkt__tagline { font-size: var(--text-sm); font-weight: 600; color: var(--primary); margin-top: var(--space-4); }
+
+/* ── Workflow band (4 icon tiles + arrows) ──────────────────────────────── */
+.mkt__flowband { max-width: var(--content-max); margin: 0 auto; padding: var(--space-6) var(--space-4); }
+.mkt__flowrow { display: flex; align-items: flex-start; justify-content: center; gap: var(--space-2); flex-wrap: wrap; }
+.mkt__flowstep { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); width: 150px; text-align: center; }
+.mkt__flowicon {
+  width: 56px; height: 56px; border-radius: 14px; background: var(--surface);
+  border: 1px solid var(--border); box-shadow: var(--shadow-raised);
+  display: flex; align-items: center; justify-content: center; color: var(--primary);
+}
+.mkt__flowlabel { font-size: var(--text-sm); font-weight: 600; }
+.mkt__flowsub { font-size: var(--text-xs); color: var(--muted); }
+.mkt__flowarrow { color: var(--border); align-self: center; margin-top: 20px; flex: none; }
+
+/* ── Generic sections ───────────────────────────────────────────────────── */
+.mkt__section { max-width: var(--content-max); margin: 0 auto; padding: var(--space-6) var(--space-4); border-top: 1px solid var(--border); }
+.mkt__h2 { font-size: var(--text-lg); margin: 0 0 var(--space-3); color: var(--ink); }
+.mkt__p { font-size: var(--text-sm); color: var(--ink); max-width: 65ch; line-height: 1.55; }
+
+/* 7-step detailed workflow */
+.mkt__flow { display: flex; flex-wrap: wrap; gap: var(--space-2); counter-reset: step; }
+.mkt__step {
+  flex: 1 1 150px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-card); padding: var(--space-3); position: relative;
+}
+.mkt__step::before {
+  counter-increment: step; content: counter(step);
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; border-radius: 50%; background: var(--primary); color: #fff;
+  font-size: var(--text-xs); font-weight: 700; margin-bottom: var(--space-2);
+}
+.mkt__step h4 { font-size: var(--text-sm); margin: 0 0 2px; }
+.mkt__step p { font-size: var(--text-xs); color: var(--muted); margin: 0; }
+
+.mkt__grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-3); margin-top: var(--space-3); }
+.mkt__card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); padding: var(--space-3); }
+.mkt__card h3 { font-size: var(--text-md); margin: 0 0 var(--space-1); }
+.mkt__card p { font-size: var(--text-sm); color: var(--muted); margin: 0; }
+
+/* Safeguards callout */
+.mkt__safeguards { background: var(--surface-subtle); border: 1px solid var(--primary); border-radius: var(--radius-card); padding: var(--space-4); }
+.mkt__safeguards ul { margin: var(--space-2) 0 0; padding-left: var(--space-4); }
+.mkt__safeguards li { margin-bottom: var(--space-1); font-size: var(--text-sm); }
+
+/* ── ARIA introduction card (the one place --aria appears on marketing) ──── */
+.mkt__ariacard {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-card); box-shadow: var(--shadow-raised);
+  padding: var(--space-4); max-width: 760px; margin: 0 auto;
+}
+.mkt__ariacard-head { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.mkt__aria-badge {
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  font-size: var(--text-xs); font-weight: 700; color: #fff; background: var(--aria);
+  border-radius: 999px; padding: var(--space-1) var(--space-2);
+}
+.mkt__ariacard-head h3 { font-size: var(--text-md); margin: 0; color: var(--ink); }
+.mkt__chips { display: flex; gap: var(--space-1); flex-wrap: wrap; margin-top: var(--space-3); }
+.mkt__chip {
+  font-size: var(--text-xs); font-weight: 600; color: var(--aria);
+  background: #F1EFFA; border: 1px solid var(--aria); border-radius: 999px;
+  padding: 2px var(--space-2);
+}
+
+.mkt__cta {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--primary); color: #fff; text-decoration: none;
+  padding: 0 var(--space-4); min-height: var(--min-touch);
+  border-radius: var(--radius-control); font-weight: 600; font-size: var(--text-sm);
+}
+.mkt__cta:hover { background: var(--primary-hover); }
+.mkt__cta--ghost { background: transparent; color: var(--primary); border: 1px solid var(--border); }
+.mkt__cta--ghost:hover { background: var(--surface-subtle); }
+.mkt__buyerlinks { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-3); }
+.mkt__footer { border-top: 1px solid var(--border); padding: var(--space-4); font-size: var(--text-xs); color: var(--muted); text-align: center; }
+
+@media (max-width: 720px) {
+  .mkt__grid { grid-template-columns: 1fr; }
+  .mkt__h1 { font-size: var(--text-lg); }
+  .mkt__header { flex-wrap: wrap; gap: var(--space-2); }
+  .mkt__nav { margin-left: 0; gap: var(--space-3); flex-wrap: wrap; }
+  .mkt__flowarrow { display: none; }
+}
