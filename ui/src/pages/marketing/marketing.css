@@ -1,0 +1,57 @@
+/* ALICE marketing — restrained, fully responsive. --primary is the only accent;
+ * --aria never appears here (ARIA is introduced inline in body copy only). */
+
+.mkt { background: var(--canvas); color: var(--ink); }
+.mkt__wrap { max-width: var(--content-max); margin: 0 auto; padding: var(--space-4); }
+
+.mkt__header { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border); background: var(--surface); }
+.mkt__wordmark { font-weight: 600; font-size: 20px; color: var(--primary); text-decoration: none; letter-spacing: 0.02em; }
+.mkt__nav { display: flex; gap: var(--space-3); flex-wrap: wrap; margin-left: auto; }
+.mkt__nav a { color: var(--ink); text-decoration: none; font-size: var(--text-sm); font-weight: 500; }
+.mkt__nav a:hover { color: var(--primary); }
+
+.mkt__hero { padding: var(--space-6) 0; }
+.mkt__eyebrow { font-size: var(--text-xs); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--primary); }
+.mkt__h1 { font-size: var(--text-xl); line-height: 1.15; margin: var(--space-2) 0 var(--space-3); max-width: 20ch; }
+.mkt__lede { font-size: var(--text-md); color: var(--muted); max-width: 60ch; margin: 0 0 var(--space-4); }
+.mkt__tagline { font-size: var(--text-md); font-weight: 600; color: var(--ink); margin-top: var(--space-3); }
+
+.mkt__section { padding: var(--space-5) 0; border-top: 1px solid var(--border); }
+.mkt__h2 { font-size: var(--text-lg); margin: 0 0 var(--space-3); }
+.mkt__p { font-size: var(--text-sm); color: var(--ink); max-width: 65ch; }
+
+.mkt__grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-3); }
+.mkt__card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); padding: var(--space-3); }
+.mkt__card h3 { font-size: var(--text-md); margin: 0 0 var(--space-1); }
+.mkt__card p { font-size: var(--text-sm); color: var(--muted); margin: 0; }
+
+/* Safeguards callout — prominent, but not using status "danger" as decoration. */
+.mkt__safeguards { background: var(--surface-subtle); border: 1px solid var(--primary); border-radius: var(--radius-card); padding: var(--space-4); }
+.mkt__safeguards ul { margin: var(--space-2) 0 0; padding-left: var(--space-4); }
+.mkt__safeguards li { margin-bottom: var(--space-1); font-size: var(--text-sm); }
+
+/* 7-step workflow diagram (CSS, responsive) */
+.mkt__flow { display: flex; flex-wrap: wrap; gap: var(--space-2); counter-reset: step; }
+.mkt__step {
+  flex: 1 1 160px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-card); padding: var(--space-3); position: relative;
+}
+.mkt__step::before {
+  counter-increment: step; content: counter(step);
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; border-radius: 50%; background: var(--primary); color: #fff;
+  font-size: var(--text-xs); font-weight: 700; margin-bottom: var(--space-1);
+}
+.mkt__step h4 { font-size: var(--text-sm); margin: 0 0 2px; }
+.mkt__step p { font-size: var(--text-xs); color: var(--muted); margin: 0; }
+
+.mkt__cta { display: inline-block; margin-top: var(--space-3); background: var(--primary); color: #fff; text-decoration: none; padding: var(--space-2) var(--space-4); border-radius: var(--radius-control); font-weight: 600; font-size: var(--text-sm); min-height: var(--min-touch); line-height: calc(var(--min-touch) - 2 * var(--space-2)); }
+.mkt__buyerlinks { display: flex; gap: var(--space-3); flex-wrap: wrap; margin-top: var(--space-3); }
+.mkt__footer { border-top: 1px solid var(--border); padding: var(--space-4); font-size: var(--text-xs); color: var(--muted); text-align: center; }
+
+@media (max-width: 720px) {
+  .mkt__grid { grid-template-columns: 1fr; }
+  .mkt__h1 { font-size: var(--text-lg); }
+  .mkt__header { flex-wrap: wrap; gap: var(--space-2); }
+  .mkt__nav { margin-left: 0; }
+}

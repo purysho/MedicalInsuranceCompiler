@@ -4,14 +4,19 @@
   "type": "module",
   "scripts": {
     "build": "tsc --skipLibCheck",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "test": "vitest run"
   },
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.19.2",
+    "openai": "^4.67.3",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/node": "^20.11.30",
     "typescript": "^5.6.3"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.4"
   }
 }

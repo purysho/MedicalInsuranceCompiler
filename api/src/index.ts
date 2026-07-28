@@ -20,6 +20,9 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import { searchSmartPatients, searchDiabetesPatients, importPatientFromSmart } from "./fhirClient.js";
 import { getLatestTrailForPatient, getAllTrailsForPatient, getAllTrails, registerIdAliases } from "./auditTrail.js";
+import { chatComplete, getModel } from "./llm.js";
+import { collectCaseProvenance } from "./provenance.js";
+import { createCase, listCases, listPatientDirectory } from "./cases.js";
 
 // ESM-safe __dirname (not available natively with "type":"module")
 const __filename = fileURLToPath(import.meta.url);
@@ -40,7 +43,19 @@ app.use(express.json({ limit: "2mb" }));
 // but we read it relative to the running file location
 const dashboardPath = path.resolve(__dirname_esm, "../src/dashboard.html");
 const hasDashboard = fs.existsSync(dashboardPath);
-console.log(`[UI] Dashboard: ${dashboardPath} — exists: ${hasDashboard}`);
+console.log(`[UI] Legacy dashboard: ${dashboardPath} — exists: ${hasDashboard}`);
+
+// Built ALICE React shell (ui/dist copied to api/public by `npm run build`).
+const publicDir = path.resolve(__dirname_esm, "../public");
+const spaIndex = path.join(publicDir, "index.html");
+const hasSpa = fs.existsSync(spaIndex);
+console.log(`[UI] ALICE shell: ${spaIndex} — exists: ${hasSpa}`);
+// Serve the SPA's static assets (JS/CSS under /assets). index:false so the
+// explicit "/" route below decides what the root serves.
+app.use(express.static(publicDir, { index: false }));
+
+// The default document: the ALICE shell when built, else the legacy dashboard.
+const rootDoc = hasSpa ? spaIndex : dashboardPath;
 
 const store = new FhirStore();
 
@@ -137,6 +152,11 @@ app.get("/healthz", (_req, res) => {
 });
 
 app.get("/", (_req, res) => {
+  res.sendFile(rootDoc);
+});
+
+// Legacy operations dashboard remains available.
+app.get("/dashboard", (_req, res) => {
   res.sendFile(dashboardPath);
 });
 
@@ -218,34 +238,31 @@ app.get("/api/appeal-letter/:docId", (req, res) => {
 
 
 // ── ARIA Chat endpoint ────────────────────────────────────────────────────────
+// Provider-agnostic: delegates to the OmniRoute adapter (api/src/llm.ts). Never
+// calls a provider URL directly and never hardcodes a model name. Requires
+// OPENAI_BASE_URL to be pointed at an OmniRoute instance.
 app.post("/api/aria-chat", async (req, res) => {
   try {
-    const key = process.env.ANTHROPIC_API_KEY;
-    if (!key) return res.status(500).json({ error: "ANTHROPIC_API_KEY not set" });
     const { messages, system } = req.body;
     if (!messages?.length) return res.status(400).json({ error: "messages required" });
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": key,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 2048,
-        system: system ?? "You are ARIA, the Appeal & Rebuttal Intelligence Agent.",
-        messages,
-      }),
+
+    const text = await chatComplete(messages, {
+      system: system ?? "You are ARIA, the Appeal & Rebuttal Intelligence Agent.",
+      maxTokens: 2048,
     });
-    if (!response.ok) {
-      const err = await response.text();
-      return res.status(response.status).json({ error: err });
-    }
-    const data = await response.json();
-    res.json(data);
+
+    // Shape a minimal, provider-neutral response the UI can consume. We keep a
+    // content array so existing callers reading data.content[0].text keep working.
+    res.json({
+      content: [{ type: "text", text }],
+      text,
+      model: getModel(),
+    });
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    const msg = e?.message ?? String(e);
+    // Missing OMNIROUTE config is an operator error, surface it as 500 with a
+    // clear, actionable message rather than a provider stack trace.
+    res.status(500).json({ error: msg });
   }
 });
 
@@ -291,6 +308,34 @@ app.get("/api/appeals/:patientId", (req, res) => {
       : rounds.length >= 2 ? ["Request peer-to-peer review", "Submit additional documentation"]
       : ["Await payer decision"],
   });
+});
+
+// ── Cases: list, create (in-memory, backed by FhirStore Task resources) ─────
+app.get("/api/cases", (_req, res) => {
+  res.json({ cases: listCases(store) });
+});
+
+app.post("/api/cases", (req, res) => {
+  try {
+    const record = createCase(store, req.body ?? {});
+    res.status(201).json({ case: record });
+  } catch (e: any) {
+    res.status(400).json({ error: e?.message ?? String(e) });
+  }
+});
+
+app.get("/api/patients", (_req, res) => {
+  res.json({ patients: listPatientDirectory(store) });
+});
+
+// ── Case provenance (read-only FHIR Provenance chain) ───────────────────────
+app.get("/api/cases/:caseId/provenance", (req, res) => {
+  try {
+    const steps = collectCaseProvenance(store, req.params.caseId);
+    res.json({ caseId: req.params.caseId, count: steps.length, provenance: steps });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message ?? String(e) });
+  }
 });
 
 // ── MCP Streamable HTTP endpoint (spec 2025-03-26) ───────────────────────────
@@ -669,9 +714,10 @@ app.get("/messages", (_req, res) => res.json({ messages: bus.messages }));
 
 app.get("/mcp-log", (_req, res) => res.json({ tools: getMcpLog() }));
 
-// SPA fallback: serve index.html for non-API GET routes.
-app.get(/^\/(?!mcp|seed|fhir-dump|clinician|run|packet|trace|messages|mcp-log|policy-data|show-me-why|simulate|api|health).*/, (_req, res) => {
-  res.sendFile(dashboardPath);
+// SPA fallback: serve the ALICE shell index.html for non-API GET routes so
+// client-side hash routes deep-link correctly.
+app.get(/^\/(?!mcp|seed|fhir-dump|clinician|run|packet|trace|messages|mcp-log|policy-data|show-me-why|simulate|api|health|dashboard).*/, (_req, res) => {
+  res.sendFile(rootDoc);
 });
 
 const port = Number(process.env.PORT ?? 8787);

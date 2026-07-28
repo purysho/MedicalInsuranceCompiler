@@ -1,0 +1,62 @@
+/* App shell — 240px sidebar + 64px top bar, 1200px max content. Tokens only. */
+
+.alc-shell { display: grid; grid-template-columns: var(--sidebar-width) 1fr; min-height: 100vh; }
+
+/* ── Sidebar ────────────────────────────────────────────────────────────── */
+.alc-sidebar {
+  background: var(--surface); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: var(--space-2);
+  padding: var(--space-3) var(--space-2);
+  position: sticky; top: 0; height: 100vh;
+}
+.alc-wordmark {
+  font-family: var(--font-sans); font-weight: 600; font-size: 20px;
+  color: var(--primary); letter-spacing: 0.02em;
+  padding: var(--space-2) var(--space-2) var(--space-3);
+  text-decoration: none; display: inline-block;
+}
+.alc-nav { display: flex; flex-direction: column; gap: 2px; list-style: none; margin: 0; padding: 0; }
+.alc-nav__item {
+  display: flex; align-items: center; gap: var(--space-2);
+  min-height: var(--min-touch); padding: 0 var(--space-3);
+  border-radius: var(--radius-control); color: var(--ink);
+  font-size: var(--text-sm); font-weight: 500; cursor: pointer;
+  background: transparent; border: none; width: 100%; text-align: left;
+}
+.alc-nav__item:hover { background: var(--surface-subtle); }
+.alc-nav__item[aria-current="page"] { background: var(--primary); color: #fff; }
+.alc-nav__icon { width: 20px; text-align: center; flex: none; }
+
+/* ── Top bar ────────────────────────────────────────────────────────────── */
+.alc-topbar {
+  height: var(--topbar-height); background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: 0 var(--space-4); position: sticky; top: 0; z-index: 20;
+}
+.alc-topbar__workspace { font-weight: 600; font-size: var(--text-sm); color: var(--ink); }
+.alc-topbar__spacer { flex: 1; }
+.alc-topbar__search {
+  min-width: 220px; max-width: 360px; flex: 1;
+  min-height: 40px; padding: 0 var(--space-3);
+  border: 1px solid var(--border); border-radius: var(--radius-control);
+  font-size: var(--text-sm); font-family: var(--font-sans);
+}
+.alc-topbar__role {
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  font-size: var(--text-xs); font-weight: 600; color: var(--primary);
+  background: var(--surface-subtle); border: 1px solid var(--border);
+  border-radius: 999px; padding: var(--space-1) var(--space-2);
+}
+.alc-main { display: flex; flex-direction: column; min-width: 0; background: var(--canvas); }
+
+/* ── PageLayout ─────────────────────────────────────────────────────────── */
+.alc-page { width: 100%; max-width: var(--content-max); margin: 0 auto; padding: var(--space-4); }
+
+/* ── Responsive: icon-only sidebar < 1024px ─────────────────────────────── */
+@media (max-width: 1023px) {
+  .alc-shell { grid-template-columns: 64px 1fr; }
+  .alc-nav__label, .alc-wordmark__full { display: none; }
+  .alc-wordmark::after { content: "A"; }
+  .alc-nav__item { justify-content: center; padding: 0; }
+}

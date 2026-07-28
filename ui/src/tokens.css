@@ -1,0 +1,98 @@
+/* ALICE Design System — Calm Clinical
+ * Canonical design tokens (PLAN 2.md). These are the single source of truth for
+ * color, spacing, type scale, and radii. Do not hardcode hex values in
+ * components — reference these variables.
+ *
+ * WCAG AA note: --ink on --surface/--canvas, and every status color on
+ * --surface, meet 4.5:1 for normal text. Color is never the sole status
+ * channel — components pair it with an icon/label.
+ */
+:root {
+  /* Surfaces */
+  --canvas: #F7FAFA;
+  --surface: #FFFFFF;
+  --surface-subtle: #F0F5F5;
+
+  /* Typography */
+  --ink: #163137;
+  --muted: #63777B;
+  --border: #D8E4E5;
+
+  /* Brand */
+  --primary: #0F766E;
+  --primary-hover: #0B5D57;
+  --focus: #2563EB;
+
+  /* Status */
+  --success: #18794E;
+  --warning: #A15C00;
+  --danger: #B42318;
+  --info: #2D6EA8;
+
+  /* ARIA-only — do not use elsewhere */
+  --aria: #6756C8;
+
+  /* Spacing */
+  --space-1: 4px;   /* tight icon/text gaps only */
+  --space-2: 8px;   /* base unit */
+  --space-3: 16px;
+  --space-4: 24px;
+  --space-5: 32px;
+  --space-6: 48px;
+
+  /* Typography scale */
+  --text-xs: 12px;   /* metadata */
+  --text-sm: 14px;   /* body default */
+  --text-md: 16px;   /* section labels */
+  --text-lg: 24px;   /* page headings */
+  --text-xl: 32px;   /* primary headings */
+
+  /* Radii */
+  --radius-control: 8px;
+  --radius-card: 12px;
+
+  /* Interactive */
+  --min-touch: 44px;
+
+  /* Elevation — single soft shadow for raised surfaces */
+  --shadow-raised: 0 1px 2px rgba(22, 49, 55, 0.06), 0 2px 8px rgba(22, 49, 55, 0.08);
+
+  /* Layout */
+  --sidebar-width: 240px;
+  --topbar-height: 64px;
+  --content-max: 1200px;
+
+  /* Type family */
+  --font-sans: "Inter", system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Base reset scoped to the app — light mode only for V1 (PLAN 2.md). */
+html, body, #root {
+  height: 100%;
+}
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+*, *::before, *::after { box-sizing: border-box; }
+
+/* Global visible focus ring — every interactive element uses --focus. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--radius-control);
+}
+
+/* Utility: visually hidden but available to screen readers. */
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0);
+  white-space: nowrap; border: 0;
+}
