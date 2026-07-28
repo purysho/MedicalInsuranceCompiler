@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Citation } from "../../types";
 import { Button } from "../primitives";
 import "./clinical.css";
@@ -12,6 +12,10 @@ export interface AriaPanelProps {
   /** When set, "Approve draft" is disabled and this reason is shown. Used e.g.
    * when a paragraph has no matching EvidenceItem (uncited assertion). */
   approveBlockedReason?: string;
+  /** True when the draft is fixture text served because no model provider is
+   * configured. Renders an explicit notice so a sample can never be mistaken
+   * for model output. */
+  isDemo?: boolean;
   onEdit?: (text: string) => void;
   onApprove?: () => void;
 }
@@ -33,11 +37,19 @@ export function AriaPanel({
   uncertaintyFlags,
   loading = false,
   approveBlockedReason,
+  isDemo = false,
   onEdit,
   onApprove,
 }: AriaPanelProps) {
   const [text, setText] = useState(draft);
   const approveDisabled = loading || !!approveBlockedReason;
+
+  // The panel mounts while ARIA is still drafting (draft === ""), so the
+  // initial useState value is empty. Sync when the draft actually arrives —
+  // otherwise the editable textarea stays blank and the reviewer has nothing
+  // to review. Reviewer edits are preserved because this only fires when the
+  // incoming draft prop itself changes.
+  useEffect(() => { setText(draft); }, [draft]);
 
   return (
     <section className="alc-aria" aria-label="ARIA appeal draft">
@@ -56,6 +68,19 @@ export function AriaPanel({
         <span aria-hidden="true">⚠</span>
         <span>Human review required before submission</span>
       </div>
+
+      {/* Sample-draft notice. Fixture text must never read as model output. */}
+      {isDemo && (
+        <div className="alc-aria__demo-banner" role="status">
+          <span aria-hidden="true">◇</span>
+          <span>
+            <strong>Sample draft</strong> — no language model is configured, so this is
+            fixture text for evaluating the review workflow. Set{" "}
+            <code>OPENAI_BASE_URL</code> and <code>OPENAI_API_KEY</code> to enable real
+            ARIA drafting.
+          </span>
+        </div>
+      )}
 
       {loading ? (
         <div className="alc-aria__loading">

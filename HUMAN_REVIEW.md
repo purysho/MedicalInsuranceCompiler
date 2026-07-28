@@ -30,7 +30,11 @@ code, and doing so is a forbidden change:
    approval is recorded. "Assign for submission" is disabled until approved.
 3. **ARIA appeal-draft delivery.** Every ARIA draft carries a **non-dismissable**
    "⚠ Human review required before submission" banner. A draft cannot be treated as
-   final until a clinician has reviewed and approved it.
+   final until a clinician has reviewed and approved it. This applies identically to
+   **sample drafts** produced in demo mode (no model provider configured): a sample is
+   additionally labelled in-band, flagged `demo: true` on the API response, and marked
+   with a "Sample draft" notice in the panel — but it is gated exactly like real model
+   output. Demo mode never relaxes a review requirement.
 4. **Any coverage/clinical output.** Payer-criteria results are only *labelled*
    (supported / missing / conflicting / needs clinician confirmation). ALICE never
    issues an authorization or denial — a human decides.

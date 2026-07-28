@@ -21,6 +21,7 @@ import { fileURLToPath } from "url";
 import { searchSmartPatients, searchDiabetesPatients, importPatientFromSmart } from "./fhirClient.js";
 import { getLatestTrailForPatient, getAllTrailsForPatient, getAllTrails, registerIdAliases } from "./auditTrail.js";
 import { chatComplete, getModel } from "./llm.js";
+import { isDemoMode, buildAriaDemoDraft } from "./ariaDemoDraft.js";
 import { collectCaseProvenance } from "./provenance.js";
 import { createCase, listCases, listPatientDirectory } from "./cases.js";
 
@@ -243,8 +244,23 @@ app.get("/api/appeal-letter/:docId", (req, res) => {
 // OPENAI_BASE_URL to be pointed at an OmniRoute instance.
 app.post("/api/aria-chat", async (req, res) => {
   try {
-    const { messages, system } = req.body;
+    const { messages, system, demoContext } = req.body;
     if (!messages?.length) return res.status(400).json({ error: "messages required" });
+
+    // No provider configured (or demo explicitly forced): serve a labelled
+    // fixture draft instead of failing. This lets the review workflow be
+    // evaluated end-to-end with no API key and no model cost. The draft is
+    // marked demo:true so the UI can never present it as model output.
+    if (isDemoMode()) {
+      const { text, uncertaintyFlags } = buildAriaDemoDraft(demoContext ?? {});
+      return res.json({
+        content: [{ type: "text", text }],
+        text,
+        model: "demo-fixture",
+        demo: true,
+        uncertaintyFlags,
+      });
+    }
 
     const text = await chatComplete(messages, {
       system: system ?? "You are ARIA, the Appeal & Rebuttal Intelligence Agent.",
@@ -257,11 +273,12 @@ app.post("/api/aria-chat", async (req, res) => {
       content: [{ type: "text", text }],
       text,
       model: getModel(),
+      demo: false,
     });
   } catch (e: any) {
     const msg = e?.message ?? String(e);
-    // Missing OMNIROUTE config is an operator error, surface it as 500 with a
-    // clear, actionable message rather than a provider stack trace.
+    // Provider/config errors are operator errors — surface a clear, actionable
+    // message rather than a provider stack trace.
     res.status(500).json({ error: msg });
   }
 });

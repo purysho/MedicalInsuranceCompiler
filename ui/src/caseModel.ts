@@ -20,6 +20,9 @@ export interface AriaDraftData {
   uncertaintyFlags: string[];
   /** When set, ARIA's "Approve draft" is blocked (e.g. uncited paragraph). */
   approveBlockedReason?: string;
+  /** True when this is a fixture draft served because no model provider is
+   * configured. Must be surfaced in the UI — never presented as model output. */
+  isDemo?: boolean;
 }
 
 export interface CaseData {

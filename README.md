@@ -41,13 +41,36 @@ Copy `.env.example` to `.env` and configure the OpenAI-compatible LLM endpoint:
 
 | Variable          | Purpose                                                                 |
 | ----------------- | ----------------------------------------------------------------------- |
-| `OPENAI_BASE_URL` | Base URL of your OpenAI-compatible endpoint. **Required** for ARIA.     |
+| `OPENAI_BASE_URL` | Base URL of your OpenAI-compatible endpoint. Unset → ARIA demo mode.    |
 | `OPENAI_API_KEY`  | API key forwarded to that endpoint (any placeholder for local dev).     |
 | `ALICE_MODEL`     | Optional model id. Unset → `auto` (never a hardcoded provider model).   |
+| `ALICE_DEMO_MODE` | Set to `1` to force ARIA demo mode even when a provider is configured.  |
 | `PORT`            | Server port (default `8787`).                                           |
 
-If `OPENAI_BASE_URL` is not set, ARIA calls fail with a clear, actionable error
-instead of contacting any provider directly.
+The adapter is provider-agnostic — any OpenAI-compatible endpoint works
+(OpenAI, Google Gemini's OpenAI-compat URL, Groq, OpenRouter, a self-hosted
+gateway). No provider URL or model name is hardcoded.
+
+### ARIA demo mode (no API key required)
+
+If `OPENAI_BASE_URL` is not set, ARIA serves a **labelled sample draft** built
+from the case's own facts instead of failing. This exists so the review
+workflow can be evaluated end-to-end — draft, citations, uncertainty flags,
+and the clinician approval gate — with **no API key and no model cost**.
+
+A sample draft is never presented as model output:
+
+- the letter body opens with a `[SAMPLE DRAFT — generated without a language
+  model…]` header,
+- the API response carries `demo: true`,
+- the UI renders an explicit "Sample draft" notice in the ARIA panel, and
+- two uncertainty flags are always attached.
+
+The human-review gate is **unchanged** in demo mode — a sample draft is just as
+un-approvable without clinician sign-off as a real one.
+
+Set `OPENAI_BASE_URL` + `OPENAI_API_KEY` to switch to real drafting. Nothing
+else changes.
 
 ## Tests
 
